@@ -20,7 +20,7 @@ import org.elasticsearch.search.facet.InternalFacet;
  */
 public class InternalDistinctDateHistogramFacet implements DistinctDateHistogramFacet, InternalFacet {
 
-    private static final String STREAM_TYPE = "cdHistogram";
+    private static final String STREAM_TYPE = "distinct_date_histogram";
 
     public static void registerStreams() {
         Streams.registerStream(STREAM, STREAM_TYPE);

@@ -14,7 +14,7 @@ public interface DistinctDateHistogramFacet extends Facet, Iterable<DistinctDate
     /**
      * The type of the filter facet.
      */
-    public static final String TYPE = "date_histogram_approx";
+    public static final String TYPE = "distinct_date_histogram";
 
     /**
      * An ordered list of histogram facet entries.

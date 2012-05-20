@@ -58,16 +58,10 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
     }
 
     /**
-     * The field name to use as the value of the hit to compute data based on values within the interval
-     * (for example, total).
+     * The field name to use as the value of the hit to compute counts based on values within the interval.
      */
     public DistinctDateHistogramFacetBuilder valueField(final String valueField) {
         this.valueFieldName = valueField;
-        return this;
-    }
-
-    public DistinctDateHistogramFacetBuilder valueScript(final String valueScript) {
-        this.valueScript = valueScript;
         return this;
     }
 
@@ -76,14 +70,6 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
             params = Maps.newHashMap();
         }
         params.put(name, value);
-        return this;
-    }
-
-    /**
-     * The language of the value script.
-     */
-    public DistinctDateHistogramFacetBuilder lang(final String lang) {
-        this.lang = lang;
         return this;
     }
 
@@ -159,16 +145,6 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
     }
 
     /**
-     * Should the facet run in global mode (not bounded by the search query) or not (bounded by
-     * the search query). Defaults to <tt>false</tt>.
-     */
-    @Override
-    public DistinctDateHistogramFacetBuilder global(final boolean global) {
-        super.global(global);
-        return this;
-    }
-
-    /**
      * Marks the facet to run in a specific scope.
      */
     @Override
@@ -212,15 +188,6 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
             builder.field("value_field", valueFieldName);
         } else {
             builder.field("field", keyFieldName);
-        }
-        if(valueScript != null) {
-            builder.field("value_script", valueScript);
-            if(lang != null) {
-                builder.field("lang", lang);
-            }
-            if(this.params != null) {
-                builder.field("params", this.params);
-            }
         }
         builder.field("interval", interval);
         if(preZone != null) {
