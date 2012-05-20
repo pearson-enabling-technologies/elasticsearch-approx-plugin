@@ -44,10 +44,12 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
     public static class CountEntry implements Entry {
         private final long time;
         private final long count;
+        private final long distinctCount;
 
-        public CountEntry(final long time, final long count) {
+        public CountEntry(final long time, final long count, final long distinctCount) {
             this.time = time;
             this.count = count;
+            this.distinctCount = distinctCount;
         }
 
         @Override
@@ -72,14 +74,12 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
 
         @Override
         public long distinctCount() {
-            // TODO Auto-generated method stub
-            return 0;
+            return distinctCount;
         }
 
         @Override
         public long getDistinctCount() {
-            // TODO Auto-generated method stub
-            return 0;
+            return distinctCount();
         }
     }
 

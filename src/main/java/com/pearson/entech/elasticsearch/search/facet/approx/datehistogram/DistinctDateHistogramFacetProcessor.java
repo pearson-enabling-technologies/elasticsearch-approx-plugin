@@ -66,8 +66,8 @@ public class DistinctDateHistogramFacetProcessor extends AbstractComponent imple
     public FacetCollector parse(final String facetName, final XContentParser parser, final SearchContext context) throws IOException {
         String keyField = null;
         String valueField = null;
-        String valueScript = null;
-        String scriptLang = null;
+        final String valueScript = null;
+        final String scriptLang = null;
         Map<String, Object> params = null;
         String interval = null;
         DateTimeZone preZone = DateTimeZone.UTC;
@@ -110,12 +110,8 @@ public class DistinctDateHistogramFacetProcessor extends AbstractComponent imple
                     postOffset = parseOffset(parser.text());
                 } else if("factor".equals(fieldName)) {
                     factor = parser.floatValue();
-                } else if("value_script".equals(fieldName) || "valueScript".equals(fieldName)) {
-                    valueScript = parser.text();
                 } else if("order".equals(fieldName) || "comparator".equals(fieldName)) {
                     comparatorType = DistinctDateHistogramFacet.ComparatorType.fromString(parser.text());
-                } else if("lang".equals(fieldName)) {
-                    scriptLang = parser.text();
                 }
             }
         }

@@ -1,24 +1,30 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
+import static com.google.common.collect.Lists.newArrayList;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.index.query.NumericRangeFilterBuilder;
+import org.elasticsearch.index.query.FilterBuilder;
+import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.node.Node;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacet.Entry;
 
 public class DistinctDateHistogramFacetTest {
 
@@ -44,6 +50,8 @@ public class DistinctDateHistogramFacetTest {
     private static final String __txtField = "txt";
 
     private static final String __idField = "_id";
+
+    private static final String __facetName = "histogram";
 
     @BeforeClass
     public static void setUpClass() {
@@ -89,26 +97,46 @@ public class DistinctDateHistogramFacetTest {
 
     @Test
     public void testWithMaxOneTotalValuePerBucket() throws ElasticSearchException, IOException {
-        putSync("0", __days[0]);
-        putSync("1", __days[2]);
-        putSync("2", __days[4]);
-        putSync("3", __days[6]);
+        putSync("0", __days[0] + 10);
+        putSync("2", __days[2] + 10);
+        putSync("3", __days[4] + 10);
+        putSync("6", __days[6] + 10);
         assertEquals(4, countAll());
-        final SearchResponse histogram = getHistogram(__days[0], __days[7], "day");
-        System.out.println(histogram);
+        final SearchResponse response = getHistogram(__days[0], __days[7], "day");
+        assertEquals(4, response.hits().getTotalHits());
+        final DistinctDateHistogramFacet facet = response.facets().facet(__facetName);
+        final ArrayList<Entry> facetList = newArrayList(facet);
+        assertEquals(4, facetList.size());
+        assertEquals(__days[0], facetList.get(0).getTime());
+        assertEquals(__days[2], facetList.get(1).getTime());
+        assertEquals(__days[4], facetList.get(2).getTime());
+        assertEquals(__days[6], facetList.get(3).getTime());
+        assertEquals(1, facetList.get(0).count());
+        assertEquals(1, facetList.get(1).count());
+        assertEquals(1, facetList.get(2).count());
+        assertEquals(1, facetList.get(3).count());
+        assertEquals(1, facetList.get(0).distinctCount());
+        assertEquals(1, facetList.get(1).distinctCount());
+        assertEquals(1, facetList.get(2).distinctCount());
+        assertEquals(1, facetList.get(3).distinctCount());
     }
 
     // Helper methods
 
     private SearchResponse getHistogram(final long start, final long end, final String interval) {
-        return client().prepareSearch("_all")
-                .setFilter((new NumericRangeFilterBuilder(__tsField)
+        final FilterBuilder range =
+                FilterBuilders.numericRangeFilter(__tsField)
                         .from(start)
-                        .to(end)))
-                .addFacet(new DistinctDateHistogramFacetBuilder(interval + " counts")
-                        .interval(interval)
-                        .field(__tsField)
-                        .valueField(__idField))
+                        .to(end);
+        final DistinctDateHistogramFacetBuilder facet =
+                new DistinctDateHistogramFacetBuilder(__facetName)
+                        .keyField(__tsField)
+                        .valueField(__idField)
+                        .facetFilter(range)
+                        .interval(interval);
+        return client().prepareSearch(__index)
+                .setSearchType(SearchType.COUNT)
+                .addFacet(facet)
                 .execute().actionGet();
     }
 

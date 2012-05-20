@@ -119,7 +119,7 @@ public interface DistinctDateHistogramFacet extends Facet, Iterable<DistinctDate
                 return TIME;
             } else if("count".equals(type)) {
                 return COUNT;
-            } else if("total".equals(type)) {
+            } else if("distinct".equals(type)) {
                 return DISTINCT;
             }
             throw new ElasticSearchIllegalArgumentException("No type argument match for histogram comparator [" + type + "]");

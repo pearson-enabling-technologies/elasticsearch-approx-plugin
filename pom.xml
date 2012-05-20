@@ -54,6 +54,11 @@
 			<artifactId>elasticsearch</artifactId>
 			<version>0.19.3</version>
 		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava-collections</artifactId>
+			<version>r03</version>
+		</dependency>
 	</dependencies>
 
 	<repositories>
