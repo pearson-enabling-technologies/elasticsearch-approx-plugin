@@ -13,11 +13,12 @@ import org.elasticsearch.common.trove.map.hash.TLongLongHashMap;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
+import org.elasticsearch.search.facet.InternalFacet;
 
 /**
  *
  */
-public class InternalDistinctDateHistogramFacet extends InternalDateHistogramFacet {
+public class InternalDistinctDateHistogramFacet implements DistinctDateHistogramFacet, InternalFacet {
 
     private static final String STREAM_TYPE = "cdHistogram";
 
@@ -70,53 +71,15 @@ public class InternalDistinctDateHistogramFacet extends InternalDateHistogramFac
         }
 
         @Override
-        public long totalCount() {
+        public long distinctCount() {
+            // TODO Auto-generated method stub
             return 0;
         }
 
         @Override
-        public long getTotalCount() {
+        public long getDistinctCount() {
+            // TODO Auto-generated method stub
             return 0;
-        }
-
-        @Override
-        public double total() {
-            return Double.NaN;
-        }
-
-        @Override
-        public double getTotal() {
-            return total();
-        }
-
-        @Override
-        public double mean() {
-            return Double.NaN;
-        }
-
-        @Override
-        public double getMean() {
-            return mean();
-        }
-
-        @Override
-        public double min() {
-            return Double.NaN;
-        }
-
-        @Override
-        public double getMin() {
-            return Double.NaN;
-        }
-
-        @Override
-        public double max() {
-            return Double.NaN;
-        }
-
-        @Override
-        public double getMax() {
-            return Double.NaN;
         }
     }
 
@@ -197,7 +160,6 @@ public class InternalDistinctDateHistogramFacet extends InternalDateHistogramFac
         return entries;
     }
 
-    @Override
     public Facet reduce(final String name, final List<Facet> facets) {
         if(facets.size() == 1) {
             return facets.get(0);

@@ -23,17 +23,18 @@ import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.FacetCollector;
 import org.elasticsearch.search.facet.FacetPhaseExecutionException;
 import org.elasticsearch.search.facet.FacetProcessor;
+import org.elasticsearch.search.facet.datehistogram.InternalDateHistogramFacet;
 import org.elasticsearch.search.internal.SearchContext;
 
 /**
  *
  */
-public class DateHistogramFacetProcessor extends AbstractComponent implements FacetProcessor {
+public class DistinctDateHistogramFacetProcessor extends AbstractComponent implements FacetProcessor {
 
     private final ImmutableMap<String, DateFieldParser> dateFieldParsers;
 
     @Inject
-    public DateHistogramFacetProcessor(final Settings settings) {
+    public DistinctDateHistogramFacetProcessor(final Settings settings) {
         super(settings);
         InternalDateHistogramFacet.registerStreams();
 
@@ -58,7 +59,7 @@ public class DateHistogramFacetProcessor extends AbstractComponent implements Fa
 
     @Override
     public String[] types() {
-        return new String[] { DateHistogramFacet.TYPE, "dateHistogram" };
+        return new String[] { DistinctDateHistogramFacet.TYPE, "dateHistogram" };
     }
 
     @Override
@@ -76,7 +77,7 @@ public class DateHistogramFacetProcessor extends AbstractComponent implements Fa
         long postOffset = 0;
         float factor = 1.0f;
         final Chronology chronology = ISOChronology.getInstanceUTC();
-        DateHistogramFacet.ComparatorType comparatorType = DateHistogramFacet.ComparatorType.TIME;
+        DistinctDateHistogramFacet.ComparatorType comparatorType = DistinctDateHistogramFacet.ComparatorType.TIME;
         XContentParser.Token token;
         String fieldName = null;
         while((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
@@ -112,7 +113,7 @@ public class DateHistogramFacetProcessor extends AbstractComponent implements Fa
                 } else if("value_script".equals(fieldName) || "valueScript".equals(fieldName)) {
                     valueScript = parser.text();
                 } else if("order".equals(fieldName) || "comparator".equals(fieldName)) {
-                    comparatorType = DateHistogramFacet.ComparatorType.fromString(parser.text());
+                    comparatorType = DistinctDateHistogramFacet.ComparatorType.fromString(parser.text());
                 } else if("lang".equals(fieldName)) {
                     scriptLang = parser.text();
                 }
@@ -151,13 +152,7 @@ public class DateHistogramFacetProcessor extends AbstractComponent implements Fa
                 .factor(factor)
                 .build();
 
-        if(valueScript != null) {
-            return new ValueScriptDateHistogramFacetCollector(facetName, keyField, scriptLang, valueScript, params, tzRounding, comparatorType, context);
-        } else if(valueField == null) {
-            return new DistinctDateHistogramFacetCollector(facetName, keyField, tzRounding, comparatorType, context);
-        } else {
-            return new ValueDateHistogramFacetCollector(facetName, keyField, valueField, tzRounding, comparatorType, context);
-        }
+        return new DistinctDateHistogramFacetCollector(facetName, keyField, valueField, tzRounding, comparatorType, context);
     }
 
     private long parseOffset(final String offset) throws IOException {
@@ -188,7 +183,7 @@ public class DateHistogramFacetProcessor extends AbstractComponent implements Fa
 
     @Override
     public Facet reduce(final String name, final List<Facet> facets) {
-        final InternalDateHistogramFacet first = (InternalDateHistogramFacet) facets.get(0);
+        final InternalDistinctDateHistogramFacet first = (InternalDistinctDateHistogramFacet) facets.get(0);
         return first.reduce(name, facets);
     }
 

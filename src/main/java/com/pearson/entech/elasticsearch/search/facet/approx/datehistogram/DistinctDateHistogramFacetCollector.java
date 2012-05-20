@@ -24,7 +24,7 @@ public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector 
 
     private final String indexFieldName;
 
-    private final DateHistogramFacet.ComparatorType comparatorType;
+    private final DistinctDateHistogramFacet.ComparatorType comparatorType;
 
     private final FieldDataCache fieldDataCache;
 
@@ -34,8 +34,8 @@ public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector 
 
     private final DateHistogramProc histoProc;
 
-    public DistinctDateHistogramFacetCollector(final String facetName, final String fieldName, final TimeZoneRounding tzRounding,
-            final DateHistogramFacet.ComparatorType comparatorType, final SearchContext context) {
+    public DistinctDateHistogramFacetCollector(final String facetName, final String fieldName, final String valueField, final TimeZoneRounding tzRounding,
+            final DistinctDateHistogramFacet.ComparatorType comparatorType, final SearchContext context) {
         super(facetName);
         this.comparatorType = comparatorType;
         this.fieldDataCache = context.fieldDataCache();

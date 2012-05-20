@@ -7,9 +7,9 @@ import org.elasticsearch.ElasticSearchIllegalArgumentException;
 import org.elasticsearch.search.facet.Facet;
 
 /**
- * An approximate date histogram facet.
+ * An approximate distinct-values date histogram facet.
  */
-public interface DateHistogramFacet extends Facet, Iterable<DateHistogramFacet.Entry> {
+public interface DistinctDateHistogramFacet extends Facet, Iterable<DistinctDateHistogramFacet.Entry> {
 
     /**
      * The type of the filter facet.
@@ -61,7 +61,7 @@ public interface DateHistogramFacet extends Facet, Iterable<DateHistogramFacet.E
                 return(o1.count() < o2.count() ? -1 : (o1.count() == o2.count() ? 0 : 1));
             }
         }),
-        TOTAL((byte) 2, "total", new Comparator<Entry>() {
+        DISTINCT((byte) 2, "distinct", new Comparator<Entry>() {
 
             @Override
             public int compare(final Entry o1, final Entry o2) {
@@ -75,7 +75,7 @@ public interface DateHistogramFacet extends Facet, Iterable<DateHistogramFacet.E
                 if(o2 == null) {
                     return -1;
                 }
-                return(o1.total() < o2.total() ? -1 : (o1.total() == o2.total() ? 0 : 1));
+                return(o1.distinctCount() < o2.distinctCount() ? -1 : (o1.distinctCount() == o2.distinctCount() ? 0 : 1));
             }
         });
 
@@ -109,7 +109,7 @@ public interface DateHistogramFacet extends Facet, Iterable<DateHistogramFacet.E
             } else if(id == 1) {
                 return COUNT;
             } else if(id == 2) {
-                return TOTAL;
+                return DISTINCT;
             }
             throw new ElasticSearchIllegalArgumentException("No type argument match for histogram comparator [" + id + "]");
         }
@@ -120,7 +120,7 @@ public interface DateHistogramFacet extends Facet, Iterable<DateHistogramFacet.E
             } else if("count".equals(type)) {
                 return COUNT;
             } else if("total".equals(type)) {
-                return TOTAL;
+                return DISTINCT;
             }
             throw new ElasticSearchIllegalArgumentException("No type argument match for histogram comparator [" + type + "]");
         }
@@ -149,53 +149,14 @@ public interface DateHistogramFacet extends Facet, Iterable<DateHistogramFacet.E
         long getCount();
 
         /**
-         * The total count of values aggregated to compute the total.
+         * The number of distinct values of the value field that fall within that key "range" or "interval".
          */
-        long totalCount();
+        long distinctCount();
 
         /**
-         * The total count of values aggregated to compute the total.
+         * The number of distinct values of the value field that fall within that key "range" or "interval".
          */
-        long getTotalCount();
+        long getDistinctCount();
 
-        /**
-         * The sum / total of the value field that fall within this key "interval".
-         */
-        double total();
-
-        /**
-         * The sum / total of the value field that fall within this key "interval".
-         */
-        double getTotal();
-
-        /**
-         * The mean of this facet interval.
-         */
-        double mean();
-
-        /**
-         * The mean of this facet interval.
-         */
-        double getMean();
-
-        /**
-         * The minimum value.
-         */
-        double min();
-
-        /**
-         * The minimum value.
-         */
-        double getMin();
-
-        /**
-         * The maximum value.
-         */
-        double max();
-
-        /**
-         * The maximum value.
-         */
-        double getMax();
     }
 }
