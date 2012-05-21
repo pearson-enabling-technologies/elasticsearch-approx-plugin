@@ -96,12 +96,13 @@ public class DistinctDateHistogramFacetTest {
     }
 
     @Test
-    public void testWithMaxOneTotalValuePerBucket() throws ElasticSearchException, IOException {
+    public void testWithMaxOneTotalValuePerBucket() throws Exception {
         putSync("0", __days[0] + 10);
         putSync("2", __days[2] + 10);
         putSync("3", __days[4] + 10);
         putSync("6", __days[6] + 10);
         assertEquals(4, countAll());
+        //Thread.sleep(Long.MAX_VALUE);
         final SearchResponse response = getHistogram(__days[0], __days[7], "day");
         assertEquals(4, response.hits().getTotalHits());
         final DistinctDateHistogramFacet facet = response.facets().facet(__facetName);
@@ -131,7 +132,7 @@ public class DistinctDateHistogramFacetTest {
         final DistinctDateHistogramFacetBuilder facet =
                 new DistinctDateHistogramFacetBuilder(__facetName)
                         .keyField(__tsField)
-                        .valueField(__idField)
+                        .valueField("_uid")
                         .facetFilter(range)
                         .interval(interval);
         return client().prepareSearch(__index)
@@ -148,8 +149,7 @@ public class DistinctDateHistogramFacetTest {
                         .startObject()
                         .field(__txtField, "Document created at " + timestamp)
                         .field(__tsField, timestamp)
-                        .endObject())
-                .execute().actionGet();
+                        .endObject()).execute().actionGet();
     }
 
     private long countAll() {

@@ -16,8 +16,6 @@ import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.InternalFacet;
 
-import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
-
 /**
  *
  */
@@ -149,8 +147,6 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
         }
     }
 
-    // TODO we are unnecessarily serializing and deserializing in the reduce phase
-
     private CountEntry[] computeEntries() {
         if(entries != null) {
             return entries;
@@ -178,14 +174,7 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
             for(final TLongObjectIterator<DistinctCountPayload> it = histoFacet.counts.iterator(); it.hasNext();) {
                 it.advance();
                 final long facetStart = it.key();
-                if(counts.containsKey(facetStart))
-                    try {
-                        counts.put(facetStart, counts.get(facetStart).merge(it.value()));
-                    } catch(final CardinalityMergeException e) {
-                        throw new ElasticSearchException("Unable to merge two facet cardinality objects", e);
-                    }
-                else
-                    counts.put(facetStart, counts.get(facetStart));
+                it.value().mergeInto(counts, facetStart);
             }
             histoFacet.releaseCache();
         }

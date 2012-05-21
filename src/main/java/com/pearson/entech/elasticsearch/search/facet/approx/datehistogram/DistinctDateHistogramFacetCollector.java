@@ -3,11 +3,13 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 import java.io.IOException;
 
 import org.apache.lucene.index.IndexReader;
-import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
-import org.elasticsearch.common.trove.map.hash.TLongObjectHashMap;
+import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.cache.field.data.FieldDataCache;
+import org.elasticsearch.index.field.data.FieldData;
+import org.elasticsearch.index.field.data.FieldData.StringValueInDocProc;
 import org.elasticsearch.index.field.data.FieldDataType;
+import org.elasticsearch.index.field.data.NumericFieldData.LongValueInDocProc;
 import org.elasticsearch.index.field.data.longs.LongFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.index.mapper.MapperService;
@@ -22,49 +24,68 @@ import org.elasticsearch.search.internal.SearchContext;
  */
 public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector {
 
-    private final String indexFieldName;
+    private final String keyFieldName;
 
     private final DistinctDateHistogramFacet.ComparatorType comparatorType;
 
     private final FieldDataCache fieldDataCache;
 
-    private final FieldDataType fieldDataType;
+    private final FieldDataType keyFieldType;
 
-    private LongFieldData fieldData;
+    private LongFieldData keyFieldData;
 
-    private final DateHistogramProc histoProc;
+    private FieldData valueFieldData;
 
-    public DistinctDateHistogramFacetCollector(final String facetName, final String fieldName, final String valueField, final TimeZoneRounding tzRounding,
+    private final KeyFieldVisitor histoProc;
+
+    private final ExtTLongObjectHashMap<DistinctCountPayload> payloads;
+
+    private final String valueFieldName;
+
+    private final FieldDataType valueFieldType;
+
+    public DistinctDateHistogramFacetCollector(final String facetName, final String keyField, final String valueField, final TimeZoneRounding tzRounding,
             final DistinctDateHistogramFacet.ComparatorType comparatorType, final SearchContext context) {
         super(facetName);
         this.comparatorType = comparatorType;
         this.fieldDataCache = context.fieldDataCache();
 
-        final MapperService.SmartNameFieldMappers smartMappers = context.smartFieldMappers(fieldName);
-        if(smartMappers == null || !smartMappers.hasMapper()) {
-            throw new FacetPhaseExecutionException(facetName, "No mapping found for field [" + fieldName + "]");
+        final MapperService.SmartNameFieldMappers keyMappers = context.smartFieldMappers(keyField);
+        if(keyMappers == null || !keyMappers.hasMapper()) {
+            throw new FacetPhaseExecutionException(facetName, "No mapping found for key field [" + keyField + "]");
+        }
+
+        final MapperService.SmartNameFieldMappers valueMappers = context.smartFieldMappers(valueField);
+        if(valueMappers == null || !valueMappers.hasMapper()) {
+            throw new FacetPhaseExecutionException(facetName, "No mapping found for value field [" + valueField + "]");
         }
 
         // add type filter if there is exact doc mapper associated with it
-        if(smartMappers.explicitTypeInNameWithDocMapper()) {
-            setFilter(context.filterCache().cache(smartMappers.docMapper().typeFilter()));
+        if(keyMappers.explicitTypeInNameWithDocMapper()) {
+            setFilter(context.filterCache().cache(keyMappers.docMapper().typeFilter()));
         }
 
-        final FieldMapper mapper = smartMappers.mapper();
+        this.payloads = new ExtTLongObjectHashMap<DistinctCountPayload>();
 
-        indexFieldName = mapper.names().indexName();
-        fieldDataType = mapper.fieldDataType();
-        histoProc = new DateHistogramProc(tzRounding);
+        final FieldMapper keyMapper = keyMappers.mapper();
+        final FieldMapper valueMapper = valueMappers.mapper();
+
+        keyFieldName = keyMapper.names().indexName();
+        keyFieldType = keyMapper.fieldDataType();
+        valueFieldName = valueMapper.names().indexName();
+        valueFieldType = valueMapper.fieldDataType();
+        histoProc = new KeyFieldVisitor(tzRounding);
     }
 
     @Override
     protected void doCollect(final int doc) throws IOException {
-        fieldData.forEachValueInDoc(doc, histoProc);
+        keyFieldData.forEachValueInDoc(doc, histoProc);
     }
 
     @Override
     protected void doSetNextReader(final IndexReader reader, final int docBase) throws IOException {
-        fieldData = (LongFieldData) fieldDataCache.cache(fieldDataType, reader, indexFieldName);
+        keyFieldData = (LongFieldData) fieldDataCache.cache(keyFieldType, reader, keyFieldName);
+        valueFieldData = fieldDataCache.cache(valueFieldType, reader, valueFieldName);
     }
 
     @Override
@@ -72,23 +93,47 @@ public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector 
         return new InternalDistinctDateHistogramFacet(facetName, comparatorType, histoProc.counts(), true);
     }
 
-    public static class DateHistogramProc implements LongFieldData.LongValueInDocProc {
+    private void addItem(final long timestamp, final Object item) {
+        if(payloads.containsKey(timestamp))
+            payloads.get(timestamp).update(item);
+        else
+            payloads.put(timestamp, new DistinctCountPayload().update(item));
+    }
 
-        private final TLongObjectHashMap<DistinctCountPayload> counts = CacheRecycler.popLongObjectMap();
+    public class KeyFieldVisitor implements LongValueInDocProc {
 
         private final TimeZoneRounding tzRounding;
 
-        public DateHistogramProc(final TimeZoneRounding tzRounding) {
+        private long currTimestamp;
+
+        public KeyFieldVisitor(final TimeZoneRounding tzRounding) {
             this.tzRounding = tzRounding;
         }
 
         @Override
-        public void onValue(final int docId, final long value) {
-            counts.adjustOrPutValue(tzRounding.calc(value), 1, 1);
+        public void onValue(final int docId, final long timestamp) {
+            currTimestamp = tzRounding.calc(timestamp);
+            valueFieldData.forEachValueInDoc(docId, new ValueFieldVisitor());
         }
 
-        public TLongObjectHashMap<DistinctCountPayload> counts() {
-            return counts;
+        public ExtTLongObjectHashMap<DistinctCountPayload> counts() {
+            return payloads;
         }
+
+        public class ValueFieldVisitor implements StringValueInDocProc {
+
+            @Override
+            public void onValue(final int docId, final String value) {
+                addItem(currTimestamp, value);
+            }
+
+            @Override
+            public void onMissing(final int docId) {
+                // Do nothing
+            }
+
+        }
+
     }
+
 }
