@@ -5,15 +5,18 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.trove.iterator.TLongLongIterator;
-import org.elasticsearch.common.trove.map.hash.TLongLongHashMap;
+import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
+import org.elasticsearch.common.trove.iterator.TLongObjectIterator;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.InternalFacet;
+
+import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
 /**
  *
@@ -87,7 +90,7 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
 
     private ComparatorType comparatorType;
 
-    TLongLongHashMap counts;
+    ExtTLongObjectHashMap<DistinctCountPayload> counts;
     boolean cachedCounts;
 
     CountEntry[] entries = null;
@@ -95,7 +98,8 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
     private InternalDistinctDateHistogramFacet() {
     }
 
-    public InternalDistinctDateHistogramFacet(final String name, final ComparatorType comparatorType, final TLongLongHashMap counts, final boolean cachedCounts) {
+    public InternalDistinctDateHistogramFacet(final String name, final ComparatorType comparatorType,
+            final ExtTLongObjectHashMap<DistinctCountPayload> counts, final boolean cachedCounts) {
         this.name = name;
         this.comparatorType = comparatorType;
         this.counts = counts;
@@ -139,11 +143,13 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
 
     void releaseCache() {
         if(cachedCounts) {
-            CacheRecycler.pushLongLongMap(counts);
+            CacheRecycler.pushLongObjectMap(counts);
             cachedCounts = false;
             counts = null;
         }
     }
+
+    // TODO we are unnecessarily serializing and deserializing in the reduce phase
 
     private CountEntry[] computeEntries() {
         if(entries != null) {
@@ -151,9 +157,10 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
         }
         entries = new CountEntry[counts.size()];
         int i = 0;
-        for(final TLongLongIterator it = counts.iterator(); it.hasNext();) {
+        for(final TLongObjectIterator<DistinctCountPayload> it = counts.iterator(); it.hasNext();) {
             it.advance();
-            entries[i++] = new CountEntry(it.key(), it.value());
+            final DistinctCountPayload payload = it.value();
+            entries[i++] = new CountEntry(it.key(), payload.getCount(), payload.getCardinality().cardinality());
         }
         releaseCache();
         Arrays.sort(entries, comparatorType.comparator());
@@ -164,16 +171,23 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
         if(facets.size() == 1) {
             return facets.get(0);
         }
-        final TLongLongHashMap counts = CacheRecycler.popLongLongMap();
+        final ExtTLongObjectHashMap<DistinctCountPayload> counts = CacheRecycler.popLongObjectMap();
 
         for(final Facet facet : facets) {
             final InternalDistinctDateHistogramFacet histoFacet = (InternalDistinctDateHistogramFacet) facet;
-            for(final TLongLongIterator it = histoFacet.counts.iterator(); it.hasNext();) {
+            for(final TLongObjectIterator<DistinctCountPayload> it = histoFacet.counts.iterator(); it.hasNext();) {
                 it.advance();
-                counts.adjustOrPutValue(it.key(), it.value(), it.value());
+                final long facetStart = it.key();
+                if(counts.containsKey(facetStart))
+                    try {
+                        counts.put(facetStart, counts.get(facetStart).merge(it.value()));
+                    } catch(final CardinalityMergeException e) {
+                        throw new ElasticSearchException("Unable to merge two facet cardinality objects", e);
+                    }
+                else
+                    counts.put(facetStart, counts.get(facetStart));
             }
             histoFacet.releaseCache();
-
         }
 
         return new InternalDistinctDateHistogramFacet(name, comparatorType, counts, true);
@@ -214,11 +228,19 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
         comparatorType = ComparatorType.fromId(in.readByte());
 
         final int size = in.readVInt();
-        counts = CacheRecycler.popLongLongMap();
+        counts = CacheRecycler.popLongObjectMap();
         cachedCounts = true;
         for(int i = 0; i < size; i++) {
             final long key = in.readLong();
-            counts.put(key, in.readVLong());
+            final long count = in.readVLong();
+            final int cardLength = in.readVInt();
+            final byte[] cardinality = new byte[cardLength];
+            in.read(cardinality, 0, cardLength);
+            try {
+                counts.put(key, new DistinctCountPayload(count, cardinality));
+            } catch(final ClassNotFoundException e) {
+                throw new ElasticSearchException("Unable to deserialize facet cardinality object", e);
+            }
         }
     }
 
@@ -227,10 +249,13 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
         out.writeUTF(name);
         out.writeByte(comparatorType.id());
         out.writeVInt(counts.size());
-        for(final TLongLongIterator it = counts.iterator(); it.hasNext();) {
+        for(final TLongObjectIterator<DistinctCountPayload> it = counts.iterator(); it.hasNext();) {
             it.advance();
             out.writeLong(it.key());
-            out.writeVLong(it.value());
+            out.writeVLong(it.value().getCount());
+            final byte[] cardinality = it.value().cardinalityBytes();
+            out.writeVInt(cardinality.length);
+            out.write(cardinality);
         }
         releaseCache();
     }

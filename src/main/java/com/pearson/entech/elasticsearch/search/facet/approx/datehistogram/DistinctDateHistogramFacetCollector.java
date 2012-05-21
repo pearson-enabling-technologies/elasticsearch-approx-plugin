@@ -5,7 +5,7 @@ import java.io.IOException;
 import org.apache.lucene.index.IndexReader;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
-import org.elasticsearch.common.trove.map.hash.TLongLongHashMap;
+import org.elasticsearch.common.trove.map.hash.TLongObjectHashMap;
 import org.elasticsearch.index.cache.field.data.FieldDataCache;
 import org.elasticsearch.index.field.data.FieldDataType;
 import org.elasticsearch.index.field.data.longs.LongFieldData;
@@ -74,7 +74,7 @@ public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector 
 
     public static class DateHistogramProc implements LongFieldData.LongValueInDocProc {
 
-        private final TLongLongHashMap counts = CacheRecycler.popLongLongMap();
+        private final TLongObjectHashMap<DistinctCountPayload> counts = CacheRecycler.popLongObjectMap();
 
         private final TimeZoneRounding tzRounding;
 
@@ -87,7 +87,7 @@ public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector 
             counts.adjustOrPutValue(tzRounding.calc(value), 1, 1);
         }
 
-        public TLongLongHashMap counts() {
+        public TLongObjectHashMap<DistinctCountPayload> counts() {
             return counts;
         }
     }
