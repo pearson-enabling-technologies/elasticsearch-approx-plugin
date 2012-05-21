@@ -129,10 +129,11 @@ public class DistinctDateHistogramFacetTest {
                 FilterBuilders.numericRangeFilter(__tsField)
                         .from(start)
                         .to(end);
+        // TODO WTF is there a "_uid" and not an "_id" in the indexed docs?
         final DistinctDateHistogramFacetBuilder facet =
                 new DistinctDateHistogramFacetBuilder(__facetName)
                         .keyField(__tsField)
-                        .valueField("_uid")
+                        .valueField("txt")
                         .facetFilter(range)
                         .interval(interval);
         return client().prepareSearch(__index)

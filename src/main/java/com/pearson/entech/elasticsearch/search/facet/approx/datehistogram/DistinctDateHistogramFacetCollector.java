@@ -44,6 +44,8 @@ public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector 
 
     private final FieldDataType valueFieldType;
 
+    private int docBase;
+
     public DistinctDateHistogramFacetCollector(final String facetName, final String keyField, final String valueField, final TimeZoneRounding tzRounding,
             final DistinctDateHistogramFacet.ComparatorType comparatorType, final SearchContext context) {
         super(facetName);
@@ -86,6 +88,7 @@ public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector 
     protected void doSetNextReader(final IndexReader reader, final int docBase) throws IOException {
         keyFieldData = (LongFieldData) fieldDataCache.cache(keyFieldType, reader, keyFieldName);
         valueFieldData = fieldDataCache.cache(valueFieldType, reader, valueFieldName);
+        this.docBase = docBase;
     }
 
     @Override
@@ -124,7 +127,7 @@ public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector 
 
             @Override
             public void onValue(final int docId, final String value) {
-                addItem(currTimestamp, value);
+                addItem(currTimestamp, docBase + docId);
             }
 
             @Override
