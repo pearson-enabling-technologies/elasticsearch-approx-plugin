@@ -127,7 +127,7 @@ public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector 
 
             @Override
             public void onValue(final int docId, final String value) {
-                addItem(currTimestamp, docBase + docId);
+                addItem(currTimestamp, value);
             }
 
             @Override

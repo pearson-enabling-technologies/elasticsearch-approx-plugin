@@ -98,7 +98,7 @@ public class DistinctDateHistogramFacetTest {
     }
 
     @Test
-    public void testWithMaxOneTotalValuePerBucketOnAtomicField() throws Exception {
+    public void testWithMaxOneDocPerBucketOnAtomicField() throws Exception {
         putSync("0", "bart", __days[0] + 10);
         putSync("2", "bart", __days[2] + 10);
         putSync("3", "bart", __days[4] + 10);
@@ -108,6 +108,7 @@ public class DistinctDateHistogramFacetTest {
         assertEquals(4, response.hits().getTotalHits());
         final DistinctDateHistogramFacet facet = response.facets().facet(__facetName);
         final ArrayList<Entry> facetList = newArrayList(facet);
+        // Expecting just one hit and one distinct hit per doc, for the username.
         assertEquals(4, facetList.size());
         assertEquals(__days[0], facetList.get(0).getTime());
         assertEquals(__days[2], facetList.get(1).getTime());
@@ -121,6 +122,35 @@ public class DistinctDateHistogramFacetTest {
         assertEquals(1, facetList.get(1).distinctCount());
         assertEquals(1, facetList.get(2).distinctCount());
         assertEquals(1, facetList.get(3).distinctCount());
+    }
+
+    @Test
+    public void testWithMaxOneDocPerBucketOnAnalysedField() throws Exception {
+        putSync("0", "bart", __days[0] + 10);
+        putSync("2", "bart", __days[2] + 10);
+        putSync("3", "bart", __days[4] + 10);
+        putSync("6", "bart", __days[6] + 10);
+        assertEquals(4, countAll());
+        final SearchResponse response = getHistogram(__days[0], __days[7], "day", __txtField);
+        assertEquals(4, response.hits().getTotalHits());
+        final DistinctDateHistogramFacet facet = response.facets().facet(__facetName);
+        final ArrayList<Entry> facetList = newArrayList(facet);
+        // Expecting one hit for each token in the string "Document created <TIMESTAMP>"
+        // for each document, in this case these are unique per bucket too. The word "at"
+        // is a stopword and is removed.
+        assertEquals(4, facetList.size());
+        assertEquals(__days[0], facetList.get(0).getTime());
+        assertEquals(__days[2], facetList.get(1).getTime());
+        assertEquals(__days[4], facetList.get(2).getTime());
+        assertEquals(__days[6], facetList.get(3).getTime());
+        assertEquals(3, facetList.get(0).count());
+        assertEquals(3, facetList.get(1).count());
+        assertEquals(3, facetList.get(2).count());
+        assertEquals(3, facetList.get(3).count());
+        assertEquals(3, facetList.get(0).distinctCount());
+        assertEquals(3, facetList.get(1).distinctCount());
+        assertEquals(3, facetList.get(2).distinctCount());
+        assertEquals(3, facetList.get(3).distinctCount());
     }
 
     // Helper methods
