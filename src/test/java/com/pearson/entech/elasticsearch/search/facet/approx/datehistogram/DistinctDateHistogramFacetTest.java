@@ -51,6 +51,8 @@ public class DistinctDateHistogramFacetTest {
 
     private static final String __idField = "_id";
 
+    private static final String __userField = "user";
+
     private static final String __facetName = "histogram";
 
     @BeforeClass
@@ -96,14 +98,13 @@ public class DistinctDateHistogramFacetTest {
     }
 
     @Test
-    public void testWithMaxOneTotalValuePerBucket() throws Exception {
-        putSync("0", __days[0] + 10);
-        putSync("2", __days[2] + 10);
-        putSync("3", __days[4] + 10);
-        putSync("6", __days[6] + 10);
+    public void testWithMaxOneTotalValuePerBucketOnAtomicField() throws Exception {
+        putSync("0", "bart", __days[0] + 10);
+        putSync("2", "bart", __days[2] + 10);
+        putSync("3", "bart", __days[4] + 10);
+        putSync("6", "bart", __days[6] + 10);
         assertEquals(4, countAll());
-        //Thread.sleep(Long.MAX_VALUE);
-        final SearchResponse response = getHistogram(__days[0], __days[7], "day");
+        final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
         assertEquals(4, response.hits().getTotalHits());
         final DistinctDateHistogramFacet facet = response.facets().facet(__facetName);
         final ArrayList<Entry> facetList = newArrayList(facet);
@@ -124,7 +125,7 @@ public class DistinctDateHistogramFacetTest {
 
     // Helper methods
 
-    private SearchResponse getHistogram(final long start, final long end, final String interval) {
+    private SearchResponse getHistogram(final long start, final long end, final String interval, final String valueField) {
         final FilterBuilder range =
                 FilterBuilders.numericRangeFilter(__tsField)
                         .from(start)
@@ -133,7 +134,7 @@ public class DistinctDateHistogramFacetTest {
         final DistinctDateHistogramFacetBuilder facet =
                 new DistinctDateHistogramFacetBuilder(__facetName)
                         .keyField(__tsField)
-                        .valueField("txt")
+                        .valueField(valueField)
                         .facetFilter(range)
                         .interval(interval);
         return client().prepareSearch(__index)
@@ -142,13 +143,14 @@ public class DistinctDateHistogramFacetTest {
                 .execute().actionGet();
     }
 
-    private void putSync(final String id, final long timestamp) throws ElasticSearchException, IOException {
+    private void putSync(final String id, final String user, final long timestamp) throws ElasticSearchException, IOException {
         client().prepareIndex(__index, __type, id)
                 .setRefresh(true)
                 .setRouting(id)
                 .setSource(XContentFactory.jsonBuilder()
                         .startObject()
                         .field(__txtField, "Document created at " + timestamp)
+                        .field(__userField, user)
                         .field(__tsField, timestamp)
                         .endObject()).execute().actionGet();
     }
