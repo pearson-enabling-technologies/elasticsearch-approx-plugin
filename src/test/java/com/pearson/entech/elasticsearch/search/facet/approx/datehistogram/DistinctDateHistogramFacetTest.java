@@ -1,9 +1,11 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static java.lang.Math.abs;
 import static java.lang.Math.random;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -69,7 +71,8 @@ public class DistinctDateHistogramFacetTest {
                 .put("index.store.type", "memory")
                 .put("index.number_of_shards", 3)
                 .put("index.number_of_replicas", 0)
-                .put("path.data", "target").build();
+                .put("path.data", "target")
+                .build();
         __node = nodeBuilder().local(true).settings(settings).node();
         __node.start();
     }
@@ -141,7 +144,7 @@ public class DistinctDateHistogramFacetTest {
         assertEquals(4, response.hits().getTotalHits());
         final DistinctDateHistogramFacet facet = response.facets().facet(__facetName);
         final ArrayList<Entry> facetList = newArrayList(facet);
-        // Expecting one hit for each token in the string "Document created <TIMESTAMP>"
+        // Expecting one hit for each token in the string "Document created [at] <TIMESTAMP>"
         // for each document, in this case these are unique per bucket too. The word "at"
         // is a stopword and is removed.
         assertEquals(4, facetList.size());
@@ -224,10 +227,40 @@ public class DistinctDateHistogramFacetTest {
     }
 
     @Test
-    public void testRandomizedWithManyItemsOnAtomicField() throws Exception {
+    public void testRandomizedWithManyItems() throws Exception {
         final int[] itemsPerDay = prepareRandomData();
         final int totalItems = add(itemsPerDay);
         assertEquals(totalItems, countAll());
+
+        final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
+        final DistinctDateHistogramFacet facet1 = response.facets().facet(__facetName);
+        final ArrayList<Entry> facetList1 = newArrayList(facet1);
+        assertEquals(7, facetList1.size()); // This is an assumption, I admit.
+        for(int i = 0; i < 7; i++) {
+            final int exactUsers = itemsPerDay[i];
+            assertEquals(exactUsers, facetList1.get(i).count());
+            final int tolerance = exactUsers / 100;
+            final long fuzzyUsers = facetList1.get(i).distinctCount();
+            System.out.println("Exact user count = " + exactUsers);
+            System.out.println("Fuzzy user count = " + fuzzyUsers);
+            assertTrue(abs(fuzzyUsers - exactUsers) < tolerance);
+        }
+
+        final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField);
+        final DistinctDateHistogramFacet facet2 = response2.facets().facet(__facetName);
+        final ArrayList<Entry> facetList2 = newArrayList(facet2);
+        assertEquals(7, facetList2.size()); // This is an assumption, I admit.
+        for(int i = 0; i < 7; i++) {
+            final int exactTokens = itemsPerDay[i] * 3; // "Document created [by] <ID>"
+            final int exactDistinctTokens = itemsPerDay[i] + 2;
+            assertEquals(exactTokens, facetList2.get(i).count());
+            final int tolerance = exactDistinctTokens / 100;
+            final long fuzzyDistinctTokens = facetList2.get(i).distinctCount();
+            System.out.println("Exact distinct token count = " + exactDistinctTokens);
+            System.out.println("Fuzzy distinct token count = " + fuzzyDistinctTokens);
+            assertTrue(abs(fuzzyDistinctTokens - exactDistinctTokens) < tolerance);
+        }
+
     }
 
     // Helper methods
@@ -273,7 +306,7 @@ public class DistinctDateHistogramFacetTest {
                     .routing(ids[i])
                     .source(XContentFactory.jsonBuilder()
                             .startObject()
-                            .field(__txtField, "Document created at " + timestamps[i])
+                            .field(__txtField, "Document created by " + users[i])
                             .field(__userField, users[i])
                             .field(__tsField, timestamps[i])
                             .endObject()));
@@ -283,15 +316,15 @@ public class DistinctDateHistogramFacetTest {
 
     private int[] prepareRandomData() throws Exception {
         final int[] itemsPerDay = new int[7];
-        final int minPerDay = 1000;
-        final int variationPerDay = 500;
+        final int minPerDay = 10000;
+        final int variationPerDay = 5000;
         for(int i = 0; i < 7; i++) {
             itemsPerDay[i] = minPerDay + (int) (random() * variationPerDay);
             final String[] ids = new String[itemsPerDay[i]];
             final long[] timestamps = new long[itemsPerDay[i]];
             for(int j = 0; j < itemsPerDay[i]; j++) {
                 timestamps[j] = __days[i] + (int) (random() * 86400000);
-                ids[i] = newID();
+                ids[j] = newID();
             }
             putBulk(ids, ids, timestamps);
         }
