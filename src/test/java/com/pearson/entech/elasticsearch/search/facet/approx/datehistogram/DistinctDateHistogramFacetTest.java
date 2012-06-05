@@ -55,8 +55,6 @@ public class DistinctDateHistogramFacetTest {
 
     private static final String __txtField = "txt";
 
-    private static final String __idField = "_id";
-
     private static final String __userField = "user";
 
     private static final String __facetName = "histogram";
@@ -107,11 +105,11 @@ public class DistinctDateHistogramFacetTest {
     }
 
     @Test
-    public void testWithMaxOneDocPerBucketOnAtomicField() throws Exception {
-        putSync(newID(), "bart", __days[0] + 10);
-        putSync(newID(), "bart", __days[2] + 10);
-        putSync(newID(), "bart", __days[4] + 10);
-        putSync(newID(), "bart", __days[6] + 10);
+    public void testWithMaxOneDocPerDayBucketOnAtomicField() throws Exception {
+        putSync(newID(), "bart", __days[0]);
+        putSync(newID(), "bart", __days[2]);
+        putSync(newID(), "bart", __days[4]);
+        putSync(newID(), "bart", __days[6]);
         assertEquals(4, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
         assertEquals(4, response.hits().getTotalHits());
@@ -134,11 +132,11 @@ public class DistinctDateHistogramFacetTest {
     }
 
     @Test
-    public void testWithMaxOneDocPerBucketOnAnalysedField() throws Exception {
-        putSync(newID(), "bart", __days[0] + 10);
-        putSync(newID(), "bart", __days[2] + 10);
-        putSync(newID(), "bart", __days[4] + 10);
-        putSync(newID(), "bart", __days[6] + 10);
+    public void testWithMaxOneDocPerDayBucketOnAnalysedField() throws Exception {
+        putSync(newID(), "bart", __days[0]);
+        putSync(newID(), "bart", __days[2]);
+        putSync(newID(), "bart", __days[4]);
+        putSync(newID(), "bart", __days[6]);
         assertEquals(4, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __txtField);
         assertEquals(4, response.hits().getTotalHits());
@@ -163,15 +161,15 @@ public class DistinctDateHistogramFacetTest {
     }
 
     @Test
-    public void testWithMultipleDocsPerBucketOnAtomicField() throws Exception {
-        putSync(newID(), "bart", __days[0] + 10);
-        putSync(newID(), "lisa", __days[0] + 20);
-        putSync(newID(), "bart", __days[0] + 30);
-        putSync(newID(), "bart", __days[2] + 10);
-        putSync(newID(), "bart", __days[4] + 10);
-        putSync(newID(), "bart", __days[6] + 10);
-        putSync(newID(), "homer", __days[6] + 20);
-        putSync(newID(), "marge", __days[6] + 30);
+    public void testWithMultipleDocsPerDayBucketOnAtomicField() throws Exception {
+        putSync(newID(), "bart", __days[0]);
+        putSync(newID(), "lisa", __days[0] + 10);
+        putSync(newID(), "bart", __days[0] + 20);
+        putSync(newID(), "bart", __days[2]);
+        putSync(newID(), "bart", __days[4]);
+        putSync(newID(), "bart", __days[6]);
+        putSync(newID(), "homer", __days[6] + 10);
+        putSync(newID(), "marge", __days[6] + 20);
         assertEquals(8, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
         assertEquals(8, response.hits().getTotalHits());
@@ -195,15 +193,15 @@ public class DistinctDateHistogramFacetTest {
     }
 
     @Test
-    public void testWithMultipleDocsPerBucketOnAnalysedField() throws Exception {
-        putSync(newID(), "bart", __days[0] + 10);
-        putSync(newID(), "lisa", __days[0] + 20);
-        putSync(newID(), "bart", __days[0] + 30);
-        putSync(newID(), "bart", __days[2] + 10);
-        putSync(newID(), "bart", __days[4] + 10);
-        putSync(newID(), "bart", __days[6] + 10);
-        putSync(newID(), "homer", __days[6] + 20);
-        putSync(newID(), "marge", __days[6] + 30);
+    public void testWithMultipleDocsPerDayBucketOnAnalysedField() throws Exception {
+        putSync(newID(), "bart", __days[0]);
+        putSync(newID(), "lisa", __days[0] + 10);
+        putSync(newID(), "bart", __days[0] + 20);
+        putSync(newID(), "bart", __days[2]);
+        putSync(newID(), "bart", __days[4]);
+        putSync(newID(), "bart", __days[6]);
+        putSync(newID(), "homer", __days[6] + 10);
+        putSync(newID(), "marge", __days[6] + 20);
         assertEquals(8, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __txtField);
         assertEquals(8, response.hits().getTotalHits());
@@ -227,7 +225,7 @@ public class DistinctDateHistogramFacetTest {
     }
 
     @Test
-    public void testRandomizedWithManyItems() throws Exception {
+    public void testRandomizedWithManyItemsOnDayBucket() throws Exception {
         final int[] itemsPerDay = prepareRandomData();
         final int totalItems = add(itemsPerDay);
         assertEquals(totalItems, countAll());
@@ -274,7 +272,6 @@ public class DistinctDateHistogramFacetTest {
                 FilterBuilders.numericRangeFilter(__tsField)
                         .from(start)
                         .to(end);
-        // TODO WTF is there a "_uid" and not an "_id" in the indexed docs?
         final DistinctDateHistogramFacetBuilder facet =
                 new DistinctDateHistogramFacetBuilder(__facetName)
                         .keyField(__tsField)
