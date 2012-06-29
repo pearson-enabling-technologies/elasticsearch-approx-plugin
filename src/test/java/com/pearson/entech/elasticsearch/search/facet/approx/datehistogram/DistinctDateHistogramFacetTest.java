@@ -266,7 +266,7 @@ public class DistinctDateHistogramFacetTest {
         final int totalItems = add(itemsPerDay);
         assertEquals(totalItems, countAll());
 
-        final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, 1000000);
+        final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, totalItems);
         final DistinctDateHistogramFacet facet1 = response.facets().facet(__facetName);
         final ArrayList<Entry> facetList1 = newArrayList(facet1);
         assertEquals(7, facetList1.size()); // This is an assumption, I admit.
@@ -277,7 +277,7 @@ public class DistinctDateHistogramFacetTest {
             assertEquals(exactUsers, retrievedUsers);
         }
 
-        final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, 1000000);
+        final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, totalItems);
         final DistinctDateHistogramFacet facet2 = response2.facets().facet(__facetName);
         final ArrayList<Entry> facetList2 = newArrayList(facet2);
         assertEquals(7, facetList2.size()); // This is an assumption, I admit.
@@ -285,7 +285,6 @@ public class DistinctDateHistogramFacetTest {
             final int exactTokens = itemsPerDay[i] * 3; // "Document created [by] <ID>"
             final int exactDistinctTokens = itemsPerDay[i] + 2;
             assertEquals(exactTokens, facetList2.get(i).count());
-            final int tolerance = exactDistinctTokens / 100;
             final long retrievedDistinctTokens = facetList2.get(i).distinctCount();
             assertEquals(exactDistinctTokens, retrievedDistinctTokens);
         }
