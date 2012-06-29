@@ -77,7 +77,7 @@ public class DistinctDateHistogramFacetProcessor extends AbstractComponent imple
         long postOffset = 0;
         float factor = 1.0f;
         final Chronology chronology = ISOChronology.getInstanceUTC();
-        int maxExactSize = 1000;
+        int maxExactPerShard = 1000;
         DistinctDateHistogramFacet.ComparatorType comparatorType = DistinctDateHistogramFacet.ComparatorType.TIME;
         XContentParser.Token token;
         String fieldName = null;
@@ -111,8 +111,8 @@ public class DistinctDateHistogramFacetProcessor extends AbstractComponent imple
                     postOffset = parseOffset(parser.text());
                 } else if("factor".equals(fieldName)) {
                     factor = parser.floatValue();
-                } else if("maxExactSize".equals(fieldName)) {
-                    maxExactSize = parser.intValue();
+                } else if("maxExactPerShard".equals(fieldName)) {
+                    maxExactPerShard = parser.intValue();
                 } else if("order".equals(fieldName) || "comparator".equals(fieldName)) {
                     comparatorType = DistinctDateHistogramFacet.ComparatorType.fromString(parser.text());
                 }
@@ -151,7 +151,7 @@ public class DistinctDateHistogramFacetProcessor extends AbstractComponent imple
                 .factor(factor)
                 .build();
 
-        return new DistinctDateHistogramFacetCollector(facetName, keyField, valueField, tzRounding, comparatorType, context, maxExactSize);
+        return new DistinctDateHistogramFacetCollector(facetName, keyField, valueField, tzRounding, comparatorType, context, maxExactPerShard);
     }
 
     private long parseOffset(final String offset) throws IOException {

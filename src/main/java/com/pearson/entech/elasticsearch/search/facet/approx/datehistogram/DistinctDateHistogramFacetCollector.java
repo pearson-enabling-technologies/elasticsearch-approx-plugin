@@ -46,15 +46,15 @@ public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector 
 
     private int docBase;
 
-    private final int maxExactSize;
+    private final int maxExactPerShard;
 
     public DistinctDateHistogramFacetCollector(final String facetName, final String keyField, final String valueField, final TimeZoneRounding tzRounding,
-            final DistinctDateHistogramFacet.ComparatorType comparatorType, final SearchContext context, final int maxExactSize) {
+            final DistinctDateHistogramFacet.ComparatorType comparatorType, final SearchContext context, final int maxExactPerShard) {
         super(facetName);
         this.comparatorType = comparatorType;
         this.fieldDataCache = context.fieldDataCache();
 
-        this.maxExactSize = maxExactSize;
+        this.maxExactPerShard = maxExactPerShard;
 
         final MapperService.SmartNameFieldMappers keyMappers = context.smartFieldMappers(keyField);
         if(keyMappers == null || !keyMappers.hasMapper()) {
@@ -104,7 +104,7 @@ public class DistinctDateHistogramFacetCollector extends AbstractFacetCollector 
         if(payloads.containsKey(timestamp))
             payloads.get(timestamp).update(item);
         else
-            payloads.put(timestamp, new DistinctCountPayload(this.maxExactSize).update(item));
+            payloads.put(timestamp, new DistinctCountPayload(this.maxExactPerShard).update(item));
     }
 
     public class KeyFieldVisitor implements LongValueInDocProc {
