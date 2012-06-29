@@ -20,6 +20,7 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
     private String preZone = null;
     private String postZone = null;
     private Boolean preZoneAdjustLargeInterval;
+    private int maxExactPerShard = 0;
     long preOffset = 0;
     long postOffset = 0;
     float factor = 1.0f;
@@ -139,6 +140,15 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
         return this;
     }
 
+    /**
+     * Sets the number of exact values that are allowed per shard before we fall back to doing
+     * approximate counts.
+     */
+    public DistinctDateHistogramFacetBuilder maxExactPerShard(final int maxExactPerShard) {
+        this.maxExactPerShard = maxExactPerShard;
+        return this;
+    }
+
     public DistinctDateHistogramFacetBuilder comparator(final DistinctDateHistogramFacet.ComparatorType comparatorType) {
         this.comparatorType = comparatorType;
         return this;
@@ -208,6 +218,9 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
         if(factor != 1.0f) {
             builder.field("factor", factor);
         }
+        if(maxExactPerShard != 0) {
+            builder.field("maxExactPerShard", maxExactPerShard);
+        }
         if(comparatorType != null) {
             builder.field("comparator", comparatorType.description());
         }
@@ -218,4 +231,5 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
         builder.endObject();
         return builder;
     }
+
 }

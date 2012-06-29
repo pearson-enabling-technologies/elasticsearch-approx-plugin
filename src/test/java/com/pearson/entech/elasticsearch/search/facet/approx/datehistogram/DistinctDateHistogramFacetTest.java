@@ -225,7 +225,7 @@ public class DistinctDateHistogramFacetTest {
     }
 
     @Test
-    public void testRandomizedWithManyItemsOnDayBucket() throws Exception {
+    public void testRandomizedWithManyItemsOnDayBucketAboveApproxThreshold() throws Exception {
         final int[] itemsPerDay = prepareRandomData();
         final int totalItems = add(itemsPerDay);
         assertEquals(totalItems, countAll());
@@ -239,8 +239,8 @@ public class DistinctDateHistogramFacetTest {
             assertEquals(exactUsers, facetList1.get(i).count());
             final int tolerance = exactUsers / 100;
             final long fuzzyUsers = facetList1.get(i).distinctCount();
-            System.out.println("Exact user count = " + exactUsers);
-            System.out.println("Fuzzy user count = " + fuzzyUsers);
+            //System.out.println("Exact user count = " + exactUsers);
+            //System.out.println("Fuzzy user count = " + fuzzyUsers);
             assertTrue(abs(fuzzyUsers - exactUsers) < tolerance);
         }
 
@@ -254,11 +254,41 @@ public class DistinctDateHistogramFacetTest {
             assertEquals(exactTokens, facetList2.get(i).count());
             final int tolerance = exactDistinctTokens / 100;
             final long fuzzyDistinctTokens = facetList2.get(i).distinctCount();
-            System.out.println("Exact distinct token count = " + exactDistinctTokens);
-            System.out.println("Fuzzy distinct token count = " + fuzzyDistinctTokens);
+            //System.out.println("Exact distinct token count = " + exactDistinctTokens);
+            //System.out.println("Fuzzy distinct token count = " + fuzzyDistinctTokens);
             assertTrue(abs(fuzzyDistinctTokens - exactDistinctTokens) < tolerance);
         }
+    }
 
+    @Test
+    public void testRandomizedWithManyItemsOnDayBucketBelowApproxThreshold() throws Exception {
+        final int[] itemsPerDay = prepareRandomData();
+        final int totalItems = add(itemsPerDay);
+        assertEquals(totalItems, countAll());
+
+        final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, 1000000);
+        final DistinctDateHistogramFacet facet1 = response.facets().facet(__facetName);
+        final ArrayList<Entry> facetList1 = newArrayList(facet1);
+        assertEquals(7, facetList1.size()); // This is an assumption, I admit.
+        for(int i = 0; i < 7; i++) {
+            final int exactUsers = itemsPerDay[i];
+            assertEquals(exactUsers, facetList1.get(i).count());
+            final long retrievedUsers = facetList1.get(i).distinctCount();
+            assertEquals(exactUsers, retrievedUsers);
+        }
+
+        final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, 1000000);
+        final DistinctDateHistogramFacet facet2 = response2.facets().facet(__facetName);
+        final ArrayList<Entry> facetList2 = newArrayList(facet2);
+        assertEquals(7, facetList2.size()); // This is an assumption, I admit.
+        for(int i = 0; i < 7; i++) {
+            final int exactTokens = itemsPerDay[i] * 3; // "Document created [by] <ID>"
+            final int exactDistinctTokens = itemsPerDay[i] + 2;
+            assertEquals(exactTokens, facetList2.get(i).count());
+            final int tolerance = exactDistinctTokens / 100;
+            final long retrievedDistinctTokens = facetList2.get(i).distinctCount();
+            assertEquals(exactDistinctTokens, retrievedDistinctTokens);
+        }
     }
 
     // Helper methods
@@ -268,6 +298,10 @@ public class DistinctDateHistogramFacetTest {
     }
 
     private SearchResponse getHistogram(final long start, final long end, final String interval, final String valueField) {
+        return getHistogram(start, end, interval, valueField, 0);
+    }
+
+    private SearchResponse getHistogram(final long start, final long end, final String interval, final String valueField, final int maxExactPerShard) {
         final FilterBuilder range =
                 FilterBuilders.numericRangeFilter(__tsField)
                         .from(start)
@@ -277,7 +311,8 @@ public class DistinctDateHistogramFacetTest {
                         .keyField(__tsField)
                         .valueField(valueField)
                         .facetFilter(range)
-                        .interval(interval);
+                        .interval(interval)
+                        .maxExactPerShard(maxExactPerShard);
         return client().prepareSearch(__index)
                 .setSearchType(SearchType.COUNT)
                 .addFacet(facet)
