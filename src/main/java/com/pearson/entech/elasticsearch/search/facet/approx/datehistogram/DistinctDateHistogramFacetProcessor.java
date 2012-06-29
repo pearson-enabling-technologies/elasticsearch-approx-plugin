@@ -66,9 +66,9 @@ public class DistinctDateHistogramFacetProcessor extends AbstractComponent imple
     public FacetCollector parse(final String facetName, final XContentParser parser, final SearchContext context) throws IOException {
         String keyField = null;
         String valueField = null;
-        final String valueScript = null;
-        final String scriptLang = null;
-        Map<String, Object> params = null;
+        final String valueScript = null; // TODO remove?
+        final String scriptLang = null; // TODO remove?
+        Map<String, Object> params = null; // TODO remove?
         String interval = null;
         DateTimeZone preZone = DateTimeZone.UTC;
         DateTimeZone postZone = DateTimeZone.UTC;
@@ -77,6 +77,7 @@ public class DistinctDateHistogramFacetProcessor extends AbstractComponent imple
         long postOffset = 0;
         float factor = 1.0f;
         final Chronology chronology = ISOChronology.getInstanceUTC();
+        int maxExactSize = 1000;
         DistinctDateHistogramFacet.ComparatorType comparatorType = DistinctDateHistogramFacet.ComparatorType.TIME;
         XContentParser.Token token;
         String fieldName = null;
@@ -110,6 +111,8 @@ public class DistinctDateHistogramFacetProcessor extends AbstractComponent imple
                     postOffset = parseOffset(parser.text());
                 } else if("factor".equals(fieldName)) {
                     factor = parser.floatValue();
+                } else if("maxExactSize".equals(fieldName)) {
+                    maxExactSize = parser.intValue();
                 } else if("order".equals(fieldName) || "comparator".equals(fieldName)) {
                     comparatorType = DistinctDateHistogramFacet.ComparatorType.fromString(parser.text());
                 }
@@ -148,7 +151,7 @@ public class DistinctDateHistogramFacetProcessor extends AbstractComponent imple
                 .factor(factor)
                 .build();
 
-        return new DistinctDateHistogramFacetCollector(facetName, keyField, valueField, tzRounding, comparatorType, context);
+        return new DistinctDateHistogramFacetCollector(facetName, keyField, valueField, tzRounding, comparatorType, context, maxExactSize);
     }
 
     private long parseOffset(final String offset) throws IOException {
