@@ -220,7 +220,7 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
             builder.field("factor", factor);
         }
         if(maxExactPerShard != 0) {
-            builder.field("maxExactPerShard", maxExactPerShard);
+            builder.field("max_exact_per_shard", maxExactPerShard);
         }
         if(comparatorType != null) {
             builder.field("comparator", comparatorType.description());

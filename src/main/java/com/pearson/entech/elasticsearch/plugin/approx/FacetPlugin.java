@@ -16,7 +16,7 @@ public class FacetPlugin extends AbstractPlugin {
 
     @Override
     public String description() {
-        return "blah blah"; // TODO
+        return "Plugin to use approximate methods for enabling and/or speeding up certain queries."; // TODO
     }
 
     @Override
