@@ -187,6 +187,7 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
         static final XContentBuilderString ENTRIES = new XContentBuilderString("entries");
         static final XContentBuilderString TIME = new XContentBuilderString("time");
         static final XContentBuilderString COUNT = new XContentBuilderString("count");
+        static final XContentBuilderString DISTINCT_COUNT = new XContentBuilderString("distinct_count");
     }
 
     @Override
@@ -198,6 +199,7 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
             builder.startObject();
             builder.field(Fields.TIME, entry.time());
             builder.field(Fields.COUNT, entry.count());
+            builder.field(Fields.DISTINCT_COUNT, entry.distinctCount());
             builder.endObject();
         }
         builder.endArray();

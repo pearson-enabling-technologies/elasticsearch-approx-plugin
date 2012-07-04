@@ -111,7 +111,7 @@ public class DistinctDateHistogramFacetProcessor extends AbstractComponent imple
                     postOffset = parseOffset(parser.text());
                 } else if("factor".equals(fieldName)) {
                     factor = parser.floatValue();
-                } else if("maxExactPerShard".equals(fieldName)) {
+                } else if("max_exact_per_shard".equals(fieldName) || "maxExactPerShard".equals(fieldName)) {
                     maxExactPerShard = parser.intValue();
                 } else if("order".equals(fieldName) || "comparator".equals(fieldName)) {
                     comparatorType = DistinctDateHistogramFacet.ComparatorType.fromString(parser.text());
