@@ -9,7 +9,7 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
 
-	<name>htools</name>
+	<name>elasticsearch-approx-plugin</name>
 	<url>http://maven.apache.org</url>
 	<build>
 		<plugins>
