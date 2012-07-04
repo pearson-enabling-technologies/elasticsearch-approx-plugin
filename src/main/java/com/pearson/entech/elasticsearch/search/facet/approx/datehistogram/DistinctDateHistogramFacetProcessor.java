@@ -66,8 +66,8 @@ public class DistinctDateHistogramFacetProcessor extends AbstractComponent imple
     public FacetCollector parse(final String facetName, final XContentParser parser, final SearchContext context) throws IOException {
         String keyField = null;
         String valueField = null;
-        final String valueScript = null; // TODO remove?
-        final String scriptLang = null; // TODO remove?
+        //final String valueScript = null; // TODO remove?
+        //final String scriptLang = null; // TODO remove?
         Map<String, Object> params = null; // TODO remove?
         String interval = null;
         DateTimeZone preZone = DateTimeZone.UTC;

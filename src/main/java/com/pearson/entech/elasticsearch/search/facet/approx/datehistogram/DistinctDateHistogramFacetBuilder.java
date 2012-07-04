@@ -26,9 +26,10 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
     float factor = 1.0f;
     private DistinctDateHistogramFacet.ComparatorType comparatorType;
 
-    private String valueScript;
+    //private String valueScript;
     private Map<String, Object> params;
-    private String lang;
+
+    //private String lang;
 
     /**
      * Constructs a new date histogram facet with the provided facet logical name.
