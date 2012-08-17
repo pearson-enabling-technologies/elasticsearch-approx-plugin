@@ -1,9 +1,11 @@
 ElasticSearch Approx Plugin
 ===========================
 
-Plugin for [ElasticSearch](http://www.elasticsearch.org/) to use approximate methods for enabling and/or speeding up certain queries.
+Plugin for [ElasticSearch](http://www.elasticsearch.org/) to use approximate methods for enabling and/or speeding up certain queries, using bounded memory.
 
 Currently just provides one such query: distinct date histogram.
+
+Inspired in part by [elasticsearch-ls-plugins](https://github.com/lovelysystems/elasticsearch-ls-plugins) by Lovely Systems -- some of their code has been reused here.
 
 Distinct Date Histogram
 -----------------------
