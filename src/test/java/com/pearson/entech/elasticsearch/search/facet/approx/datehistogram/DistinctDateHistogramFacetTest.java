@@ -2,6 +2,7 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static java.lang.Math.abs;
+import static java.lang.Math.pow;
 import static java.lang.Math.random;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 import static org.junit.Assert.assertEquals;
@@ -9,11 +10,12 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.refresh.RefreshRequestBuilder;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -59,7 +61,7 @@ public class DistinctDateHistogramFacetTest {
 
     private static final String __facetName = "histogram";
 
-    private static final AtomicLong __counter = new AtomicLong(0);
+    private static final AtomicInteger __counter = new AtomicInteger(0);
 
     @BeforeClass
     public static void setUpClass() {
@@ -70,6 +72,7 @@ public class DistinctDateHistogramFacetTest {
                 .put("index.number_of_shards", 3)
                 .put("index.number_of_replicas", 0)
                 .put("path.data", "target")
+                .put("refresh_interval", -1)
                 .build();
         __node = nodeBuilder().local(true).settings(settings).node();
         __node.start();
@@ -91,8 +94,9 @@ public class DistinctDateHistogramFacetTest {
                 .startObject("_all").field("enabled", false).endObject()
                 .startObject("_source").field("enabled", false).endObject()
                 .startObject("properties")
-                .startObject(__tsField).field("type", "date").field("store", "yes").endObject()
-                .startObject(__txtField).field("type", "string").field("store", "yes").endObject()
+                .startObject(__tsField).field("type", "date").field("store", "no").endObject()
+                .startObject(__txtField).field("type", "string").field("store", "no").endObject()
+                .startObject(__userField).field("type", "integer").field("store", "no").endObject()
                 .endObject()
                 .endObject()
                 .endObject().string();
@@ -106,10 +110,10 @@ public class DistinctDateHistogramFacetTest {
 
     @Test
     public void testWithMaxOneDocPerDayBucketOnAtomicField() throws Exception {
-        putSync(newID(), "bart", __days[0]);
-        putSync(newID(), "bart", __days[2]);
-        putSync(newID(), "bart", __days[4]);
-        putSync(newID(), "bart", __days[6]);
+        putSync(newID(), 1, __days[0]);
+        putSync(newID(), 1, __days[2]);
+        putSync(newID(), 1, __days[4]);
+        putSync(newID(), 1, __days[6]);
         assertEquals(4, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
         assertEquals(4, response.hits().getTotalHits());
@@ -133,10 +137,10 @@ public class DistinctDateHistogramFacetTest {
 
     @Test
     public void testWithMaxOneDocPerDayBucketOnAnalysedField() throws Exception {
-        putSync(newID(), "bart", __days[0]);
-        putSync(newID(), "bart", __days[2]);
-        putSync(newID(), "bart", __days[4]);
-        putSync(newID(), "bart", __days[6]);
+        putSync(newID(), 1, __days[0]);
+        putSync(newID(), 1, __days[2]);
+        putSync(newID(), 1, __days[4]);
+        putSync(newID(), 1, __days[6]);
         assertEquals(4, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __txtField);
         assertEquals(4, response.hits().getTotalHits());
@@ -162,14 +166,14 @@ public class DistinctDateHistogramFacetTest {
 
     @Test
     public void testWithMultipleDocsPerDayBucketOnAtomicField() throws Exception {
-        putSync(newID(), "bart", __days[0]);
-        putSync(newID(), "lisa", __days[0] + 10);
-        putSync(newID(), "bart", __days[0] + 20);
-        putSync(newID(), "bart", __days[2]);
-        putSync(newID(), "bart", __days[4]);
-        putSync(newID(), "bart", __days[6]);
-        putSync(newID(), "homer", __days[6] + 10);
-        putSync(newID(), "marge", __days[6] + 20);
+        putSync(newID(), 1, __days[0]);
+        putSync(newID(), 2, __days[0] + 10);
+        putSync(newID(), 1, __days[0] + 20);
+        putSync(newID(), 1, __days[2]);
+        putSync(newID(), 1, __days[4]);
+        putSync(newID(), 1, __days[6]);
+        putSync(newID(), 3, __days[6] + 10);
+        putSync(newID(), 4, __days[6] + 20);
         assertEquals(8, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
         assertEquals(8, response.hits().getTotalHits());
@@ -194,14 +198,14 @@ public class DistinctDateHistogramFacetTest {
 
     @Test
     public void testWithMultipleDocsPerDayBucketOnAnalysedField() throws Exception {
-        putSync(newID(), "bart", __days[0]);
-        putSync(newID(), "lisa", __days[0] + 10);
-        putSync(newID(), "bart", __days[0] + 20);
-        putSync(newID(), "bart", __days[2]);
-        putSync(newID(), "bart", __days[4]);
-        putSync(newID(), "bart", __days[6]);
-        putSync(newID(), "homer", __days[6] + 10);
-        putSync(newID(), "marge", __days[6] + 20);
+        putSync(newID(), 1, __days[0]);
+        putSync(newID(), 2, __days[0] + 10);
+        putSync(newID(), 1, __days[0] + 20);
+        putSync(newID(), 1, __days[2]);
+        putSync(newID(), 1, __days[4]);
+        putSync(newID(), 1, __days[6]);
+        putSync(newID(), 3, __days[6] + 10);
+        putSync(newID(), 4, __days[6] + 20);
         assertEquals(8, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __txtField);
         assertEquals(8, response.hits().getTotalHits());
@@ -225,75 +229,56 @@ public class DistinctDateHistogramFacetTest {
     }
 
     @Test
-    public void testRandomizedWithManyItemsOnDayBucketAboveApproxThreshold() throws Exception {
-        final int[] itemsPerDay = prepareRandomData();
-        final int totalItems = add(itemsPerDay);
-        assertEquals(totalItems, countAll());
+    public void testRandomizedWithManyItemsOnDayBucket() throws Exception {
+        // Do this 20 times for different amounts of data
+        for(int t = 0; t < 20; t++) {
+            setUp();
+            final int perDay = (int) pow(2, t);
+            final int[] itemsPerDay = prepareRandomData(perDay);
+            final int totalItems = add(itemsPerDay);
+            assertEquals(totalItems, countAll());
 
-        final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
-        final DistinctDateHistogramFacet facet1 = response.facets().facet(__facetName);
-        final ArrayList<Entry> facetList1 = newArrayList(facet1);
-        assertEquals(7, facetList1.size()); // This is an assumption, I admit.
-        for(int i = 0; i < 7; i++) {
-            final int exactUsers = itemsPerDay[i];
-            assertEquals(exactUsers, facetList1.get(i).count());
-            final int tolerance = exactUsers / 100;
-            final long fuzzyUsers = facetList1.get(i).distinctCount();
-            //System.out.println("Exact user count = " + exactUsers);
-            //System.out.println("Fuzzy user count = " + fuzzyUsers);
-            assertTrue(abs(fuzzyUsers - exactUsers) < tolerance);
-        }
+            final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, 1000);
+            final DistinctDateHistogramFacet facet1 = response.facets().facet(__facetName);
+            final ArrayList<Entry> facetList1 = newArrayList(facet1);
+            assertEquals(7, facetList1.size());
+            for(int i = 0; i < 7; i++) {
+                final int exactUsers = itemsPerDay[i];
+                assertEquals(exactUsers, facetList1.get(i).count());
+                final int tolerance = exactUsers / 100;
+                final long fuzzyUsers = facetList1.get(i).distinctCount();
+                //System.out.println("Exact user count = " + exactUsers);
+                //System.out.println("Fuzzy user count = " + fuzzyUsers);
+                assertTrue(String.format(
+                        "With > %d terms per day: Estimated count %d is not within 1%% tolerance of %d",
+                        perDay, fuzzyUsers, exactUsers),
+                        abs(fuzzyUsers - exactUsers) <= tolerance);
+            }
 
-        final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField);
-        final DistinctDateHistogramFacet facet2 = response2.facets().facet(__facetName);
-        final ArrayList<Entry> facetList2 = newArrayList(facet2);
-        assertEquals(7, facetList2.size()); // This is an assumption, I admit.
-        for(int i = 0; i < 7; i++) {
-            final int exactTokens = itemsPerDay[i] * 3; // "Document created [by] <ID>"
-            final int exactDistinctTokens = itemsPerDay[i] + 2;
-            assertEquals(exactTokens, facetList2.get(i).count());
-            final int tolerance = exactDistinctTokens / 100;
-            final long fuzzyDistinctTokens = facetList2.get(i).distinctCount();
-            //System.out.println("Exact distinct token count = " + exactDistinctTokens);
-            //System.out.println("Fuzzy distinct token count = " + fuzzyDistinctTokens);
-            assertTrue(abs(fuzzyDistinctTokens - exactDistinctTokens) < tolerance);
-        }
-    }
-
-    @Test
-    public void testRandomizedWithManyItemsOnDayBucketBelowApproxThreshold() throws Exception {
-        final int[] itemsPerDay = prepareRandomData();
-        final int totalItems = add(itemsPerDay);
-        assertEquals(totalItems, countAll());
-
-        final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, totalItems);
-        final DistinctDateHistogramFacet facet1 = response.facets().facet(__facetName);
-        final ArrayList<Entry> facetList1 = newArrayList(facet1);
-        assertEquals(7, facetList1.size()); // This is an assumption, I admit.
-        for(int i = 0; i < 7; i++) {
-            final int exactUsers = itemsPerDay[i];
-            assertEquals(exactUsers, facetList1.get(i).count());
-            final long retrievedUsers = facetList1.get(i).distinctCount();
-            assertEquals(exactUsers, retrievedUsers);
-        }
-
-        final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, totalItems);
-        final DistinctDateHistogramFacet facet2 = response2.facets().facet(__facetName);
-        final ArrayList<Entry> facetList2 = newArrayList(facet2);
-        assertEquals(7, facetList2.size()); // This is an assumption, I admit.
-        for(int i = 0; i < 7; i++) {
-            final int exactTokens = itemsPerDay[i] * 3; // "Document created [by] <ID>"
-            final int exactDistinctTokens = itemsPerDay[i] + 2;
-            assertEquals(exactTokens, facetList2.get(i).count());
-            final long retrievedDistinctTokens = facetList2.get(i).distinctCount();
-            assertEquals(exactDistinctTokens, retrievedDistinctTokens);
+            final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, 1000);
+            final DistinctDateHistogramFacet facet2 = response2.facets().facet(__facetName);
+            final ArrayList<Entry> facetList2 = newArrayList(facet2);
+            assertEquals(7, facetList2.size());
+            for(int i = 0; i < 7; i++) {
+                final int exactTokens = itemsPerDay[i] * 3; // "Document created [by] <ID>"
+                final int exactDistinctTokens = itemsPerDay[i] + 2;
+                assertEquals(exactTokens, facetList2.get(i).count());
+                final int tolerance = exactDistinctTokens / 100;
+                final long fuzzyDistinctTokens = facetList2.get(i).distinctCount();
+                //System.out.println("Exact distinct token count = " + exactDistinctTokens);
+                //System.out.println("Fuzzy distinct token count = " + fuzzyDistinctTokens);
+                assertTrue(String.format(
+                        "With > %d terms per day: Estimated count %d is not within 1%% tolerance of %d",
+                        perDay, fuzzyDistinctTokens, exactDistinctTokens),
+                        abs(fuzzyDistinctTokens - exactDistinctTokens) <= tolerance);
+            }
         }
     }
 
     // Helper methods
 
-    private static String newID() {
-        return String.valueOf(__counter.getAndIncrement());
+    private static int newID() {
+        return __counter.getAndIncrement();
     }
 
     private SearchResponse getHistogram(final long start, final long end, final String interval, final String valueField) {
@@ -318,10 +303,11 @@ public class DistinctDateHistogramFacetTest {
                 .execute().actionGet();
     }
 
-    private void putSync(final String id, final String user, final long timestamp) throws ElasticSearchException, IOException {
-        client().prepareIndex(__index, __type, id)
+    private void putSync(final int id, final int user, final long timestamp) throws ElasticSearchException, IOException {
+        final String stringID = String.valueOf(id);
+        client().prepareIndex(__index, __type, String.valueOf(stringID))
                 .setRefresh(true)
-                .setRouting(id)
+                .setRouting(stringID)
                 .setSource(XContentFactory.jsonBuilder()
                         .startObject()
                         .field(__txtField, "Document created at " + timestamp)
@@ -330,34 +316,44 @@ public class DistinctDateHistogramFacetTest {
                         .endObject()).execute().actionGet();
     }
 
-    private void putBulk(final String[] ids, final String[] users, final long[] timestamps) throws Exception {
-        final BulkRequestBuilder bulk = client().prepareBulk();
-        for(int i = 0; i < ids.length; i++) {
-            bulk.add(new IndexRequest(__index, __type, ids[i])
-                    .routing(ids[i])
-                    .source(XContentFactory.jsonBuilder()
-                            .startObject()
-                            .field(__txtField, "Document created by " + users[i])
-                            .field(__userField, users[i])
-                            .field(__tsField, timestamps[i])
-                            .endObject()));
+    private void putBulk(final String[] ids, final int[] users, final long[] timestamps) throws Exception {
+        final int batchSize = 1000;
+        for(int i = 0; i < ids.length; i += batchSize) {
+            final BulkRequestBuilder bulk = client().prepareBulk();
+            for(int j = 0; j < batchSize; j++) {
+                final int idx = i + j;
+                if(idx >= ids.length) {
+                    bulk.setRefresh(true).execute().actionGet();
+                    return;
+                }
+                bulk.add(new IndexRequest(__index, __type, ids[idx])
+                        .routing(ids[idx])
+                        .source(XContentFactory.jsonBuilder()
+                                .startObject()
+                                .field(__txtField, "Document created by " + users[idx])
+                                .field(__userField, users[idx])
+                                .field(__tsField, timestamps[idx])
+                                .endObject()));
+            }
+            bulk.execute().actionGet();
         }
-        bulk.setRefresh(true).execute().actionGet();
+        new RefreshRequestBuilder(client().admin().indices()).execute();
     }
 
-    private int[] prepareRandomData() throws Exception {
+    private int[] prepareRandomData(final int minPerDay) throws Exception {
         final int[] itemsPerDay = new int[7];
-        final int minPerDay = 10000;
-        final int variationPerDay = 5000;
+        final int variationPerDay = minPerDay / 10;
         for(int i = 0; i < 7; i++) {
             itemsPerDay[i] = minPerDay + (int) (random() * variationPerDay);
-            final String[] ids = new String[itemsPerDay[i]];
+            final int[] ids = new int[itemsPerDay[i]];
+            final String[] stringIDs = new String[itemsPerDay[i]];
             final long[] timestamps = new long[itemsPerDay[i]];
             for(int j = 0; j < itemsPerDay[i]; j++) {
                 timestamps[j] = __days[i] + (int) (random() * 86400000);
                 ids[j] = newID();
+                stringIDs[j] = String.valueOf(ids[j]);
             }
-            putBulk(ids, ids, timestamps);
+            putBulk(stringIDs, ids, timestamps);
         }
         return itemsPerDay;
     }

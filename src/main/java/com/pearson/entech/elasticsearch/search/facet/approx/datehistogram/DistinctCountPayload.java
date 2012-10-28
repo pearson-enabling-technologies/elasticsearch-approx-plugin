@@ -5,9 +5,9 @@ import java.io.IOException;
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
 
-import com.clearspring.analytics.stream.cardinality.AdaptiveCounting;
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 import com.clearspring.analytics.stream.cardinality.CountThenEstimate;
+import com.clearspring.analytics.stream.cardinality.HyperLogLog;
 
 public class DistinctCountPayload {
 
@@ -17,7 +17,12 @@ public class DistinctCountPayload {
 
     public DistinctCountPayload(final int entryLimit) {
         _count = 0;
-        _cardinality = new CountThenEstimate(entryLimit, AdaptiveCounting.Builder.obyCount(1000000000));
+        // Enforce a sensible entry limit 
+        //        final int realEntryLimit = entryLimit == 0 ? 1 : entryLimit;
+        //        _cardinality = new CountThenEstimate(realEntryLimit,
+        //                AdaptiveCounting.Builder.obyCount(realEntryLimit * 1000));
+        _cardinality = new CountThenEstimate(entryLimit,
+                new HyperLogLog.Builder(0.001));
     }
 
     DistinctCountPayload(final long count, final CountThenEstimate cardinality) {

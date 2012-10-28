@@ -1,14 +1,18 @@
-ElasticSearch Approx Plugin
-===========================
+# ElasticSearch Approx Plugin
 
-Plugin for [ElasticSearch](http://www.elasticsearch.org/) to use approximate methods for enabling and/or speeding up certain queries, using bounded memory.
+A plugin for [ElasticSearch](http://www.elasticsearch.org/) to use approximate
+methods for certain queries, to greatly reduce memory usage and network traffic.
 
-Currently just provides one such query: distinct date histogram.
+Approximate counting is performed via the excellent probabilistic data
+structures from [stream-lib](https://github.com/clearspring/stream-lib).
 
-Inspired in part by [elasticsearch-ls-plugins](https://github.com/lovelysystems/elasticsearch-ls-plugins) by Lovely Systems -- some of their code has been reused here.
+It currently just provides one such query: distinct date histogram.
 
-Distinct Date Histogram
------------------------
+This work is inspired in part by
+[elasticsearch-ls-plugins](https://github.com/lovelysystems/elasticsearch-ls-plugins)
+by Lovely Systems -- some of their code has been reused here.
+
+## Distinct Date Histogram
 
 Counts the total numbers of terms and _unique_ terms in a given field, for each
 interval in a date range.
@@ -69,19 +73,43 @@ Returns something like:
     }
 
 The facet works initially by keeping a hashset of all terms encountered, but
-when this grows too large, falls back to an approximate counting method using
-Adaptive Counting from stream-lib:
-
-https://github.com/clearspring/stream-lib
+when this grows too large, it falls back to an approximate counting method.
 
 The `max_exact_per_shard` parameter controls how many distinct values will be
-gathered from a single shard, before migrating to the approximate count
-instead. This can be used to keep memory usage under control. It defaults to
-1000.
+gathered for a given bucket from a single shard, before migrating to the
+approximate count instead. This can be used to keep memory usage under control.
+It defaults to 1000.
 
+The approximate counting method is hard-coded to HyperLogLog method with a
+relative standard deviation of 0.001 * the true count.
 
-Installing
-----------
+An obvious extension would be to give users the option to control the algorithm
+used, and its parameters, so they can tune these based on the expected
+cardinality of the field in question, and the desired memory usage. (Pull
+requests gratefully received.)
+
+Note that the counts are based on terms, so if the `value_field` is tokenized,
+the result won't indicate the number of distinct _values_ in that field, but
+rather, the number of distinct tokens (post-analysis).
+
+## Building and testing
+
+It's all done via Maven, so just `mvn test` to build the plugin and run the
+tests. Amongst other things, they check that the distinct counts are within a
+tolerance of 1% of the expected values.
+
+If you get errors like `OutOfMemoryError[Direct buffer memory]]]` then you may
+need to raise the amount of memory you allocate to the mvn process. Try using
+`-Xmx2G` in the `MAVEN_OPTS` variable. (If you're an Eclipse user, put `-Xmx2G`
+in the VM Arguments box of the Arguments tab in Run Configurations.)
+
+Yes, this is quite a lot of memory for unit tests, but the tests use several
+iterations of randomly generated data of increasing size, in order to verify
+the accuracy of the approximate counts. The final run puts over a million
+distinct values in each bucket. For the same reason, the tests take several
+minutes to run.
+
+## Installing
 
 Package into a zip (in `target/releases`):
 
@@ -90,17 +118,14 @@ Package into a zip (in `target/releases`):
 Then create a `plugins/approx` directory in your ElasticSearch installation,
 and unzip the release zipfile into there.
 
-
-Credits
-=======
+## Credits
 
 This project was developed by the Data Analytics & Visualization team
 at Pearson Technology in London.
 
 http://www.pearson.com/
 
-License
-=======
+## License
 
     Copyright 2012 Pearson PLC
 
