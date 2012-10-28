@@ -81,7 +81,8 @@ approximate count instead. This can be used to keep memory usage under control.
 It defaults to 1000.
 
 The approximate counting method is hard-coded to HyperLogLog method with a
-relative standard deviation of 0.001 * the true count.
+relative standard deviation of 0.0025, which uses about 80KB of memory per
+bucket per shard.
 
 An obvious extension would be to give users the option to control the algorithm
 used, and its parameters, so they can tune these based on the expected
@@ -98,16 +99,24 @@ It's all done via Maven, so just `mvn test` to build the plugin and run the
 tests. Amongst other things, they check that the distinct counts are within a
 tolerance of 1% of the expected values.
 
-If you get errors like `OutOfMemoryError[Direct buffer memory]]]` then you may
-need to raise the amount of memory you allocate to the mvn process. Try using
-`-Xmx2G` in the `MAVEN_OPTS` variable. (If you're an Eclipse user, put `-Xmx2G`
-in the VM Arguments box of the Arguments tab in Run Configurations.)
+If you get errors like `OutOfMemoryError[Direct buffer memory]]]` or other
+weird errors from ElasticSearch, then you may need to raise the amount of
+memory you allocate to the mvn process. Try using `-Xmx1G` in the `MAVEN_OPTS`
+variable. (If you're an Eclipse user, put `-Xmx1G` in the VM Arguments box of
+the Arguments tab in Run Configurations for that test.)
 
 Yes, this is quite a lot of memory for unit tests, but the tests use several
 iterations of randomly generated data of increasing size, in order to verify
 the accuracy of the approximate counts. The final run puts over a million
 distinct values in each bucket. For the same reason, the tests take several
 minutes to run.
+
+### Important note
+
+Because the error rate for HyperLogLog is a distribution rather than a hard
+bound, you may occasionally get tests failed due to results being just outside
+the 1% tolerance. If this happens, re-run the test. It's only a problem if it
+happens consistently...
 
 ## Installing
 
