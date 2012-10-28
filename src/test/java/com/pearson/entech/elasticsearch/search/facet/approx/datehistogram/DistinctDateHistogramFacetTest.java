@@ -68,13 +68,19 @@ public class DistinctDateHistogramFacetTest {
         final Settings settings = ImmutableSettings.settingsBuilder()
                 .put("node.http.enabled", false)
                 .put("index.gateway.type", "none")
-                .put("index.store.type", "memory")
+                // Reluctantly removed this to reduce overall memory:
+                //.put("index.store.type", "memory")
                 .put("index.number_of_shards", 3)
                 .put("index.number_of_replicas", 0)
                 .put("path.data", "target")
                 .put("refresh_interval", -1)
+                .put("index.cache.field.type", "soft")
                 .build();
-        __node = nodeBuilder().local(true).settings(settings).node();
+        __node = nodeBuilder()
+                .local(true)
+                .settings(settings)
+                .clusterName("DistinctDateHistogramFacetTest")
+                .node();
         __node.start();
     }
 
@@ -231,10 +237,10 @@ public class DistinctDateHistogramFacetTest {
     @Test
     public void testRandomizedWithManyItemsOnDayBucket() throws Exception {
         // Do this 20 times for different amounts of data
-        for(int t = 0; t < 20; t++) {
+        for(int t = 1; t < 21; t++) {
             setUp();
-            final int perDay = (int) pow(2, t);
-            final int[] itemsPerDay = prepareRandomData(perDay);
+            final int minPerDay = (int) pow(2, t);
+            final int[] itemsPerDay = prepareRandomData(minPerDay);
             final int totalItems = add(itemsPerDay);
             assertEquals(totalItems, countAll());
 
@@ -251,7 +257,7 @@ public class DistinctDateHistogramFacetTest {
                 //System.out.println("Fuzzy user count = " + fuzzyUsers);
                 assertTrue(String.format(
                         "With > %d terms per day: Estimated count %d is not within 1%% tolerance of %d",
-                        perDay, fuzzyUsers, exactUsers),
+                        minPerDay, fuzzyUsers, exactUsers),
                         abs(fuzzyUsers - exactUsers) <= tolerance);
             }
 
@@ -269,7 +275,7 @@ public class DistinctDateHistogramFacetTest {
                 //System.out.println("Fuzzy distinct token count = " + fuzzyDistinctTokens);
                 assertTrue(String.format(
                         "With > %d terms per day: Estimated count %d is not within 1%% tolerance of %d",
-                        perDay, fuzzyDistinctTokens, exactDistinctTokens),
+                        minPerDay, fuzzyDistinctTokens, exactDistinctTokens),
                         abs(fuzzyDistinctTokens - exactDistinctTokens) <= tolerance);
             }
         }
