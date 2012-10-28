@@ -20,7 +20,7 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
     private String preZone = null;
     private String postZone = null;
     private Boolean preZoneAdjustLargeInterval;
-    private int maxExactPerShard = 0;
+    private int maxExactPerShard = -1;
     long preOffset = 0;
     long postOffset = 0;
     float factor = 1.0f;
@@ -219,7 +219,7 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
         if(factor != 1.0f) {
             builder.field("factor", factor);
         }
-        if(maxExactPerShard != 0) {
+        if(maxExactPerShard >= 0) {
             builder.field("max_exact_per_shard", maxExactPerShard);
         }
         if(comparatorType != null) {
