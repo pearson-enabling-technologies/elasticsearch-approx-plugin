@@ -130,6 +130,14 @@ e.g.
 
     bin/plugin -install ptdavteam/elasticsearch-approx-plugin/1.0.8
 
+If you're building from source, just do
+
+    mvn package
+
+to rebuild the zipfile (in `target/releases`). You may want to add
+`-DskipTests=true` if you've just run the tests and haven't changed anything,
+since they take so long.
+
 ## Credits
 
 This project was developed by the Data Analytics & Visualization team
