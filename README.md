@@ -95,6 +95,8 @@ rather, the number of distinct tokens (post-analysis).
 
 ## Building and testing
 
+There's a pre-built distro, see below. But if you want to play, read on.
+
 It's all done via Maven, so just `mvn test` to build the plugin and run the
 tests. Amongst other things, they check that the distinct counts are within a
 tolerance of 1% of the expected values.
@@ -120,12 +122,13 @@ happens consistently...
 
 ## Installing
 
-Package into a zip (in `target/releases`):
+From your ElasticSearch root directory, type:
 
-    mvn package
+    bin/plugin -install ptdavteam/elasticsearch-approx-plugin/<VERSION>
 
-Then create a `plugins/approx` directory in your ElasticSearch installation,
-and unzip the release zipfile into there.
+e.g.
+
+    bin/plugin -install ptdavteam/elasticsearch-approx-plugin/1.0.8
 
 ## Credits
 
