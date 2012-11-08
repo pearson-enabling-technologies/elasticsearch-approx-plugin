@@ -4,12 +4,15 @@ import static com.google.common.collect.Lists.newArrayList;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
 import org.elasticsearch.common.CacheRecycler;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.trove.set.TIntSet;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
@@ -38,7 +41,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
         return facet;
     }
 
-    private final byte _dataType = -1; // -1 == uninitialized
+    private byte _dataType = -1; // -1 == uninitialized
 
     private Object[] _strings; // dataType 0
 
@@ -48,12 +51,22 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
 
     private String _type;
 
-    public InternalTermListFacet(final String name) {
-        _name = name;
+    public InternalTermListFacet(final String facetName, final Collection<String> strings) {
+        _name = facetName;
+        _strings = Strings.toStringArray(strings);
+        _dataType = 0;
     }
 
-    private InternalTermListFacet() {
+    public InternalTermListFacet(final String facetName, final TIntSet ints) {
+        _name = facetName;
+        _ints = ints.toArray();
+        _dataType = 1;
+    }
 
+    private InternalTermListFacet() {}
+
+    public InternalTermListFacet(final String facetName) {
+        _name = facetName;
     }
 
     @Override
