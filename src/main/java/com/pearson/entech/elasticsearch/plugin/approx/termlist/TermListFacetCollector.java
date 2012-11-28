@@ -11,7 +11,6 @@ import org.apache.lucene.index.TermEnum;
 import org.elasticsearch.common.trove.set.TIntSet;
 import org.elasticsearch.common.trove.set.hash.TIntHashSet;
 import org.elasticsearch.index.cache.field.data.FieldDataCache;
-import org.elasticsearch.index.field.data.FieldData;
 import org.elasticsearch.index.field.data.FieldDataType;
 import org.elasticsearch.index.field.data.FieldDataType.DefaultTypes;
 import org.elasticsearch.index.mapper.FieldMapper;
@@ -29,8 +28,8 @@ public class TermListFacetCollector extends AbstractFacetCollector {
     private final String _keyFieldName;
     private final FieldDataType _keyFieldType;
     private final FieldDataCache _fieldDataCache;
-    private FieldData _keyFieldData;
-    private int _docBase;
+    //    private FieldData _keyFieldData;
+    //    private int _docBase;
 
     private Collection<String> _strings;
 
