@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.plugin.approx.termlist;
+package com.pearson.entech.elasticsearch.search.facet.approx.termlist;
 
 import java.util.List;
 

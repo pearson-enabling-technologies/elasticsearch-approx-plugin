@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.plugin.approx.termlist;
+package com.pearson.entech.elasticsearch.search.facet.approx.termlist;
 
 import static com.google.common.collect.Sets.newHashSet;
 
@@ -11,6 +11,8 @@ import org.apache.lucene.index.TermEnum;
 import org.elasticsearch.common.trove.set.TIntSet;
 import org.elasticsearch.common.trove.set.hash.TIntHashSet;
 import org.elasticsearch.index.cache.field.data.FieldDataCache;
+import org.elasticsearch.index.field.data.FieldData;
+import org.elasticsearch.index.field.data.FieldData.StringValueProc;
 import org.elasticsearch.index.field.data.FieldDataType;
 import org.elasticsearch.index.field.data.FieldDataType.DefaultTypes;
 import org.elasticsearch.index.mapper.FieldMapper;
@@ -22,18 +24,23 @@ import org.elasticsearch.search.internal.SearchContext;
 
 public class TermListFacetCollector extends AbstractFacetCollector {
 
+    // FIXME make this parameterizable
+    private final boolean _readFromFieldCache = false;
+
     private final String _facetName;
     private final int _maxPerShard;
 
     private final String _keyFieldName;
     private final FieldDataType _keyFieldType;
     private final FieldDataCache _fieldDataCache;
-    //    private FieldData _keyFieldData;
-    //    private int _docBase;
+    private FieldData _keyFieldData;
+    private int _docBase;
 
     private Collection<String> _strings;
 
     private TIntSet _ints;
+
+    private final StringValueProc _proc = new KeyFieldVisitor();
 
     public TermListFacetCollector(final String facetName, final String keyField, final SearchContext context, final int maxPerShard) {
         super(facetName);
@@ -62,19 +69,30 @@ public class TermListFacetCollector extends AbstractFacetCollector {
 
     }
 
+    // TODO make this work for other data types too
+
+    @Override
+    public Facet facet() {
+        if(_strings != null)
+            return new InternalTermListFacet(_facetName, (String[]) _strings.toArray());
+        else if(_ints != null)
+            return new InternalTermListFacet(_facetName, _ints.toArray());
+        else
+            return new InternalTermListFacet(_facetName);
+    }
+
     @Override
     protected void doSetNextReader(final IndexReader reader, final int docBase) throws IOException {
-        //_keyFieldData = _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName);
-        final TermEnum terms = reader.terms();
-        while(terms.next()) {
-            final Term term = terms.term();
-            if(_keyFieldName.equals(term.field())) {
-                final String value = term.text();
-                if(_strings != null && _strings.size() <= _maxPerShard) {
-                    _strings.add(value);
-                } else if(_ints != null && _ints.size() <= _maxPerShard) {
-                    // FIXME -- is this right?
-                    _ints.add(Integer.parseInt(value));
+        if(_readFromFieldCache) {
+            _keyFieldData = _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName);
+            _docBase = docBase;
+        } else {
+            final TermEnum terms = reader.terms();
+            while(terms.next()) {
+                final Term term = terms.term();
+                if(_keyFieldName.equals(term.field())) {
+                    final String value = term.text();
+                    saveValue(value);
                 }
             }
         }
@@ -82,17 +100,26 @@ public class TermListFacetCollector extends AbstractFacetCollector {
 
     @Override
     protected void doCollect(final int doc) throws IOException {
-        // Do nothing here -- already iterated through terms
+        if(_readFromFieldCache)
+            _keyFieldData.forEachValue(_proc);
+        // Otherwise do nothing -- we just read the values from the index directly
     }
 
-    @Override
-    public Facet facet() {
-        if(_strings != null)
-            return new InternalTermListFacet(_facetName, _strings);
-        else if(_ints != null)
-            return new InternalTermListFacet(_facetName, _ints);
-        else
-            return new InternalTermListFacet(_facetName);
+    private void saveValue(final String value) {
+        if(_strings != null && _strings.size() <= _maxPerShard) {
+            _strings.add(value);
+        } else if(_ints != null && _ints.size() <= _maxPerShard) {
+            // TODO -- is this right?
+            _ints.add(Integer.parseInt(value));
+        }
+    }
+
+    private class KeyFieldVisitor implements StringValueProc {
+
+        @Override
+        public void onValue(final String value) {
+            saveValue(value);
+        }
     }
 
 }

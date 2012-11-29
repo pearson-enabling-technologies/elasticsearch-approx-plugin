@@ -4,10 +4,10 @@ import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.search.facet.FacetModule;
 
-import com.pearson.entech.elasticsearch.plugin.approx.termlist.InternalTermListFacet;
-import com.pearson.entech.elasticsearch.plugin.approx.termlist.TermListFacetProcessor;
 import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacetProcessor;
 import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.InternalDistinctDateHistogramFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.termlist.InternalTermListFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetProcessor;
 
 public class FacetPlugin extends AbstractPlugin {
 

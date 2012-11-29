@@ -1,18 +1,17 @@
-package com.pearson.entech.elasticsearch.plugin.approx.termlist;
+package com.pearson.entech.elasticsearch.search.facet.approx.termlist;
 
 import static com.google.common.collect.Lists.newArrayList;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import org.elasticsearch.common.CacheRecycler;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.trove.set.TIntSet;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
@@ -51,15 +50,15 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
 
     private String _type;
 
-    public InternalTermListFacet(final String facetName, final Collection<String> strings) {
+    public InternalTermListFacet(final String facetName, final String[] strings) {
         _name = facetName;
-        _strings = Strings.toStringArray(strings);
+        _strings = strings;
         _dataType = 0;
     }
 
-    public InternalTermListFacet(final String facetName, final TIntSet ints) {
+    public InternalTermListFacet(final String facetName, final int[] ints) {
         _name = facetName;
-        _ints = ints.toArray();
+        _ints = ints;
         _dataType = 1;
     }
 
@@ -199,6 +198,25 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
     @Override
     public List<? extends Object> getEntries() {
         return entries();
+    }
+
+    public Facet reduce(final List<Facet> facets) {
+        final Set<? extends Object> merged = new HashSet<Object>();
+        for(final Facet facet : facets) {
+            final InternalTermListFacet itlf = (InternalTermListFacet) facet;
+            switch(_dataType) {
+            case 0:
+                // TODO
+                break;
+            case 1:
+                // TODO
+                break;
+            default:
+                // TODO throw exception
+            }
+        }
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

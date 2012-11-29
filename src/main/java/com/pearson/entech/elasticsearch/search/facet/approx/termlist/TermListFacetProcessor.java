@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.plugin.approx.termlist;
+package com.pearson.entech.elasticsearch.search.facet.approx.termlist;
 
 import java.io.IOException;
 import java.util.List;
@@ -54,17 +54,11 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
 
     @Override
     public Facet reduce(final String name, final List<Facet> facets) {
-        if(facets.size() == 1) {
-            return facets.get(0);
-        }
-
-        final TermListFacet base = (TermListFacet) facets.get(0);
-        for(int i = 1; i < facets.size(); i++) {
-            final TermListFacet other = (TermListFacet) facets.get(i);
-
-        }
+        final InternalTermListFacet base = (InternalTermListFacet) facets.get(0);
+        return base.reduce(facets);
     }
 
+    // FIXME WTF does this do? I can't remember
     @Override
     public String[] types() {
         // TODO Auto-generated method stub
