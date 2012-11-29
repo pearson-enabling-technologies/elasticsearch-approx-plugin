@@ -81,6 +81,9 @@ public class TermListFacetCollector extends AbstractFacetCollector {
             return new InternalTermListFacet(_facetName);
     }
 
+    /**
+     * This method gets called once for each index segment, with a new reader. 
+     */
     @Override
     protected void doSetNextReader(final IndexReader reader, final int docBase) throws IOException {
         if(_readFromFieldCache) {
@@ -109,7 +112,6 @@ public class TermListFacetCollector extends AbstractFacetCollector {
         if(_strings != null && _strings.size() <= _maxPerShard) {
             _strings.add(value);
         } else if(_ints != null && _ints.size() <= _maxPerShard) {
-            // TODO -- is this right?
             _ints.add(Integer.parseInt(value));
         }
     }

@@ -4,6 +4,9 @@ import java.util.List;
 
 import org.elasticsearch.search.facet.Facet;
 
+/**
+ * Defines the content and abilities of a facet class.
+ */
 public interface TermListFacet extends Facet, Iterable<Object> {
 
     /**

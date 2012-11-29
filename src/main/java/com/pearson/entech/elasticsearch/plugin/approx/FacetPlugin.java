@@ -9,6 +9,10 @@ import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.Intern
 import com.pearson.entech.elasticsearch.search.facet.approx.termlist.InternalTermListFacet;
 import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetProcessor;
 
+/**
+ * This class registers the facets themselves with ES, as well as the stream classes
+ * which govern how a facet is deserialized.
+ */
 public class FacetPlugin extends AbstractPlugin {
 
     @Override

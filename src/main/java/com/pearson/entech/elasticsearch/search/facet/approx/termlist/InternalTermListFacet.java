@@ -200,16 +200,23 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
         return entries();
     }
 
+    /**
+     * Takes a list of facets and returns a new facet containing the merged data from all of them.
+     * @param facets
+     * @return
+     */
     public Facet reduce(final List<Facet> facets) {
         final Set<? extends Object> merged = new HashSet<Object>();
         for(final Facet facet : facets) {
             final InternalTermListFacet itlf = (InternalTermListFacet) facet;
             switch(_dataType) {
             case 0:
-                // TODO
+                // TODO create a set of strings
+                // TODO loop through all the incoming facets and add their strings
+                // TODO generate an output facet from this set
                 break;
             case 1:
-                // TODO
+                // TODO as above for ints
                 break;
             default:
                 // TODO throw exception
