@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 
 import org.elasticsearch.common.component.AbstractComponent;
+import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.mapper.FieldMapper;
@@ -15,6 +16,7 @@ import org.elasticsearch.search.internal.SearchContext;
 
 public class TermListFacetProcessor extends AbstractComponent implements FacetProcessor {
 
+    @Inject
     public TermListFacetProcessor(final Settings settings) {
         super(settings);
         InternalTermListFacet.registerStreams();

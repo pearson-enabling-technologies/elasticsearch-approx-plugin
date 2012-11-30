@@ -62,7 +62,8 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
         _dataType = 1;
     }
 
-    private InternalTermListFacet() {}
+    private InternalTermListFacet() {
+    }
 
     public InternalTermListFacet(final String facetName) {
         _name = facetName;
@@ -203,27 +204,37 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
     /**
      * Takes a list of facets and returns a new facet containing the merged data from all of them.
      * @param facets
-     * @return
-     */
+     * @return 
+     *      */
     public Facet reduce(final List<Facet> facets) {
+
+        final Set<String> stringTermSet = new HashSet<String>();
+        final Set<Integer> intTermSet = new HashSet<Integer>();
+
         final Set<? extends Object> merged = new HashSet<Object>();
         for(final Facet facet : facets) {
             final InternalTermListFacet itlf = (InternalTermListFacet) facet;
             switch(_dataType) {
             case 0:
+                stringTermSet.add(itlf.toString());
                 // TODO create a set of strings
                 // TODO loop through all the incoming facets and add their strings
                 // TODO generate an output facet from this set
                 break;
             case 1:
-                // TODO as above for ints
+                intTermSet.add(Integer.parseInt(itlf.toString()));
                 break;
             default:
-                // TODO throw exception
+                //  cannot throw exception due to class overrideÏ
+                return null;
             }
         }
-        // TODO Auto-generated method stub
-        return null;
+
+        if(_dataType == 0)
+            return new InternalTermListFacet("term_facet", stringTermSet.toArray(new String[stringTermSet.size()]));
+        else
+            return new InternalTermListFacet("term_facet", stringTermSet.toArray(new String[stringTermSet.size()]));
+
     }
 
 }
