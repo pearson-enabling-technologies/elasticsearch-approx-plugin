@@ -48,7 +48,7 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
                 } else if("max_per_shard".equals(fieldName) || "maxPerShard".equals(fieldName)) {
                     maxPerShard = parser.intValue();
                 }
-               else if("read_from_cache".equals(fieldName) || "readFromCache".equals(fieldName)) {
+               else if("read_from_cache".equals(fieldName) || "readFromCache".equals(fieldName) || "useCache".equals(fieldName) || "use_cache".equals(fieldName)) {
                    readFromCache = parser.booleanValue();
                }
             }
