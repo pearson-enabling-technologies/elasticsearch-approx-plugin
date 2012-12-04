@@ -30,6 +30,7 @@ public class FacetPlugin extends AbstractPlugin {
         if(module instanceof FacetModule) {
             ((FacetModule) module).addFacetProcessor(DistinctDateHistogramFacetProcessor.class);
             InternalDistinctDateHistogramFacet.registerStreams();
+            
             ((FacetModule) module).addFacetProcessor(TermListFacetProcessor.class);
             InternalTermListFacet.registerStreams();
         }

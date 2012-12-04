@@ -3,6 +3,7 @@ package com.pearson.entech.elasticsearch.search.facet.approx.termlist;
 import static com.google.common.collect.Lists.newArrayList;
 
 import java.io.IOException;
+import java.security.InvalidParameterException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -17,16 +18,23 @@ import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.InternalFacet;
 
-import com.google.common.primitives.Ints;
-
+// TODO: Auto-generated Javadoc
+/**
+ * The Class InternalTermListFacet.
+ */
 public class InternalTermListFacet implements TermListFacet, InternalFacet {
 
-    private static final String STREAM_TYPE = "term_list";
+    /** The Constant STREAM_TYPE. */
+    private static final String STREAM_TYPE = "term_list_facet";
 
+    /**
+     * Register streams.
+     */
     public static void registerStreams() {
         Streams.registerStream(STREAM, STREAM_TYPE);
     }
 
+    /** The stream. */
     static Stream STREAM = new Stream() {
         @Override
         public Facet readFacet(final String type, final StreamInput in) throws IOException {
@@ -34,61 +42,127 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
         }
     };
 
+    /**
+     * Read term list facet.
+     *
+     * @param in the in
+     * @return the internal term list facet
+     * @throws IOException Signals that an I/O exception has occurred.
+     */
     public static InternalTermListFacet readTermListFacet(final StreamInput in) throws IOException {
         final InternalTermListFacet facet = new InternalTermListFacet();
         facet.readFrom(in);
         return facet;
     }
 
+    /** The _data type. */
     private byte _dataType = -1; // -1 == uninitialized
 
+    /** The _strings. */
     private Object[] _strings; // dataType 0
 
+    /** The _ints. */
     private int[] _ints; // dataType 1
 
-    private String _name;
+    /** The _longs. */
+    private Long[] _longs;  //dataType 2 
 
-    private String _type;
+    /** The _name. */
+    private String _name;   // plugin name
 
-    public InternalTermListFacet(final String facetName, final String[] strings) {
+    /** The _type. */
+    private final String _type = STREAM_TYPE;
+
+    /**
+     * Instantiates a new internal string term list facet.
+     *
+     * @param facetName the facet name
+     * @param strings the strings
+     */
+    public InternalTermListFacet(final String facetName, final Object[] strings) {
         _name = facetName;
         _strings = strings;
         _dataType = 0;
     }
 
+    
+    /**
+     * Instantiates a new internal int term list facet.
+     *
+     * @param facetName the facet name
+     * @param ints the ints
+     */
     public InternalTermListFacet(final String facetName, final int[] ints) {
         _name = facetName;
         _ints = ints;
         _dataType = 1;
     }
 
+    /**
+     * Instantiates a new internal long term list facet.
+     *
+     * @param facetName the facet name
+     * @param longs the longs
+     */
+    public InternalTermListFacet(final String facetName, final long[] longs) {
+        _name = facetName;
+        _longs = new Long[longs.length];
+        for(int l = 0; l < longs.length; l++)
+            _longs[l] = longs[l];
+
+        _dataType = 2;
+    }
+
+    /**
+     * Instantiates a new internal term list facet.
+     */
     private InternalTermListFacet() {
     }
 
+    /**
+     * Instantiates a new internal term list facet.
+     *
+     * @param facetName the facet name
+     */
     public InternalTermListFacet(final String facetName) {
         _name = facetName;
     }
 
+    /* (non-Javadoc)
+     * @see org.elasticsearch.search.facet.Facet#getName()
+     */
     @Override
     public String getName() {
         return _name;
     }
 
+    /* (non-Javadoc)
+     * @see org.elasticsearch.search.facet.Facet#getType()
+     */
     @Override
     public String getType() {
         return _type;
     }
 
+    /* (non-Javadoc)
+     * @see org.elasticsearch.search.facet.Facet#name()
+     */
     @Override
     public String name() {
         return _name;
     }
 
+    /* (non-Javadoc)
+     * @see org.elasticsearch.search.facet.Facet#type()
+     */
     @Override
     public String type() {
         return _type;
     }
 
+    /* (non-Javadoc)
+     * @see org.elasticsearch.common.io.stream.Streamable#readFrom(org.elasticsearch.common.io.stream.StreamInput)
+     */
     @Override
     public void readFrom(final StreamInput in) throws IOException {
         _name = in.readString();
@@ -107,6 +181,11 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
             _strings = null;
             _ints = CacheRecycler.popIntArray(size);
             break;
+        case 2:
+            _strings = null;
+            _ints = null;
+            _longs = (Long[]) CacheRecycler.popObjectArray(size);
+
         default:
             throw new IllegalArgumentException("dataType " + dataType + " is not known");
         }
@@ -118,10 +197,16 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
             case 1:
                 _ints[i] = in.readInt();
                 break;
+            case 2:
+                _longs[i] = in.readLong();
+                break;
             }
         }
     }
 
+    /* (non-Javadoc)
+     * @see org.elasticsearch.common.io.stream.Streamable#writeTo(org.elasticsearch.common.io.stream.StreamOutput)
+     */
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
         out.writeString(_name);
@@ -140,15 +225,29 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
                 out.writeVInt(i);
             }
             break;
+        case 2:
+            for(final Long i : _longs) {
+                out.writeLong(i);
+            }
         }
         releaseCache();
     }
 
+    /**
+     * The Class Fields.
+     */
     static final class Fields {
+        
+        /** The Constant _TYPE. */
         static final XContentBuilderString _TYPE = new XContentBuilderString("_type");
+        
+        /** The Constant ENTRIES. */
         static final XContentBuilderString ENTRIES = new XContentBuilderString("entries");
     }
 
+    /* (non-Javadoc)
+     * @see org.elasticsearch.common.xcontent.ToXContent#toXContent(org.elasticsearch.common.xcontent.XContentBuilder, org.elasticsearch.common.xcontent.ToXContent.Params)
+     */
     @Override
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
         builder.startObject(_name);
@@ -162,40 +261,70 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
         case 1:
             builder.array(Fields.ENTRIES, _ints);
             break;
+        case 2:
+            builder.array(Fields.ENTRIES,  (Object[])_longs);
+            break;
         }
         builder.endObject();
         return builder;
     }
 
+    /* (non-Javadoc)
+     * @see org.elasticsearch.search.facet.InternalFacet#streamType()
+     */
     @Override
     public String streamType() {
         return STREAM_TYPE;
     }
 
+    /**
+     * Release cache.
+     */
     private void releaseCache() {
         if(_strings != null)
             CacheRecycler.pushObjectArray(_strings);
         if(_ints != null)
             CacheRecycler.pushIntArray(_ints);
+        if(_longs != null)
+            CacheRecycler.pushObjectArray(_longs);
+
     }
 
-    @SuppressWarnings("unchecked")
+    /* (non-Javadoc)
+     * @see java.lang.Iterable#iterator()
+     */
     @Override
     public Iterator<Object> iterator() {
-        return (Iterator<Object>) entries().iterator();
+        return entries().iterator();
     }
 
+    /* (non-Javadoc)
+     * @see com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacet#entries()
+     */
     @Override
-    public List<? extends Object> entries() {
+    public List<Object> entries() {
+
         switch(_dataType) {
         case 0:
             return Arrays.asList(_strings);
         case 1:
-            return Ints.asList(_ints);
+            final List<Object> ret = newArrayList();
+            for(final int i : _ints)
+                ret.add(i);
+            return ret;
+        case 2:
+            final List<Object> retL = newArrayList();
+            for(final long l : _longs)
+                retL.add(l);
+            return retL;
         }
         return newArrayList();
+
     }
 
+    /* (non-Javadoc)
+     * @see com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacet#getEntries()
+     */
     @Override
     public List<? extends Object> getEntries() {
         return entries();
@@ -203,37 +332,58 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
 
     /**
      * Takes a list of facets and returns a new facet containing the merged data from all of them.
-     * @param facets
-     * @return 
-     *      */
-    public Facet reduce(final List<Facet> facets) {
+     *
+     * @param name the facet name
+     * @param facets the facets
+     * @return the resulting reduced facet
+     */
+    public Facet reduce(final String name, final List<Facet> facets) {
 
-        final Set<String> stringTermSet = new HashSet<String>();
-        final Set<Integer> intTermSet = new HashSet<Integer>();
+        System.out.println("[" + name + " reducing]");
 
-        final Set<? extends Object> merged = new HashSet<Object>();
+        final Set<String> reducedStrings = new HashSet<String>();
+        final Set<Integer> reducedInts = new HashSet<Integer>();
+        final Set<Long> reducedLongs = new HashSet<Long>();
+
         for(final Facet facet : facets) {
             final InternalTermListFacet itlf = (InternalTermListFacet) facet;
             switch(_dataType) {
             case 0:
-                stringTermSet.add(itlf.toString());
-                // TODO create a set of strings
-                // TODO loop through all the incoming facets and add their strings
-                // TODO generate an output facet from this set
+
+                for(final Object obj : itlf._strings) {
+                    reducedStrings.add(obj.toString());
+                } 
                 break;
             case 1:
-                intTermSet.add(Integer.parseInt(itlf.toString()));
+
+                for(final Object obj : itlf._ints) {
+                    reducedInts.add(Integer.parseInt(obj.toString()));
+                }
+                break;
+            case 2:
+
+                for(final Long obj : itlf._longs) {
+                    reducedLongs.add(Long.parseLong(obj.toString()));
+                } 
                 break;
             default:
-                //  cannot throw exception due to class overrideÏ
-                return null;
+                throw new InvalidParameterException("Data type not supported for this plugin");
             }
         }
 
-        if(_dataType == 0)
-            return new InternalTermListFacet("term_facet", stringTermSet.toArray(new String[stringTermSet.size()]));
-        else
-            return new InternalTermListFacet("term_facet", stringTermSet.toArray(new String[stringTermSet.size()]));
+        switch(_dataType) {
+        case 0:
+            final Object[] strings = reducedStrings.toArray(new Object[reducedStrings.size()]);
+            return new InternalTermListFacet(name, strings);
+        case 1:
+            final Object[] ints = reducedInts.toArray(new Object[reducedInts.size()]);
+            return new InternalTermListFacet(name, ints);
+        case 2:
+            final Object[] longs = reducedLongs.toArray(new Object[reducedLongs.size()]);
+            return new InternalTermListFacet(name, longs);
+        default:
+            return null;
+        }
 
     }
 

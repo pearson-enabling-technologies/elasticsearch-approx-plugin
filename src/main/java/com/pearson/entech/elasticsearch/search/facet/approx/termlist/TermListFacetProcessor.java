@@ -16,18 +16,27 @@ import org.elasticsearch.search.internal.SearchContext;
 
 public class TermListFacetProcessor extends AbstractComponent implements FacetProcessor {
 
+    /**
+     * Instantiates a new term list facet processor.
+     *
+     * @param settings the settings
+     */
     @Inject
     public TermListFacetProcessor(final Settings settings) {
         super(settings);
         InternalTermListFacet.registerStreams();
     }
 
+    /* (non-Javadoc)
+     * @see org.elasticsearch.search.facet.FacetProcessor#parse(java.lang.String, org.elasticsearch.common.xcontent.XContentParser, org.elasticsearch.search.internal.SearchContext)
+     */
     @Override
     public FacetCollector parse(final String facetName, final XContentParser parser, final SearchContext context) throws IOException {
         String keyField = null;
         XContentParser.Token token;
         String fieldName = null;
-        int maxPerShard = 1000;
+        int maxPerShard = 100;
+        boolean readFromCache = false;
         while((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if(token == XContentParser.Token.FIELD_NAME) {
                 fieldName = parser.currentName();
@@ -39,6 +48,9 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
                 } else if("max_per_shard".equals(fieldName) || "maxPerShard".equals(fieldName)) {
                     maxPerShard = parser.intValue();
                 }
+               else if("read_from_cache".equals(fieldName) || "readFromCache".equals(fieldName)) {
+                   readFromCache = parser.booleanValue();
+               }
             }
         }
 
@@ -51,20 +63,25 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
             throw new FacetPhaseExecutionException(facetName, "(key) field [" + keyField + "] not found");
         }
 
-        return new TermListFacetCollector(facetName, keyField, context, maxPerShard);
+        return new TermListFacetCollector(facetName, keyField, context, maxPerShard, readFromCache);
     }
 
+    /* (non-Javadoc)
+     * @see org.elasticsearch.search.facet.FacetProcessor#reduce(java.lang.String, java.util.List)
+     */
     @Override
-    public Facet reduce(final String name, final List<Facet> facets) {
+    public Facet reduce(final String name, final List<Facet> facets) { 
         final InternalTermListFacet base = (InternalTermListFacet) facets.get(0);
-        return base.reduce(facets);
+        return base.reduce(name, facets); 
+       
     }
 
-    // FIXME WTF does this do? I can't remember
+    /* (non-Javadoc)
+     * @see org.elasticsearch.search.facet.FacetProcessor#types()
+     */
     @Override
     public String[] types() {
-        // TODO Auto-generated method stub
-        return null;
+        return new String[] { TermListFacet.TYPE, "term_list_facet" };
     }
 
 }
