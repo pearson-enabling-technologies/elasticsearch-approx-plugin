@@ -260,6 +260,76 @@ public class TermListFacetTest {
         checkLongSearchResponse(response1, numOfDocumentsToIndex, uniqs.size(), nums);
 
     }
+    
+    @Test
+    public void testAllFieldsWithRandomValues() throws Exception {
+        final Random r = new Random();
+        final int numOfElements = 300 + r.nextInt(100);
+        final int numOfWords = 30 + r.nextInt(10);
+        final List<String> words = generateRandomWords(numOfWords);
+        final List<Integer> ints = generateRandomInts(numOfWords);
+        final List<Long> longs = generateRandomLongs(numOfWords);
+
+        
+        
+        int rIndex1 = r.nextInt(numOfWords);
+        int rIndex2 = r.nextInt(numOfWords);
+        int rIndex3 = r.nextInt(numOfWords);
+        int rIndex4 = r.nextInt(numOfWords);
+        
+        
+        for(int i = 0; i < numOfElements; i++) {
+            putSync(newID(), words.get(rIndex1), words.get(rIndex2), ints.get(rIndex3), longs.get(rIndex4));
+            rIndex1++;
+            rIndex1 %= numOfWords;
+
+            rIndex2++;
+            rIndex2 %= numOfWords;
+            
+            rIndex3++;
+            rIndex3 %= numOfWords;
+            
+            rIndex4++;
+            rIndex4 %= numOfWords;
+        }
+
+        final Set<String> uniqsStrings = new HashSet<String>(words);
+        final Set<Integer> uniqInts = new HashSet<Integer>(ints);
+        final Set<Long> uniqLongs = new HashSet<Long>(longs);
+
+        
+        assertEquals(numOfElements, countAll());
+        final SearchResponse response1 = getTermList(__txtField1, numOfElements, false);
+        final SearchResponse response2 = getTermList(__txtField2, numOfElements, false);
+        final SearchResponse response3 = getTermList(__intField1, numOfElements, false);
+        final SearchResponse response4 = getTermList(__longField1, numOfElements, false);
+
+        
+        
+        checkStringSearchResponse(response1, numOfElements, uniqsStrings.size(), words);
+        checkStringSearchResponse(response2, numOfElements, uniqsStrings.size(), words);
+        checkIntSearchResponse(response3, numOfElements, uniqInts.size(), ints);
+        checkLongSearchResponse(response4, numOfElements, uniqLongs.size(), longs);
+        
+        
+        
+        assertEquals(numOfElements, countAll());
+        final SearchResponse r1 = getTermList(__txtField1, numOfElements, true);
+        final SearchResponse r2 = getTermList(__txtField2, numOfElements, true);
+        final SearchResponse r3 = getTermList(__intField1, numOfElements, true);
+        final SearchResponse r4 = getTermList(__longField1, numOfElements, true);
+
+         
+        checkStringSearchResponse(r1, numOfElements, uniqsStrings.size(), words);
+        checkStringSearchResponse(r2, numOfElements, uniqsStrings.size(), words);
+        checkIntSearchResponse(r3, numOfElements, uniqInts.size(), ints);
+        checkLongSearchResponse(r4, numOfElements, uniqLongs.size(), longs);
+        
+        
+    }
+
+    
+    
 
     List<Integer> generateRandomInts(final int numOfElements) {
         final Random r = new Random();
