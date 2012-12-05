@@ -72,9 +72,7 @@ public class TermListFacetBuilder extends AbstractFacetBuilder {
     }
 
     /**
-     * The field name to use in order to control where the hit will "fall into" within the histogram
-     * entries. Essentially, using the key field numeric value, the hit will be "rounded" into the relevant
-     * bucket controlled by the interval.
+     * The field name to retrieve terms for the TermListFacet
      *
      * @param keyField the key field
      * @return the term list facet builder
@@ -85,9 +83,7 @@ public class TermListFacetBuilder extends AbstractFacetBuilder {
     }
 
     /**
-     * The field name to use in order to control where the hit will "fall into" within the histogram
-     * entries. Essentially, using the key field numeric value, the hit will be "rounded" into the relevant
-     * bucket controlled by the interval.
+     * The field name to retrieve terms for the TermListFace
      *
      * @param keyField the key field
      * @return the term list facet builder
@@ -98,7 +94,7 @@ public class TermListFacetBuilder extends AbstractFacetBuilder {
     }
 
     /**
-     * Max results per shard.
+     * Max term results per shard.
      *
      * @param maxPerShard the max number of results per shard
      * @return the term list facet builder

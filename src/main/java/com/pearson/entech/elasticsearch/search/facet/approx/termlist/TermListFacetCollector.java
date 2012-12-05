@@ -137,14 +137,17 @@ public class TermListFacetCollector extends AbstractFacetCollector {
     @Override
     protected void doSetNextReader(final IndexReader reader, final int docBase) throws IOException {
         if(_readFromFieldCache) {
-            _keyFieldData = _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName);
+            _keyFieldData = _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName); 
             _docBase = docBase;
         } else {
 
-            
+            // use this mechanism to retrieve terms from the lucene index.
+            //clean the cache for this request 
+            _fieldDataCache.clear("no-cache request", _keyFieldName);
             _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName).forEachValue(_proc); 
             /*
-             * works for string fields but NOT  for int/long fields. why?
+             * works for string fields but NOT  for int/long fields.  why? maybe switch on data type and retrieve
+             * strings by looping all terms and use the mechanism above for ints/longs?
              * 
             final TermEnum terms = reader.terms();
             while(terms.next()) {
@@ -173,7 +176,7 @@ public class TermListFacetCollector extends AbstractFacetCollector {
     }
 
     /**
-     * Save value.
+     *  For each term in the visitor, save the value in the appropriate array given the field datatype
      *
      * @param value the value
      */
@@ -199,6 +202,9 @@ public class TermListFacetCollector extends AbstractFacetCollector {
         }
     }
 
+    
+ 
+    
     /**
      * The Class KeyFieldVisitor.
      */

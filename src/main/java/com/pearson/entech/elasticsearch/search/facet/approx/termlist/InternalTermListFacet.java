@@ -87,10 +87,10 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
 
     
     /**
-     * Instantiates a new internal int term list facet.
+     * Instantiates a new internal integer term list facet.
      *
-     * @param facetName the facet name
-     * @param ints the ints
+     * @param facetName is the facet name
+     * @param ints, the integer array
      */
     public InternalTermListFacet(final String facetName, final int[] ints) {
         _name = facetName;
@@ -102,7 +102,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
      * Instantiates a new internal long term list facet.
      *
      * @param facetName the facet name
-     * @param longs the longs
+     * @param longs array of longs 
      */
     public InternalTermListFacet(final String facetName, final long[] longs) {
         _name = facetName;
@@ -184,6 +184,8 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
         case 2:
             _strings = null;
             _ints = null;
+            
+            //allocate object array, no popLongArray in the CacheRecycler object
             _longs = (Long[]) CacheRecycler.popObjectArray(size);
 
         default:
@@ -220,21 +222,21 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
             out.writeVInt(_strings.length);
             out.writeStringArray((String[]) _strings);
             break;
-        case 1:
+        case 1: 
             for(final int i : _ints) {
                 out.writeVInt(i);
             }
             break;
-        case 2:
+        case 2: 
             for(final Long i : _longs) {
-                out.writeLong(i);
+                out.writeVLong(i);
             }
         }
         releaseCache();
     }
 
     /**
-     * The Class Fields.
+     * Output JSON fields
      */
     static final class Fields {
         
