@@ -34,22 +34,22 @@ public class TermListFacetCollector extends AbstractFacetCollector {
 
     /** The _facet name. */
     private final String _facetName;
-    
+
     /** The _max per shard. */
     private final int _maxPerShard;
 
     /** The _key field name. */
     private final String _keyFieldName;
-    
+
     /** The _key field type. */
     private final FieldDataType _keyFieldType;
-    
+
     /** The _field data cache. */
     private final FieldDataCache _fieldDataCache;
-    
+
     /** The _key field data. */
     private FieldData _keyFieldData;
-    
+
     /** The _doc base. */
     private int _docBase;
 
@@ -58,14 +58,10 @@ public class TermListFacetCollector extends AbstractFacetCollector {
 
     /** The _ints. */
     private TIntSet _ints;
-    
+
     /** The _longs. */
     private TLongSet _longs;
 
-    
-    
-    
-    
     /** The KeyFieldVisitor instance. */
     private final StringValueProc _proc = new KeyFieldVisitor();
 
@@ -137,14 +133,14 @@ public class TermListFacetCollector extends AbstractFacetCollector {
     @Override
     protected void doSetNextReader(final IndexReader reader, final int docBase) throws IOException {
         if(_readFromFieldCache) {
-            _keyFieldData = _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName); 
+            _keyFieldData = _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName);
             _docBase = docBase;
         } else {
 
             // use this mechanism to retrieve terms from the lucene index.
             //clean the cache for this request 
             _fieldDataCache.clear("no-cache request", _keyFieldName);
-            _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName).forEachValue(_proc); 
+            _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName).forEachValue(_proc);
             /*
              * works for string fields but NOT  for int/long fields.  why? maybe switch on data type and retrieve
              * strings by looping all terms and use the mechanism above for ints/longs?
@@ -188,23 +184,20 @@ public class TermListFacetCollector extends AbstractFacetCollector {
             try {
                 _ints.add(Integer.parseInt(value));
             } catch(final Exception ex) {
-              
+
             }
         }
         else if(_longs != null && _longs.size() <= _maxPerShard) {
             try {
-                
-                final long ret = Long.parseLong(value); 
-                _longs.add( ret );
+
+                final long ret = Long.parseLong(value);
+                _longs.add(ret);
             } catch(final Exception ex) {
                 System.out.println(ex.getMessage());
             }
         }
     }
 
-    
- 
-    
     /**
      * The Class KeyFieldVisitor.
      */

@@ -23,6 +23,5 @@ public interface TermListFacet extends Facet, Iterable<Object> {
      * An ordered list of term list facet entries.
      */
     List<? extends Object> getEntries();
-    
- 
+
 }

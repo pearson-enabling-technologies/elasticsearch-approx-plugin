@@ -48,9 +48,10 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
                 } else if("max_per_shard".equals(fieldName) || "maxPerShard".equals(fieldName)) {
                     maxPerShard = parser.intValue();
                 }
-               else if("read_from_cache".equals(fieldName) || "readFromCache".equals(fieldName) || "useCache".equals(fieldName) || "use_cache".equals(fieldName)) {
-                   readFromCache = parser.booleanValue();
-               }
+                else if("read_from_cache".equals(fieldName) || "readFromCache".equals(fieldName) || "useCache".equals(fieldName)
+                        || "use_cache".equals(fieldName)) {
+                    readFromCache = parser.booleanValue();
+                }
             }
         }
 
@@ -70,10 +71,10 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
      * @see org.elasticsearch.search.facet.FacetProcessor#reduce(java.lang.String, java.util.List)
      */
     @Override
-    public Facet reduce(final String name, final List<Facet> facets) { 
+    public Facet reduce(final String name, final List<Facet> facets) {
         final InternalTermListFacet base = (InternalTermListFacet) facets.get(0);
-        return base.reduce(name, facets); 
-       
+        return base.reduce(name, facets);
+
     }
 
     /* (non-Javadoc)

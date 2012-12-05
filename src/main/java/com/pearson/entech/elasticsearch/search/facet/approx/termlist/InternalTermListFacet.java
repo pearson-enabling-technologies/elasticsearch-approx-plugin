@@ -65,10 +65,10 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
     private int[] _ints; // dataType 1
 
     /** The _longs. */
-    private Long[] _longs;  //dataType 2 
+    private Long[] _longs; //dataType 2 
 
     /** The _name. */
-    private String _name;   // plugin name
+    private String _name; // plugin name
 
     /** The _type. */
     private final String _type = STREAM_TYPE;
@@ -85,7 +85,6 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
         _dataType = 0;
     }
 
-    
     /**
      * Instantiates a new internal integer term list facet.
      *
@@ -184,7 +183,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
         case 2:
             _strings = null;
             _ints = null;
-            
+
             //allocate object array, no popLongArray in the CacheRecycler object
             _longs = (Long[]) CacheRecycler.popObjectArray(size);
 
@@ -222,12 +221,12 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
             out.writeVInt(_strings.length);
             out.writeStringArray((String[]) _strings);
             break;
-        case 1: 
+        case 1:
             for(final int i : _ints) {
                 out.writeVInt(i);
             }
             break;
-        case 2: 
+        case 2:
             for(final Long i : _longs) {
                 out.writeVLong(i);
             }
@@ -239,10 +238,10 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
      * Output JSON fields
      */
     static final class Fields {
-        
+
         /** The Constant _TYPE. */
         static final XContentBuilderString _TYPE = new XContentBuilderString("_type");
-        
+
         /** The Constant ENTRIES. */
         static final XContentBuilderString ENTRIES = new XContentBuilderString("entries");
     }
@@ -264,7 +263,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
             builder.array(Fields.ENTRIES, _ints);
             break;
         case 2:
-            builder.array(Fields.ENTRIES,  (Object[])_longs);
+            builder.array(Fields.ENTRIES, (Object[]) _longs);
             break;
         }
         builder.endObject();
@@ -354,7 +353,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
 
                 for(final Object obj : itlf._strings) {
                     reducedStrings.add(obj.toString());
-                } 
+                }
                 break;
             case 1:
 
@@ -366,7 +365,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
 
                 for(final Long obj : itlf._longs) {
                     reducedLongs.add(Long.parseLong(obj.toString()));
-                } 
+                }
                 break;
             default:
                 throw new InvalidParameterException("Data type not supported for this plugin");

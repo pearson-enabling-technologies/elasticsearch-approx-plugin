@@ -15,10 +15,10 @@ public class TermListFacetBuilder extends AbstractFacetBuilder {
 
     /** The key field name. */
     private String keyFieldName;
-    
+
     /** The max per shard. */
     private int maxPerShard;
-    
+
     /** The read from cache. */
     private boolean readFromCache;
 
@@ -103,7 +103,7 @@ public class TermListFacetBuilder extends AbstractFacetBuilder {
         this.maxPerShard = maxPerShard;
         return this;
     }
-    
+
     /**
      * Read from cache.
      *
@@ -123,17 +123,17 @@ public class TermListFacetBuilder extends AbstractFacetBuilder {
         if(keyFieldName == null) {
             throw new SearchSourceBuilderException("field must be set term list facet for facet [" + name + "]");
         }
-        builder.startObject(name); 
-        builder.startObject(TermListFacet.TYPE); 
+        builder.startObject(name);
+        builder.startObject(TermListFacet.TYPE);
         builder.field("key_field", keyFieldName);
 
-        if(maxPerShard >0) 
+        if(maxPerShard > 0)
             builder.field("max_per_shard", maxPerShard);
         else
             builder.field("max_per_shard", 1000);
-        
-        builder.field("readFromCache", readFromCache );
-        builder.endObject(); 
+
+        builder.field("readFromCache", readFromCache);
+        builder.endObject();
         addFilterFacetAndGlobal(builder, params);
 
         builder.endObject();
