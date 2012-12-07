@@ -155,6 +155,34 @@ public class TermListFacetTest {
     }
 
     @Test
+    public void testLongsNoCache() throws Exception {
+
+        final int testLength = 7;
+        final int maxPerShard = 3;
+        final List<Long> numList = generateRandomLongs(testLength);
+        for(int i = 0; i < numList.size(); i++) {
+            putSync(newID(), "", "", 1, numList.get(i));
+        }
+        final SearchResponse response1 = getTermList(__longField1, maxPerShard, false);
+        checkLongSearchResponse(response1, testLength, testLength, numList);
+
+    }
+
+    @Test
+    public void testIntsNoCache() throws Exception {
+
+        final int testLength = 7;
+        final int maxPerShard = 3;
+        final List<Integer> numList = generateRandomInts(testLength);
+        for(int i = 0; i < numList.size(); i++) {
+            putSync(newID(), "", "", numList.get(i), 0);
+        }
+        final SearchResponse response1 = getTermList(__intField1, maxPerShard, false);
+        checkIntSearchResponse(response1, testLength, testLength, numList);
+
+    }
+
+    @Test
     public void testWithIntRandomDataNoCache() throws Exception {
 
         final Random r = new Random();
@@ -164,20 +192,15 @@ public class TermListFacetTest {
         final List<Integer> nums = generateRandomInts(numOfWordsToGenerate);
         final Set<Integer> uniqs = new HashSet<Integer>(nums);
 
-        int rIndex1 = r.nextInt(numOfWordsToGenerate);
-        int rIndex2 = r.nextInt(numOfWordsToGenerate);
+        int rIndex = r.nextInt(numOfWordsToGenerate);
 
         for(int i = 0; i < numOfDocumentsToIndex; i++) {
 
-            putSync(newID(), "", "", nums.get(rIndex1), nums.get(rIndex2));
-            rIndex1++;
-            rIndex1 %= numOfWordsToGenerate;
-
-            rIndex2++;
-            rIndex2 %= numOfWordsToGenerate;
+            putSync(newID(), "", "", nums.get(rIndex), 0);
+            rIndex++;
+            rIndex %= numOfWordsToGenerate;
 
         }
-
         final SearchResponse response1 = getTermList(__intField1, numOfWordsToGenerate, false);
         checkIntSearchResponse(response1, numOfDocumentsToIndex, uniqs.size(), nums);
 
@@ -193,22 +216,17 @@ public class TermListFacetTest {
         final List<Integer> nums = generateRandomInts(numOfWordsToGenerate);
         final Set<Integer> uniqs = new HashSet<Integer>(nums);
 
-        int rIndex1 = r.nextInt(numOfWordsToGenerate);
-        int rIndex2 = r.nextInt(numOfWordsToGenerate);
+        int rIndex = r.nextInt(numOfWordsToGenerate);
 
         for(int i = 0; i < numOfDocumentsToIndex; i++) {
 
-            putSync(newID(), "", "", nums.get(rIndex1), nums.get(rIndex2));
-            rIndex1++;
-            rIndex1 %= numOfWordsToGenerate;
-
-            rIndex2++;
-            rIndex2 %= numOfWordsToGenerate;
+            putSync(newID(), "", "", nums.get(rIndex), 0);
+            rIndex++;
+            rIndex %= numOfWordsToGenerate;
 
         }
         final SearchResponse response1 = getTermList(__intField1, numOfWordsToGenerate, true);
         checkIntSearchResponse(response1, numOfDocumentsToIndex, uniqs.size(), nums);
-
     }
 
     @Test
@@ -260,7 +278,7 @@ public class TermListFacetTest {
         checkLongSearchResponse(response1, numOfDocumentsToIndex, uniqs.size(), nums);
 
     }
-    
+
     @Test
     public void testAllFieldsWithRandomValues() throws Exception {
         final Random r = new Random();
@@ -270,14 +288,11 @@ public class TermListFacetTest {
         final List<Integer> ints = generateRandomInts(numOfWords);
         final List<Long> longs = generateRandomLongs(numOfWords);
 
-        
-        
         int rIndex1 = r.nextInt(numOfWords);
         int rIndex2 = r.nextInt(numOfWords);
         int rIndex3 = r.nextInt(numOfWords);
         int rIndex4 = r.nextInt(numOfWords);
-        
-        
+
         for(int i = 0; i < numOfElements; i++) {
             putSync(newID(), words.get(rIndex1), words.get(rIndex2), ints.get(rIndex3), longs.get(rIndex4));
             rIndex1++;
@@ -285,10 +300,10 @@ public class TermListFacetTest {
 
             rIndex2++;
             rIndex2 %= numOfWords;
-            
+
             rIndex3++;
             rIndex3 %= numOfWords;
-            
+
             rIndex4++;
             rIndex4 %= numOfWords;
         }
@@ -297,45 +312,35 @@ public class TermListFacetTest {
         final Set<Integer> uniqInts = new HashSet<Integer>(ints);
         final Set<Long> uniqLongs = new HashSet<Long>(longs);
 
-        
         assertEquals(numOfElements, countAll());
         final SearchResponse response1 = getTermList(__txtField1, numOfElements, false);
         final SearchResponse response2 = getTermList(__txtField2, numOfElements, false);
         final SearchResponse response3 = getTermList(__intField1, numOfElements, false);
         final SearchResponse response4 = getTermList(__longField1, numOfElements, false);
 
-        
-        
         checkStringSearchResponse(response1, numOfElements, uniqsStrings.size(), words);
         checkStringSearchResponse(response2, numOfElements, uniqsStrings.size(), words);
         checkIntSearchResponse(response3, numOfElements, uniqInts.size(), ints);
         checkLongSearchResponse(response4, numOfElements, uniqLongs.size(), longs);
-        
-        
-        
+
         assertEquals(numOfElements, countAll());
         final SearchResponse r1 = getTermList(__txtField1, numOfElements, true);
         final SearchResponse r2 = getTermList(__txtField2, numOfElements, true);
         final SearchResponse r3 = getTermList(__intField1, numOfElements, true);
         final SearchResponse r4 = getTermList(__longField1, numOfElements, true);
 
-         
         checkStringSearchResponse(r1, numOfElements, uniqsStrings.size(), words);
         checkStringSearchResponse(r2, numOfElements, uniqsStrings.size(), words);
         checkIntSearchResponse(r3, numOfElements, uniqInts.size(), ints);
         checkLongSearchResponse(r4, numOfElements, uniqLongs.size(), longs);
-        
-        
-    }
 
-    
-    
+    }
 
     List<Integer> generateRandomInts(final int numOfElements) {
         final Random r = new Random();
         final List<Integer> ret = newArrayList();
         for(int i = 0; i < numOfElements; i++) {
-            ret.add(r.nextInt());
+            ret.add(r.nextInt(1000));
         }
         return ret;
     }
@@ -398,16 +403,19 @@ public class TermListFacetTest {
 
     }
 
-    private void checkIntSearchResponse(final SearchResponse sr, final int numOfDocs, final int numOfElements, final List<Integer> ints) {
+    private void checkIntSearchResponse(final SearchResponse sr, final int numOfReturnedDocs, final int numOfReturnedFacetElements, final List<Integer> ints) {
 
-        assertEquals(numOfDocs, sr.hits().getTotalHits());
+        assertEquals(numOfReturnedDocs, sr.hits().getTotalHits());
+
         final TermListFacet facet = sr.facets().facet(__facetName);
         final ArrayList<Object> facetList = newArrayList(facet);
         final List<? extends Object> entries = facet.entries();
         final int len = facetList.size();
-        assertEquals(numOfElements, len);
+
+        assertEquals(numOfReturnedFacetElements, len);
         for(final Object item : entries) {
-            assertEquals(true, ints.contains(item));
+            final int t = (Integer) item;
+            assertEquals(true, ints.contains(t));
         }
     }
 

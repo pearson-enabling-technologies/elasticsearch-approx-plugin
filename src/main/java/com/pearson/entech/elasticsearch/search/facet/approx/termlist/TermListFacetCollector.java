@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.util.Collection;
 
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.TermEnum;
+import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.common.trove.set.TIntSet;
 import org.elasticsearch.common.trove.set.TLongSet;
 import org.elasticsearch.common.trove.set.hash.TIntHashSet;
@@ -137,27 +140,31 @@ public class TermListFacetCollector extends AbstractFacetCollector {
             _docBase = docBase;
         } else {
 
-            // use this mechanism to retrieve terms from the lucene index.
-            //clean the cache for this request 
-            _fieldDataCache.clear("no-cache request", _keyFieldName);
-            _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName).forEachValue(_proc);
-            /*
-             * works for string fields but NOT  for int/long fields.  why? maybe switch on data type and retrieve
-             * strings by looping all terms and use the mechanism above for ints/longs?
-             * 
+            // retrieve terms directly from the lucene index.
             final TermEnum terms = reader.terms();
             while(terms.next()) {
                 final Term term = terms.term();
-                System.out.println("the terrm is " + term.field() + " with value " + term.text());
-                final ByteBuffer bbuf = ByteBuffer.allocate(100);
+                if(_keyFieldName.equals(term.field())) {
 
-                String y = "";
-                if(_keyFieldName.equals(term.field())) { 
-                    final String value = term.text(); 
-                    final byte[] bytes = value.getBytes();
-                    saveValue(value);
+                    //since saveValue is used both for cached and nonCached queries,
+                    //ensure that it receives the proper string values
+
+                    //this is suboptimal, because we are casting numeric values to strings to be used in saveValue
+                    //and then, in saveValue we are again converting strings to numbers
+                    if(_strings != null && _strings.size() <= _maxPerShard)
+                        saveValue(term.text());
+                    else if(_ints != null && _ints.size() <= _maxPerShard && term.text().length() == NumericUtils.BUF_SIZE_INT) {
+                        final Integer val = NumericUtils.prefixCodedToInt(term.text());
+                        saveValue(val.toString());
+                    }
+                    else if(_longs != null && _longs.size() <= _maxPerShard && term.text().length() == NumericUtils.BUF_SIZE_LONG) {
+                        final Long val = NumericUtils.prefixCodedToLong(term.text());
+                        saveValue(val.toString());
+                    }
+
                 }
-            }*/
+            }
+
         }
     }
 
@@ -176,24 +183,22 @@ public class TermListFacetCollector extends AbstractFacetCollector {
      *
      * @param value the value
      */
+
     private void saveValue(final String value) {
-        if(_strings != null && _strings.size() <= _maxPerShard) {
+        if(_strings != null && _strings.size() < _maxPerShard) {
             _strings.add(value);
         } else if(_ints != null && _ints.size() <= _maxPerShard) {
-
             try {
-                _ints.add(Integer.parseInt(value));
-            } catch(final Exception ex) {
-
+                _ints.add(Integer.valueOf(value));
+            } catch(final NumberFormatException ex) {
+                //ignore exceptions
             }
         }
-        else if(_longs != null && _longs.size() <= _maxPerShard) {
+        else if(_longs != null && _longs.size() < _maxPerShard) {
             try {
-
-                final long ret = Long.parseLong(value);
-                _longs.add(ret);
-            } catch(final Exception ex) {
-                System.out.println(ex.getMessage());
+                _longs.add(Long.valueOf(value));
+            } catch(final NumberFormatException ex) {
+                //ignore exceptions
             }
         }
     }

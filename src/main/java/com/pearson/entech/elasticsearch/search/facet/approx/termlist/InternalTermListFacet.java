@@ -340,8 +340,6 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
      */
     public Facet reduce(final String name, final List<Facet> facets) {
 
-        System.out.println("[" + name + " reducing]");
-
         final Set<String> reducedStrings = new HashSet<String>();
         final Set<Integer> reducedInts = new HashSet<Integer>();
         final Set<Long> reducedLongs = new HashSet<Long>();
