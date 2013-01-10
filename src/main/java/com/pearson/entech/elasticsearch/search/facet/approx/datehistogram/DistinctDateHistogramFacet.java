@@ -12,7 +12,7 @@ import org.elasticsearch.search.facet.Facet;
 public interface DistinctDateHistogramFacet extends Facet, Iterable<DistinctDateHistogramFacet.Entry> {
 
     /**
-     * The type of the filter facet.
+     * The type of the facet.
      */
     public static final String TYPE = "distinct_date_histogram";
 

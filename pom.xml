@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.pearson.entech</groupId>
 	<artifactId>elasticsearch-approx-plugin</artifactId>
-	<version>1.0.8</version>
+	<version>1.2.0-SNAPSHOT</version>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -29,11 +29,12 @@
                 <!--
                 <configuration>
                     <forkMode>pertest</forkMode>
-                    <argLine>-Xms512m -Xmx512m -XX:MaxDirectMemorySize=1g</argLine>
+                    <argLine>-Xms2512m -Xmx2512m -XX:MaxDirectMemorySize=2g</argLine>
                     <testFailureIgnore>false</testFailureIgnore>
                     <skip>false</skip>
                 </configuration>
-                -->
+                  -->
+                
             </plugin>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>

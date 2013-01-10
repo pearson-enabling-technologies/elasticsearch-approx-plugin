@@ -1,0 +1,13 @@
+{
+    "query": {
+        "match_all" : {}
+    },
+    "facets" : {
+        "term_list_facet" : {
+            "term_list" : {
+                "key_field" : "txt1",
+                "max_per_shard" : 100
+            }
+        }
+    }
+}
