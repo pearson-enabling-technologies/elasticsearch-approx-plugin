@@ -7,32 +7,25 @@ import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilderException;
 import org.elasticsearch.search.facet.AbstractFacetBuilder;
 
-// TODO: Auto-generated Javadoc
 /**
  * The Class TermListFacetBuilder.
  */
 public class TermListFacetBuilder extends AbstractFacetBuilder {
 
-    /** The key field name. */
     private String keyFieldName;
 
-    /** The max per shard. */
     private int maxPerShard;
 
-    /** The read from cache. */
     private boolean readFromCache;
 
     /**
      * Instantiates a new term list facet builder.
      *
-     * @param name the name
+     * @param name the facet name
      */
     protected TermListFacetBuilder(final String name) {
         super(name);
     }
-
-    // TODO implement field, keyField, maxExactPerShard
-    // TODO copy scope, facetFilter and nested from DistinctDateHistogramFacetBuilder
 
     /**
      * Marks the facet to run in a specific scope.
@@ -72,7 +65,7 @@ public class TermListFacetBuilder extends AbstractFacetBuilder {
     }
 
     /**
-     * The field name to retrieve terms for the TermListFacet
+     * The field name to retrieve terms for the TermListFacet.
      *
      * @param keyField the key field
      * @return the term list facet builder
@@ -83,7 +76,7 @@ public class TermListFacetBuilder extends AbstractFacetBuilder {
     }
 
     /**
-     * The field name to retrieve terms for the TermListFace
+     * The field name to retrieve terms for the TermListFacet.
      *
      * @param keyField the key field
      * @return the term list facet builder
@@ -94,7 +87,7 @@ public class TermListFacetBuilder extends AbstractFacetBuilder {
     }
 
     /**
-     * Max term results per shard.
+     * Max term results per shard. Defaults to 1000.
      *
      * @param maxPerShard the max number of results per shard
      * @return the term list facet builder
@@ -105,7 +98,8 @@ public class TermListFacetBuilder extends AbstractFacetBuilder {
     }
 
     /**
-     * Read from cache.
+     * Read from the field data cache (as opposed to directly from the Lucene index).
+     * Defaults to false.
      *
      * @param readFromCache toggle on/of read from cache 
      * @return the term list facet builder
@@ -121,7 +115,7 @@ public class TermListFacetBuilder extends AbstractFacetBuilder {
     @Override
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
         if(keyFieldName == null) {
-            throw new SearchSourceBuilderException("field must be set term list facet for facet [" + name + "]");
+            throw new SearchSourceBuilderException("field name must be set for term list facet [" + name + "]");
         }
         builder.startObject(name);
         builder.startObject(TermListFacet.TYPE);

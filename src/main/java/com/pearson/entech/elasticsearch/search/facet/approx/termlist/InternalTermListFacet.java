@@ -18,13 +18,11 @@ import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.InternalFacet;
 
-// TODO: Auto-generated Javadoc
 /**
  * The Class InternalTermListFacet.
  */
 public class InternalTermListFacet implements TermListFacet, InternalFacet {
 
-    /** The Constant STREAM_TYPE. */
     private static final String STREAM_TYPE = "term_list_facet";
 
     /**
@@ -45,7 +43,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
     /**
      * Read term list facet.
      *
-     * @param in the in
+     * @param in the input stream
      * @return the internal term list facet
      * @throws IOException Signals that an I/O exception has occurred.
      */
@@ -55,22 +53,16 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
         return facet;
     }
 
-    /** The _data type. */
     private byte _dataType = -1; // -1 == uninitialized
 
-    /** The _strings. */
     private Object[] _strings; // dataType 0
 
-    /** The _ints. */
     private int[] _ints; // dataType 1
 
-    /** The _longs. */
     private Long[] _longs; //dataType 2 
 
-    /** The _name. */
     private String _name; // plugin name
 
-    /** The _type. */
     private final String _type = STREAM_TYPE;
 
     /**
@@ -115,8 +107,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
     /**
      * Instantiates a new internal term list facet.
      */
-    private InternalTermListFacet() {
-    }
+    private InternalTermListFacet() {}
 
     /**
      * Instantiates a new internal term list facet.
@@ -171,14 +162,17 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
         case -1:
             _strings = null;
             _ints = null;
+            _longs = null;
             break;
         case 0:
             _strings = CacheRecycler.popObjectArray(size);
             _ints = null;
+            _longs = null;
             break;
         case 1:
             _strings = null;
             _ints = CacheRecycler.popIntArray(size);
+            _longs = null;
             break;
         case 2:
             _strings = null;

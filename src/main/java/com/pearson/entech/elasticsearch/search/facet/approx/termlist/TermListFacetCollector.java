@@ -25,47 +25,31 @@ import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.FacetPhaseExecutionException;
 import org.elasticsearch.search.internal.SearchContext;
 
-// TODO: Auto-generated Javadoc
 /**
  * The Class TermListFacetCollector.
  */
 public class TermListFacetCollector extends AbstractFacetCollector {
 
-    // FIXME make this parameterizable
-    /** The _read from field cache. */
-    private boolean _readFromFieldCache = false;
+    private final boolean _readFromFieldCache;
 
-    /** The _facet name. */
     private final String _facetName;
 
-    /** The _max per shard. */
     private final int _maxPerShard;
 
-    /** The _key field name. */
     private final String _keyFieldName;
 
-    /** The _key field type. */
     private final FieldDataType _keyFieldType;
 
-    /** The _field data cache. */
     private final FieldDataCache _fieldDataCache;
 
-    /** The _key field data. */
     private FieldData _keyFieldData;
 
-    /** The _doc base. */
-    private int _docBase;
-
-    /** The _strings. */
     private Collection<String> _strings;
 
-    /** The _ints. */
     private TIntSet _ints;
 
-    /** The _longs. */
     private TLongSet _longs;
 
-    /** The KeyFieldVisitor instance. */
     private final StringValueProc _proc = new KeyFieldVisitor();
 
     /**
@@ -73,16 +57,16 @@ public class TermListFacetCollector extends AbstractFacetCollector {
      *
      * @param facetName the facet name
      * @param keyField the key field
-     * @param context the context
-     * @param maxPerShard the max per shard
-     * @param bReadFromCache the b read from cache
+     * @param context the ES search context
+     * @param maxPerShard max terms to retrieve per shard
+     * @param readFromCache if true, read from ES field data cache; otherwise read from Lucene index
      */
     public TermListFacetCollector(final String facetName, final String keyField,
-            final SearchContext context, final int maxPerShard, final boolean bReadFromCache) {
+            final SearchContext context, final int maxPerShard, final boolean readFromCache) {
         super(facetName);
         _facetName = facetName;
         _maxPerShard = maxPerShard;
-        _readFromFieldCache = bReadFromCache;
+        _readFromFieldCache = readFromCache;
 
         _fieldDataCache = context.fieldDataCache();
         final MapperService.SmartNameFieldMappers keyMappers = context.smartFieldMappers(keyField);
@@ -115,9 +99,7 @@ public class TermListFacetCollector extends AbstractFacetCollector {
     @Override
     public Facet facet() {
         if(_strings != null)
-        {
             return new InternalTermListFacet(_facetName, _strings.toArray());
-        }
         else if(_ints != null)
             return new InternalTermListFacet(_facetName, _ints.toArray());
         else if(_longs != null)
@@ -130,14 +112,13 @@ public class TermListFacetCollector extends AbstractFacetCollector {
      * This method gets called once for each index segment, with a new reader.
      *
      * @param reader the reader
-     * @param docBase the doc base
+     * @param docBase the docBase index (ignored)
      * @throws IOException Signals that an I/O exception has occurred.
      */
     @Override
     protected void doSetNextReader(final IndexReader reader, final int docBase) throws IOException {
         if(_readFromFieldCache) {
             _keyFieldData = _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName);
-            _docBase = docBase;
         } else {
 
             // retrieve terms directly from the lucene index.
@@ -185,7 +166,7 @@ public class TermListFacetCollector extends AbstractFacetCollector {
      */
 
     private void saveValue(final String value) {
-        if(_strings != null && _strings.size() < _maxPerShard) {
+        if(_strings != null && _strings.size() <= _maxPerShard) {
             _strings.add(value);
         } else if(_ints != null && _ints.size() <= _maxPerShard) {
             try {
@@ -194,7 +175,7 @@ public class TermListFacetCollector extends AbstractFacetCollector {
                 //ignore exceptions
             }
         }
-        else if(_longs != null && _longs.size() < _maxPerShard) {
+        else if(_longs != null && _longs.size() <= _maxPerShard) {
             try {
                 _longs.add(Long.valueOf(value));
             } catch(final NumberFormatException ex) {

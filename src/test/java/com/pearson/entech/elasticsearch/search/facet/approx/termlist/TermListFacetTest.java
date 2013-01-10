@@ -4,11 +4,14 @@ import static com.google.common.collect.Lists.newArrayList;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 import static org.junit.Assert.assertEquals;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -94,6 +97,31 @@ public class TermListFacetTest {
                 .setSource(mapping)
                 .execute().actionGet();
         assertEquals(0L, countAll());
+    }
+
+    @Test
+    public void testWithJsonWithRandomStringsNoCache() throws Exception {
+        final Random r = new Random();
+        final int numOfElements = 100 + r.nextInt(100);
+        final int numOfWords = 20 + r.nextInt(10);
+        final List<String> words = generateRandomWords(numOfWords);
+
+        int rIndex1 = r.nextInt(numOfWords);
+        int rIndex2 = r.nextInt(numOfWords);
+        for(int i = 0; i < numOfElements; i++) {
+            putSync(newID(), words.get(rIndex1), words.get(rIndex2), 0, 0);
+            rIndex1++;
+            rIndex1 %= numOfWords;
+
+            rIndex2++;
+            rIndex2 %= numOfWords;
+        }
+
+        final Set<String> uniqs = new HashSet<String>(words);
+
+        assertEquals(numOfElements, countAll());
+        final SearchResponse response1 = getTermList("src/test/resources/TermListFacetTest.json");
+        checkStringSearchResponse(response1, numOfElements, uniqs.size(), words);
     }
 
     @Test
@@ -373,6 +401,13 @@ public class TermListFacetTest {
                 .setSearchType(SearchType.COUNT)
                 .addFacet(facet)
                 .execute().actionGet();
+    }
+
+    private SearchResponse getTermList(final String jsonFilename) throws FileNotFoundException {
+        return client().prepareSearch(__index)
+                .setSource(new Scanner(new File(jsonFilename)).useDelimiter("\\Z").next())
+                .execute()
+                .actionGet();
     }
 
     private void putSync(final int id, final String value1, final String value2, final int iValue1, final long lValue) throws ElasticSearchException,
