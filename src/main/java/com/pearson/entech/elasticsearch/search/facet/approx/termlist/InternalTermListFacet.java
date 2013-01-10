@@ -23,7 +23,7 @@ import org.elasticsearch.search.facet.InternalFacet;
  */
 public class InternalTermListFacet implements TermListFacet, InternalFacet {
 
-    private static final String STREAM_TYPE = "term_list_facet";
+    private static final String STREAM_TYPE = "term_list";
 
     /**
      * Register streams.
