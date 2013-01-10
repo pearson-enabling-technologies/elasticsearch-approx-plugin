@@ -6,11 +6,11 @@ methods for certain queries, to greatly reduce memory usage and network traffic.
 Approximate counting is performed via the excellent probabilistic data
 structures from [stream-lib](https://github.com/clearspring/stream-lib).
 
-It currently just provides one such query: distinct date histogram.
-
 This work is inspired in part by
 [elasticsearch-ls-plugins](https://github.com/lovelysystems/elasticsearch-ls-plugins)
 by Lovely Systems -- some of their code has been reused here.
+
+**NB We have not yet updated the plugin to work with ElasticSearch 0.20+.**
 
 ## Distinct Date Histogram
 
@@ -93,9 +93,63 @@ Note that the counts are based on terms, so if the `value_field` is tokenized,
 the result won't indicate the number of distinct _values_ in that field, but
 rather, the number of distinct tokens (post-analysis).
 
-## Building and testing
+## Term list facet
 
-There's a pre-built distro, see below. But if you want to play, read on.
+This is a simple facet to quickly retrieve an unsorted term list for a field,
+if you don't care about counts or ordering etc. It allows you to set a max_per_shard
+cutoff similar to the previous facet.
+
+For example:
+
+    curl -XPOST "http://localhost:9200/pop1/_search?search_type=count&pretty=true" -d'{
+        "query": {
+            "match_all" : {}
+        },
+        "facets" : {
+            "term_list_facet" : {
+                "term_list" : {
+                    "key_field" : "txt1",
+                    "max_per_shard" : 100
+                }
+            }
+        }
+    }'
+
+Returns something like:
+
+    {
+      "took" : 45,
+      "timed_out" : false,
+      "_shards" : {
+        "total" : 3,
+        "successful" : 3,
+        "failed" : 0
+      },
+      "hits" : {
+        "total" : 132,
+        "max_score" : 1.0,
+        "hits" : [ ]
+      },
+      "facets" : {
+        "term_list_facet" : {
+          "_type" : "term_list",
+          "entries" : [ "trdq", "amrqkke", "ebztmm", "pja", "qobmepbor", "bxpoh", "krsm", "kpgz", "hotodwfq", "qbpxxlfin", "lsnosgx", "qyznyhrqcu", "poekzt", "qbsmks", "adbazy", "swnjdvziqh", "eqabkxb", "xdz", "jlg", "scn", "jdn" ]
+        }
+      }
+    }
+
+There is also a `read_from_cache` option. If set to true, the values will be
+read from ElasticSearch's field data cache, instead of directly from the Lucene
+index on disk. Whether this is faster or not depends on whether the data is
+already cached -- if it has to be read and cached first, it will be slower. But
+it's hard to make any absolute recommendations due to OS disk caching etc., so
+the best advice is to experiment.
+
+This facet doesn't actually use anything clever like appropximate counting --
+it's not really approximate in the same sense as the previous one -- but we
+thought you might find it useful.
+
+## Building and testing
 
 It's all done via Maven, so just `mvn test` to build the plugin and run the
 tests. Amongst other things, they check that the distinct counts are within a
@@ -122,21 +176,20 @@ happens consistently...
 
 ## Installing
 
-From your ElasticSearch root directory, type:
+**NB Github no longer supports file downloads. For now, you'll have to build
+from source. We will find a location for binary distributions as soon as we can...
+Promise :-)**
 
-    bin/plugin -install ptdavteam/elasticsearch-approx-plugin/<VERSION>
-
-e.g.
-
-    bin/plugin -install ptdavteam/elasticsearch-approx-plugin/1.0.8
-
-If you're building from source, just do
+Type
 
     mvn package
 
 to rebuild the zipfile (in `target/releases`). You may want to add
-`-DskipTests=true` if you've just run the tests and haven't changed anything,
-since they take so long.
+`-DskipTests` if you've just run the tests and haven't changed anything,
+since they take a while.
+
+Then create a `plugins/approx` directory in your ElasticSearch install dir,
+and unzip the zipfile into there.
 
 ## Credits
 
@@ -147,7 +200,7 @@ http://www.pearson.com/
 
 ## License
 
-    Copyright 2012 Pearson PLC
+    Copyright 2012-2013 Pearson PLC
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
