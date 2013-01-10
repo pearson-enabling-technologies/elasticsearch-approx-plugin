@@ -6,7 +6,13 @@ import org.elasticsearch.search.facet.FacetModule;
 
 import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacetProcessor;
 import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.InternalDistinctDateHistogramFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.termlist.InternalTermListFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetProcessor;
 
+/**
+ * This class registers the facets themselves with ES, as well as the stream classes
+ * which govern how a facet is deserialized.
+ */
 public class FacetPlugin extends AbstractPlugin {
 
     @Override
@@ -24,6 +30,9 @@ public class FacetPlugin extends AbstractPlugin {
         if(module instanceof FacetModule) {
             ((FacetModule) module).addFacetProcessor(DistinctDateHistogramFacetProcessor.class);
             InternalDistinctDateHistogramFacet.registerStreams();
+            
+            ((FacetModule) module).addFacetProcessor(TermListFacetProcessor.class);
+            InternalTermListFacet.registerStreams();
         }
     }
 }
