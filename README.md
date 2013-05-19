@@ -152,9 +152,14 @@ already cached -- if it has to be read and cached first, it will be slower. But
 it's hard to make any absolute recommendations due to OS disk caching etc., so
 the best advice is to experiment.
 
+One other important note is that when reading directly from the Lucene index, filtering is not supported.	
+
+
 This facet doesn't actually use anything clever like appropximate counting --
 it's not really approximate in the same sense as the previous one -- but we
 thought you might find it useful.
+
+
 
 ## Building and testing
 
