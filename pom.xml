@@ -7,6 +7,7 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<elasticsearch.version>0.20.6</elasticsearch.version>
 	</properties>
 
 	<name>elasticsearch-approx-plugin</name>
@@ -73,12 +74,12 @@
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
-			<version>0.19.11</version>
+			<version>${elasticsearch.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
-			<artifactId>guava-collections</artifactId>
-			<version>r03</version>
+			<artifactId>guava</artifactId>
+			<version>14.0.1</version>
 		</dependency>
 		<dependency>
 			<groupId>com.clearspring.analytics</groupId>

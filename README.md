@@ -10,7 +10,14 @@ This work is inspired in part by
 [elasticsearch-ls-plugins](https://github.com/lovelysystems/elasticsearch-ls-plugins)
 by Lovely Systems -- some of their code has been reused here.
 
-**NB We have not yet updated the plugin to work with ElasticSearch 0.20+.**
+## Version compatibility
+
+Plugin &le; 1.1.0: ElasticSearch 0.19.X, tested on 0.19.11
+
+Plugin 1.2.X: ElasticSearch 0.20.X, tested on 0.20.6
+
+Plugin 1.3.X (forthcoming): ElasticSearch 0.90.X
+
 
 ## Distinct Date Histogram
 
