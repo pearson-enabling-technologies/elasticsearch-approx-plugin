@@ -36,7 +36,7 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
         XContentParser.Token token;
         String fieldName = null;
         int maxPerShard = 100;
-        boolean readFromCache = false;
+        boolean readFromCache = true;
         while((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if(token == XContentParser.Token.FIELD_NAME) {
                 fieldName = parser.currentName();
@@ -48,8 +48,9 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
                 } else if("max_per_shard".equals(fieldName) || "maxPerShard".equals(fieldName)) {
                     maxPerShard = parser.intValue();
                 }
-                else if("read_from_cache".equals(fieldName) || "readFromCache".equals(fieldName) || "useCache".equals(fieldName)
-                        || "use_cache".equals(fieldName)) {
+                else if("read_from_cache".equals(fieldName) || "readFromCache".equals(fieldName)
+                        || "use_cache".equals(fieldName) || "useCache".equals(fieldName)
+                        || "use_field_data".equals(fieldName) || "useFieldData".equals(fieldName)) {
                     readFromCache = parser.booleanValue();
                 }
             }
