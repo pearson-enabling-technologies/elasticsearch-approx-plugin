@@ -13,7 +13,7 @@ by Lovely Systems -- some of their code has been reused here.
 
 ## Version compatibility
 
-Plugin &le; 1.1.0: ElasticSearch 0.19.X, tested on 0.19.11
+Plugin < 1.2.0: ElasticSearch 0.19.X, tested on 0.19.11
 
 Plugin 1.2.X: ElasticSearch 0.20.X, tested on 0.20.6
 
