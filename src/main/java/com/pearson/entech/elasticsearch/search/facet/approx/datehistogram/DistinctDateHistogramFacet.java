@@ -158,5 +158,15 @@ public interface DistinctDateHistogramFacet extends Facet, Iterable<DistinctDate
          */
         long getDistinctCount();
 
+        long getTotalCount();
+
+        double getTotal();
+
+        double getMean();
+
+        double getMin();
+
+        double getMax();
+
     }
 }

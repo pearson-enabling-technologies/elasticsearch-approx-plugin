@@ -1,3 +1,22 @@
+/*
+ * Licensed to ElasticSearch and Shay Banon under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. ElasticSearch licenses this
+ * file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.io.IOException;
@@ -7,21 +26,23 @@ import java.util.List;
 
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.common.CacheRecycler;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.text.Text;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.iterator.TLongObjectIterator;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
-import org.elasticsearch.search.facet.InternalFacet;
 
 /**
  *
  */
-public class InternalDistinctDateHistogramFacet implements DistinctDateHistogramFacet, InternalFacet {
+public class InternalDistinctCountDateHistogramFacet extends InternalDateHistogramFacet {
 
-    private static final String STREAM_TYPE = "distinct_date_histogram";
+    private static final BytesReference STREAM_TYPE = new HashedBytesArray("cdHistogram");
 
     public static void registerStreams() {
         Streams.registerStream(STREAM, STREAM_TYPE);
@@ -29,13 +50,13 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
 
     static Stream STREAM = new Stream() {
         @Override
-        public Facet readFacet(final String type, final StreamInput in) throws IOException {
+        public Facet readFacet(final StreamInput in) throws IOException {
             return readHistogramFacet(in);
         }
     };
 
     @Override
-    public String streamType() {
+    public BytesReference streamType() {
         return STREAM_TYPE;
     }
 
@@ -54,89 +75,94 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
         }
 
         @Override
-        public long time() {
+        public long getTime() {
             return time;
         }
 
         @Override
-        public long getTime() {
-            return time();
-        }
-
-        @Override
-        public long count() {
+        public long getCount() {
             return count;
         }
 
         @Override
-        public long getCount() {
-            return count();
+        public long getTotalCount() {
+            return 0;
+        }
+
+        @Override
+        public double getTotal() {
+            return Double.NaN;
+        }
+
+        @Override
+        public double getMean() {
+            return Double.NaN;
+        }
+
+        @Override
+        public double getMin() {
+            return Double.NaN;
+        }
+
+        @Override
+        public double getMax() {
+            return Double.NaN;
+        }
+
+        @Override
+        public long time() {
+            // TODO Auto-generated method stub
+            return 0;
+        }
+
+        @Override
+        public long count() {
+            // TODO Auto-generated method stub
+            return 0;
         }
 
         @Override
         public long distinctCount() {
-            return distinctCount;
+            // TODO Auto-generated method stub
+            return 0;
         }
 
         @Override
         public long getDistinctCount() {
-            return distinctCount();
+            // TODO Auto-generated method stub
+            return 0;
         }
     }
-
-    private String name;
 
     private ComparatorType comparatorType;
 
     ExtTLongObjectHashMap<DistinctCountPayload> counts;
     boolean cachedCounts;
-
     CountEntry[] entries = null;
 
-    private InternalDistinctDateHistogramFacet() {
-    }
+    private Text name;
 
-    public InternalDistinctDateHistogramFacet(final String name, final ComparatorType comparatorType,
-            final ExtTLongObjectHashMap<DistinctCountPayload> counts, final boolean cachedCounts) {
-        this.name = name;
+    public InternalDistinctCountDateHistogramFacet(final String name, final ComparatorType comparatorType,
+            final ExtTLongObjectHashMap<DistinctCountPayload> counts,
+            final boolean cachedCounts) {
+        super(name);
         this.comparatorType = comparatorType;
         this.counts = counts;
         this.cachedCounts = cachedCounts;
     }
 
-    @Override
-    public String name() {
-        return this.name;
-    }
-
-    @Override
-    public String getName() {
-        return name();
-    }
-
-    @Override
-    public String type() {
-        return TYPE;
-    }
-
-    @Override
-    public String getType() {
-        return type();
-    }
-
-    @Override
-    public List<CountEntry> entries() {
-        return Arrays.asList(computeEntries());
+    private InternalDistinctCountDateHistogramFacet() {
+        // Just for deserialization
     }
 
     @Override
     public List<CountEntry> getEntries() {
-        return entries();
+        return Arrays.asList(computeEntries());
     }
 
     @Override
     public Iterator<Entry> iterator() {
-        return (Iterator) entries().iterator();
+        return (Iterator) getEntries().iterator();
     }
 
     void releaseCache() {
@@ -163,23 +189,26 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
         return entries;
     }
 
-    public Facet reduce(final String name, final List<Facet> facets) {
+    @Override
+    public Facet reduce(final List<Facet> facets) {
         if(facets.size() == 1) {
             return facets.get(0);
         }
         final ExtTLongObjectHashMap<DistinctCountPayload> counts = CacheRecycler.popLongObjectMap();
 
         for(final Facet facet : facets) {
-            final InternalDistinctDateHistogramFacet histoFacet = (InternalDistinctDateHistogramFacet) facet;
+            final InternalDistinctCountDateHistogramFacet histoFacet = (InternalDistinctCountDateHistogramFacet) facet;
             for(final TLongObjectIterator<DistinctCountPayload> it = histoFacet.counts.iterator(); it.hasNext();) {
+                it.advance();
                 it.advance();
                 final long facetStart = it.key();
                 it.value().mergeInto(counts, facetStart);
             }
             histoFacet.releaseCache();
+
         }
 
-        return new InternalDistinctDateHistogramFacet(name, comparatorType, counts, true);
+        return new InternalDistinctCountDateHistogramFacet(getName(), comparatorType, counts, true);
     }
 
     static final class Fields {
@@ -187,19 +216,17 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
         static final XContentBuilderString ENTRIES = new XContentBuilderString("entries");
         static final XContentBuilderString TIME = new XContentBuilderString("time");
         static final XContentBuilderString COUNT = new XContentBuilderString("count");
-        static final XContentBuilderString DISTINCT_COUNT = new XContentBuilderString("distinct_count");
     }
 
     @Override
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
-        builder.startObject(name);
+        builder.startObject(getName());
         builder.field(Fields._TYPE, TYPE);
         builder.startArray(Fields.ENTRIES);
         for(final Entry entry : computeEntries()) {
             builder.startObject();
-            builder.field(Fields.TIME, entry.time());
-            builder.field(Fields.COUNT, entry.count());
-            builder.field(Fields.DISTINCT_COUNT, entry.distinctCount());
+            builder.field(Fields.TIME, entry.getTime());
+            builder.field(Fields.COUNT, entry.getCount());
             builder.endObject();
         }
         builder.endArray();
@@ -207,15 +234,15 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
         return builder;
     }
 
-    public static InternalDistinctDateHistogramFacet readHistogramFacet(final StreamInput in) throws IOException {
-        final InternalDistinctDateHistogramFacet facet = new InternalDistinctDateHistogramFacet();
+    public static InternalDistinctCountDateHistogramFacet readHistogramFacet(final StreamInput in) throws IOException {
+        final InternalDistinctCountDateHistogramFacet facet = new InternalDistinctCountDateHistogramFacet();
         facet.readFrom(in);
         return facet;
     }
 
     @Override
     public void readFrom(final StreamInput in) throws IOException {
-        name = in.readUTF();
+        name = in.readText();
         comparatorType = ComparatorType.fromId(in.readByte());
 
         final int size = in.readVInt();
@@ -237,7 +264,7 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
 
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
-        out.writeUTF(name);
+        out.writeText(name);
         out.writeByte(comparatorType.id());
         out.writeVInt(counts.size());
         for(final TLongObjectIterator<DistinctCountPayload> it = counts.iterator(); it.hasNext();) {
@@ -249,5 +276,11 @@ public class InternalDistinctDateHistogramFacet implements DistinctDateHistogram
             out.write(cardinality);
         }
         releaseCache();
+    }
+
+    @Override
+    public List<? extends Entry> entries() {
+        // TODO Auto-generated method stub
+        return null;
     }
 }
