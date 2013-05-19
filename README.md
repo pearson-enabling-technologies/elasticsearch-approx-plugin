@@ -177,7 +177,7 @@ If you get any out-of-memory errors, you'll need to raise the amount of memory
 you allocate to the mvn process. From the command line, the pom takes care of
 this via the argLine parameter. If you're an Eclipse user, put ` -Xms1G -Xmx1G`
 in the VM Arguments box of the Arguments tab in Run Configurations for that
-test.
+test run.
 
 You can always build the package with `-DskipTests` if this is a problem
 (assuming you trust us to have tested before checking in).
