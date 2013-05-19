@@ -10,6 +10,7 @@ This work is inspired in part by
 [elasticsearch-ls-plugins](https://github.com/lovelysystems/elasticsearch-ls-plugins)
 by Lovely Systems -- some of their code has been reused here.
 
+
 ## Version compatibility
 
 Plugin &le; 1.1.0: ElasticSearch 0.19.X, tested on 0.19.11
@@ -100,11 +101,12 @@ Note that the counts are based on terms, so if the `value_field` is tokenized,
 the result won't indicate the number of distinct _values_ in that field, but
 rather, the number of distinct tokens (post-analysis).
 
+
 ## Term list facet
 
 This is a simple facet to quickly retrieve an unsorted term list for a field,
 if you don't care about counts or ordering etc. It allows you to set a max_per_shard
-cutoff similar to the previous facet.
+cutoff similar to the previous facet (defaults to 100).
 
 For example:
 
@@ -145,20 +147,19 @@ Returns something like:
       }
     }
 
-There is also a `read_from_cache` option. If set to true, the values will be
-read from ElasticSearch's field data cache, instead of directly from the Lucene
-index on disk. Whether this is faster or not depends on whether the data is
-already cached -- if it has to be read and cached first, it will be slower. But
-it's hard to make any absolute recommendations due to OS disk caching etc., so
-the best advice is to experiment.
-
-One other important note is that when reading directly from the Lucene index, filtering is not supported.	
-
+There is also a `use_field_data` option (previously `read_from_cache`). If set
+to false, this will ignore the ElasticSearch field data, and read the results
+directly from the Lucene index. This may be quicker in certain cases, depending
+on cardinality, whether the data has already been cached, etc. **However, this
+also means that no filters will be applied to the facet data. Any filters
+specified in the query which would normally affect facet data will be
+ignored.** As a result, `use_field_data` is on by default, a change from
+previous versions, as this behaviour is somewhat unusual, and only really for
+specialized use cases.
 
 This facet doesn't actually use anything clever like appropximate counting --
 it's not really approximate in the same sense as the previous one -- but we
 thought you might find it useful.
-
 
 
 ## Building and testing
@@ -179,12 +180,14 @@ the accuracy of the approximate counts. The final run puts over a million
 distinct values in each bucket. For the same reason, the tests take several
 minutes to run.
 
+
 ### Important note
 
 Because the error rate for HyperLogLog is a distribution rather than a hard
 bound, you may occasionally get tests failed due to results being just outside
 the 1% tolerance. If this happens, re-run the test. It's only a problem if it
 happens consistently...
+
 
 ## Installing
 
@@ -203,12 +206,14 @@ since they take a while.
 Then create a `plugins/approx` directory in your ElasticSearch install dir,
 and unzip the zipfile into there.
 
+
 ## Credits
 
 This project was developed by the Data Analytics & Visualization team
 at Pearson Technology in London.
 
 http://www.pearson.com/
+
 
 ## License
 
