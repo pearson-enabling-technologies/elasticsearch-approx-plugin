@@ -47,6 +47,8 @@ public class TermListFacetTest {
 
     private static final AtomicInteger __counter = new AtomicInteger(0);
 
+    private final Random _random = new Random(0);
+
     @BeforeClass
     public static void setUpClass() {
         final Settings settings = ImmutableSettings.settingsBuilder()
@@ -101,13 +103,12 @@ public class TermListFacetTest {
 
     @Test
     public void testWithJsonWithRandomStringsNoCache() throws Exception {
-        final Random r = new Random();
-        final int numOfElements = 100 + r.nextInt(100);
-        final int numOfWords = 20 + r.nextInt(10);
+        final int numOfElements = 100 + _random.nextInt(100);
+        final int numOfWords = 20 + _random.nextInt(10);
         final List<String> words = generateRandomWords(numOfWords);
 
-        int rIndex1 = r.nextInt(numOfWords);
-        int rIndex2 = r.nextInt(numOfWords);
+        int rIndex1 = _random.nextInt(numOfWords);
+        int rIndex2 = _random.nextInt(numOfWords);
         for(int i = 0; i < numOfElements; i++) {
             putSync(newID(), words.get(rIndex1), words.get(rIndex2), 0, 0);
             rIndex1++;
@@ -126,13 +127,12 @@ public class TermListFacetTest {
 
     @Test
     public void testWithRandomStringsNoCache() throws Exception {
-        final Random r = new Random();
-        final int numOfElements = 100 + r.nextInt(100);
-        final int numOfWords = 20 + r.nextInt(10);
+        final int numOfElements = 100 + _random.nextInt(100);
+        final int numOfWords = 20 + _random.nextInt(10);
         final List<String> words = generateRandomWords(numOfWords);
 
-        int rIndex1 = r.nextInt(numOfWords);
-        int rIndex2 = r.nextInt(numOfWords);
+        int rIndex1 = _random.nextInt(numOfWords);
+        int rIndex2 = _random.nextInt(numOfWords);
         for(int i = 0; i < numOfElements; i++) {
             putSync(newID(), words.get(rIndex1), words.get(rIndex2), 0, 0);
             rIndex1++;
@@ -155,13 +155,12 @@ public class TermListFacetTest {
 
     @Test
     public void testWithRandomStringsWithCache() throws Exception {
-        final Random r = new Random();
-        final int numOfElements = 100 + r.nextInt(100);
-        final int numOfWords = 20 + r.nextInt(10);
+        final int numOfElements = 100 + _random.nextInt(100);
+        final int numOfWords = 20 + _random.nextInt(10);
         final List<String> words = generateRandomWords(numOfWords);
 
-        int rIndex1 = r.nextInt(numOfWords);
-        int rIndex2 = r.nextInt(numOfWords);
+        int rIndex1 = _random.nextInt(numOfWords);
+        int rIndex2 = _random.nextInt(numOfWords);
         for(int i = 0; i < numOfElements; i++) {
             putSync(newID(), words.get(rIndex1), words.get(rIndex2), 0, 0);
             rIndex1++;
@@ -213,14 +212,13 @@ public class TermListFacetTest {
     @Test
     public void testWithIntRandomDataNoCache() throws Exception {
 
-        final Random r = new Random();
-        final int numOfDocumentsToIndex = 200 + r.nextInt(200);
-        final int numOfWordsToGenerate = 100 + r.nextInt(100);
+        final int numOfDocumentsToIndex = 200 + _random.nextInt(200);
+        final int numOfWordsToGenerate = 100 + _random.nextInt(100);
 
         final List<Integer> nums = generateRandomInts(numOfWordsToGenerate);
         final Set<Integer> uniqs = new HashSet<Integer>(nums);
 
-        int rIndex = r.nextInt(numOfWordsToGenerate);
+        int rIndex = _random.nextInt(numOfWordsToGenerate);
 
         for(int i = 0; i < numOfDocumentsToIndex; i++) {
 
@@ -237,14 +235,13 @@ public class TermListFacetTest {
     @Test
     public void testWithIntRandomDataWithCache() throws Exception {
 
-        final Random r = new Random();
-        final int numOfDocumentsToIndex = 200 + r.nextInt(200);
-        final int numOfWordsToGenerate = 100 + r.nextInt(100);
+        final int numOfDocumentsToIndex = 200 + _random.nextInt(200);
+        final int numOfWordsToGenerate = 100 + _random.nextInt(100);
 
         final List<Integer> nums = generateRandomInts(numOfWordsToGenerate);
         final Set<Integer> uniqs = new HashSet<Integer>(nums);
 
-        int rIndex = r.nextInt(numOfWordsToGenerate);
+        int rIndex = _random.nextInt(numOfWordsToGenerate);
 
         for(int i = 0; i < numOfDocumentsToIndex; i++) {
 
@@ -260,14 +257,13 @@ public class TermListFacetTest {
     @Test
     public void testWithLongRandomDataNoCache() throws Exception {
 
-        final Random r = new Random();
-        final int numOfDocumentsToIndex = 200 + r.nextInt(200);
-        final int numOfWordsToGenerate = 100 + r.nextInt(100);
+        final int numOfDocumentsToIndex = 200 + _random.nextInt(200);
+        final int numOfWordsToGenerate = 100 + _random.nextInt(100);
 
         final List<Long> nums = generateRandomLongs(numOfWordsToGenerate);
         final Set<Long> uniqs = new HashSet<Long>(nums);
 
-        int rIndex2 = r.nextInt(numOfWordsToGenerate);
+        int rIndex2 = _random.nextInt(numOfWordsToGenerate);
 
         for(int i = 0; i < numOfDocumentsToIndex; i++) {
 
@@ -285,14 +281,13 @@ public class TermListFacetTest {
     @Test
     public void testWithLongRandomDataWithCache() throws Exception {
 
-        final Random r = new Random();
-        final int numOfDocumentsToIndex = 200 + r.nextInt(200);
-        final int numOfWordsToGenerate = 100 + r.nextInt(100);
+        final int numOfDocumentsToIndex = 200 + _random.nextInt(200);
+        final int numOfWordsToGenerate = 100 + _random.nextInt(100);
 
         final List<Long> nums = generateRandomLongs(numOfWordsToGenerate);
         final Set<Long> uniqs = new HashSet<Long>(nums);
 
-        int rIndex2 = r.nextInt(numOfWordsToGenerate);
+        int rIndex2 = _random.nextInt(numOfWordsToGenerate);
 
         for(int i = 0; i < numOfDocumentsToIndex; i++) {
 
@@ -309,17 +304,16 @@ public class TermListFacetTest {
 
     @Test
     public void testAllFieldsWithRandomValues() throws Exception {
-        final Random r = new Random();
-        final int numOfElements = 300 + r.nextInt(100);
-        final int numOfWords = 30 + r.nextInt(10);
+        final int numOfElements = 300 + _random.nextInt(100);
+        final int numOfWords = 30 + _random.nextInt(10);
         final List<String> words = generateRandomWords(numOfWords);
         final List<Integer> ints = generateRandomInts(numOfWords);
         final List<Long> longs = generateRandomLongs(numOfWords);
 
-        int rIndex1 = r.nextInt(numOfWords);
-        int rIndex2 = r.nextInt(numOfWords);
-        int rIndex3 = r.nextInt(numOfWords);
-        int rIndex4 = r.nextInt(numOfWords);
+        int rIndex1 = _random.nextInt(numOfWords);
+        int rIndex2 = _random.nextInt(numOfWords);
+        int rIndex3 = _random.nextInt(numOfWords);
+        int rIndex4 = _random.nextInt(numOfWords);
 
         for(int i = 0; i < numOfElements; i++) {
             putSync(newID(), words.get(rIndex1), words.get(rIndex2), ints.get(rIndex3), longs.get(rIndex4));
@@ -365,19 +359,17 @@ public class TermListFacetTest {
     }
 
     List<Integer> generateRandomInts(final int numOfElements) {
-        final Random r = new Random();
         final List<Integer> ret = newArrayList();
         for(int i = 0; i < numOfElements; i++) {
-            ret.add(r.nextInt(1000));
+            ret.add(_random.nextInt(1000));
         }
         return ret;
     }
 
     List<Long> generateRandomLongs(final int numOfElements) {
-        final Random r = new Random();
         final List<Long> ret = newArrayList();
         for(int i = 0; i < numOfElements; i++) {
-            final long val = r.nextInt(10000);
+            final long val = _random.nextInt(10000);
             ret.add(val);
         }
         return ret;
@@ -470,13 +462,12 @@ public class TermListFacetTest {
 
     private List<String> generateRandomWords(final int numberOfWords) {
         final String[] randomStrings = new String[numberOfWords];
-        final Random random = new Random();
         for(int i = 0; i < numberOfWords; i++)
         {
-            final char[] word = new char[random.nextInt(8) + 3]; // words of length 3 through 10. (1 and 2 letter words are boring.)
+            final char[] word = new char[_random.nextInt(8) + 3]; // words of length 3 through 10. (1 and 2 letter words are boring.)
             for(int j = 0; j < word.length; j++)
             {
-                word[j] = (char) ('a' + random.nextInt(26));
+                word[j] = (char) ('a' + _random.nextInt(26));
             }
             randomStrings[i] = new String(word);
         }
