@@ -9,10 +9,8 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermEnum;
 import org.apache.lucene.util.NumericUtils;
-import org.elasticsearch.common.trove.set.TIntSet;
-import org.elasticsearch.common.trove.set.TLongSet;
-import org.elasticsearch.common.trove.set.hash.TIntHashSet;
-import org.elasticsearch.common.trove.set.hash.TLongHashSet;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.index.cache.field.data.FieldDataCache;
 import org.elasticsearch.index.field.data.FieldData;
 import org.elasticsearch.index.field.data.FieldData.StringValueProc;
@@ -25,48 +23,62 @@ import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.FacetPhaseExecutionException;
 import org.elasticsearch.search.internal.SearchContext;
 
+// TODO: Auto-generated Javadoc
 /**
  * The Class TermListFacetCollector.
  */
 public class TermListFacetCollector extends AbstractFacetCollector {
 
-    private final boolean _readFromFieldCache;
+    // FIXME make this parameterizable
+    /** The _read from field cache. */
+    private boolean _readFromFieldCache = false;
 
+    /** The _facet name. */
     private final String _facetName;
 
+    /** The _max per shard. */
     private final int _maxPerShard;
 
+    /** The _key field name. */
     private final String _keyFieldName;
 
+    /** The _key field type. */
     private final FieldDataType _keyFieldType;
 
+    /** The _field data cache. */
     private final FieldDataCache _fieldDataCache;
 
+    /** The _key field data. */
     private FieldData _keyFieldData;
 
-    private Collection<String> _strings;
+    /** The _doc base. */
+    //private int _docBase;
 
-    private TIntSet _ints;
+    /** objects to collect */
+    private final Collection<Object> _objects = newHashSet();
 
-    private TLongSet _longs;
-
+    /** The KeyFieldVisitor instance. */
     private final StringValueProc _proc = new KeyFieldVisitor();
+
+    protected final ESLogger _logger;
 
     /**
      * Instantiates a new term list facet collector.
      *
      * @param facetName the facet name
      * @param keyField the key field
-     * @param context the ES search context
-     * @param maxPerShard max terms to retrieve per shard
-     * @param readFromCache if true, read from ES field data cache; otherwise read from Lucene index
+     * @param context the context
+     * @param maxPerShard the max per shard
+     * @param bReadFromCache the b read from cache
      */
     public TermListFacetCollector(final String facetName, final String keyField,
-            final SearchContext context, final int maxPerShard, final boolean readFromCache) {
+            final SearchContext context, final int maxPerShard, final boolean bReadFromCache) {
         super(facetName);
         _facetName = facetName;
         _maxPerShard = maxPerShard;
-        _readFromFieldCache = readFromCache;
+        _readFromFieldCache = bReadFromCache;
+
+        _logger = Loggers.getLogger(getClass());
 
         _fieldDataCache = context.fieldDataCache();
         final MapperService.SmartNameFieldMappers keyMappers = context.smartFieldMappers(keyField);
@@ -83,12 +95,6 @@ public class TermListFacetCollector extends AbstractFacetCollector {
         final FieldMapper keyMapper = keyMappers.mapper();
         _keyFieldName = keyMapper.names().indexName();
         _keyFieldType = keyMapper.fieldDataType();
-        if(_keyFieldType.equals(DefaultTypes.STRING))
-            _strings = newHashSet();
-        else if(_keyFieldType.equals(DefaultTypes.INT))
-            _ints = new TIntHashSet();
-        else if(_keyFieldType.equals(DefaultTypes.LONG))
-            _longs = new TLongHashSet();
     }
 
     // TODO make this work for other data types too
@@ -98,55 +104,64 @@ public class TermListFacetCollector extends AbstractFacetCollector {
      */
     @Override
     public Facet facet() {
-        if(_strings != null)
-            return new InternalTermListFacet(_facetName, _strings.toArray());
-        else if(_ints != null)
-            return new InternalTermListFacet(_facetName, _ints.toArray());
-        else if(_longs != null)
-            return new InternalTermListFacet(_facetName, _longs.toArray());
-        else
-            return new InternalTermListFacet(_facetName);
+
+        if(_objects != null) {
+            return new InternalTermListFacet(_facetName, _objects.toArray());
+        }
+        return new InternalTermListFacet(_facetName);
     }
 
     /**
      * This method gets called once for each index segment, with a new reader.
      *
      * @param reader the reader
-     * @param docBase the docBase index (ignored)
+     * @param docBase the doc base
      * @throws IOException Signals that an I/O exception has occurred.
      */
     @Override
     protected void doSetNextReader(final IndexReader reader, final int docBase) throws IOException {
         if(_readFromFieldCache) {
-            _keyFieldData = _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName);
-        } else {
-
-            // retrieve terms directly from the lucene index.
-            final TermEnum terms = reader.terms();
-            while(terms.next()) {
-                final Term term = terms.term();
-                if(_keyFieldName.equals(term.field())) {
-
-                    //since saveValue is used both for cached and nonCached queries,
-                    //ensure that it receives the proper string values
-
-                    //this is suboptimal, because we are casting numeric values to strings to be used in saveValue
-                    //and then, in saveValue we are again converting strings to numbers
-                    if(_strings != null && _strings.size() <= _maxPerShard)
-                        saveValue(term.text());
-                    else if(_ints != null && _ints.size() <= _maxPerShard && term.text().length() == NumericUtils.BUF_SIZE_INT) {
-                        final Integer val = NumericUtils.prefixCodedToInt(term.text());
-                        saveValue(val.toString());
-                    }
-                    else if(_longs != null && _longs.size() <= _maxPerShard && term.text().length() == NumericUtils.BUF_SIZE_LONG) {
-                        final Long val = NumericUtils.prefixCodedToLong(term.text());
-                        saveValue(val.toString());
-                    }
-
-                }
+            if(_keyFieldData == null) {
+                _keyFieldData = _fieldDataCache.cache(_keyFieldType, reader, _keyFieldName);
             }
+        } else {
+            // Directly retrieve terms from the lucene index
+            // break the scan if any of the lists has _maxPerShard items 
+            final TermEnum terms = reader.terms(new Term(_keyFieldName));
+            while(true) {
+                final Term term = terms.term();
+                final String termText = term.text();
+                final long termLen = termText.length();
 
+                if(_keyFieldName.equals(term.field())) {
+                    if(_keyFieldType.equals(DefaultTypes.STRING) && _objects.size() <= _maxPerShard) {
+                        saveValue(termText);
+                    }
+                    else if((_objects.size() <= _maxPerShard) && termLen == NumericUtils.BUF_SIZE_INT
+                            && _keyFieldType.equals(DefaultTypes.INT)) {
+                        final Integer val = NumericUtils.prefixCodedToInt(termText);
+                        saveValue(val);
+                    }
+                    else if((_objects.size() <= _maxPerShard) && termLen == NumericUtils.BUF_SIZE_LONG
+                            && _keyFieldType.equals(DefaultTypes.LONG)) {
+                        final Long val = NumericUtils.prefixCodedToLong(termText);
+                        saveValue(val);
+                    }
+                    if(_objects.size() >= _maxPerShard) {
+                        break;
+                    }
+                }
+                if(!terms.next())
+                    break;
+            }
+            terms.close();
         }
+
+    }
+
+    private boolean isMaxPerShardReached() {
+        return _objects.size() >= _maxPerShard;
+
     }
 
     /* (non-Javadoc)
@@ -154,8 +169,11 @@ public class TermListFacetCollector extends AbstractFacetCollector {
      */
     @Override
     protected void doCollect(final int doc) throws IOException {
-        if(_readFromFieldCache)
-            _keyFieldData.forEachValue(_proc);
+        if(_readFromFieldCache) {
+            if(!isMaxPerShardReached()) {
+                _keyFieldData.forEachValue(_proc);
+            }
+        }
         // Otherwise do nothing -- we just read the values from the index directly
     }
 
@@ -164,37 +182,22 @@ public class TermListFacetCollector extends AbstractFacetCollector {
      *
      * @param value the value
      */
-
-    private void saveValue(final String value) {
-        if(_strings != null && _strings.size() <= _maxPerShard) {
-            _strings.add(value);
-        } else if(_ints != null && _ints.size() <= _maxPerShard) {
-            try {
-                _ints.add(Integer.valueOf(value));
-            } catch(final NumberFormatException ex) {
-                //ignore exceptions
-            }
-        }
-        else if(_longs != null && _longs.size() <= _maxPerShard) {
-            try {
-                _longs.add(Long.valueOf(value));
-            } catch(final NumberFormatException ex) {
-                //ignore exceptions
-            }
-        }
+    private void saveValue(final Object value) {
+        _objects.add(value);
     }
 
     /**
      * The Class KeyFieldVisitor.
      */
     private class KeyFieldVisitor implements StringValueProc {
-
         /* (non-Javadoc)
          * @see org.elasticsearch.index.field.data.FieldData.StringValueProc#onValue(java.lang.String)
          */
         @Override
         public void onValue(final String value) {
-            saveValue(value);
+
+            if(_objects.size() <= _maxPerShard)
+                saveValue(value);
         }
     }
 

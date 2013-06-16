@@ -1,28 +1,32 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.termlist;
 
-import static com.google.common.collect.Lists.newArrayList;
+import static com.google.common.collect.Sets.newHashSet;
 
 import java.io.IOException;
-import java.security.InvalidParameterException;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.InternalFacet;
 
+// TODO: Auto-generated Javadoc
 /**
  * The Class InternalTermListFacet.
  */
 public class InternalTermListFacet implements TermListFacet, InternalFacet {
 
+    ESLogger _logger = Loggers.getLogger(getClass());
+
+    /** The Constant STREAM_TYPE. */
     private static final String STREAM_TYPE = "term_list";
 
     /**
@@ -43,7 +47,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
     /**
      * Read term list facet.
      *
-     * @param in the input stream
+     * @param in the in
      * @return the internal term list facet
      * @throws IOException Signals that an I/O exception has occurred.
      */
@@ -53,16 +57,13 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
         return facet;
     }
 
-    private byte _dataType = -1; // -1 == uninitialized
+    /** The _objects. */
+    private Object[] _objects; // dataType 0
 
-    private Object[] _strings; // dataType 0
-
-    private int[] _ints; // dataType 1
-
-    private Long[] _longs; //dataType 2 
-
+    /** The _name. */
     private String _name; // plugin name
 
+    /** The _type. */
     private final String _type = STREAM_TYPE;
 
     /**
@@ -73,8 +74,8 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
      */
     public InternalTermListFacet(final String facetName, final Object[] strings) {
         _name = facetName;
-        _strings = strings;
-        _dataType = 0;
+        _objects = strings;
+
     }
 
     /**
@@ -83,31 +84,12 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
      * @param facetName is the facet name
      * @param ints, the integer array
      */
-    public InternalTermListFacet(final String facetName, final int[] ints) {
-        _name = facetName;
-        _ints = ints;
-        _dataType = 1;
-    }
-
-    /**
-     * Instantiates a new internal long term list facet.
-     *
-     * @param facetName the facet name
-     * @param longs array of longs 
-     */
-    public InternalTermListFacet(final String facetName, final long[] longs) {
-        _name = facetName;
-        _longs = new Long[longs.length];
-        for(int l = 0; l < longs.length; l++)
-            _longs[l] = longs[l];
-
-        _dataType = 2;
-    }
 
     /**
      * Instantiates a new internal term list facet.
      */
-    private InternalTermListFacet() {}
+    private InternalTermListFacet() {
+    }
 
     /**
      * Instantiates a new internal term list facet.
@@ -116,6 +98,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
      */
     public InternalTermListFacet(final String facetName) {
         _name = facetName;
+        _objects = new Object[0];
     }
 
     /* (non-Javadoc)
@@ -153,78 +136,38 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
     /* (non-Javadoc)
      * @see org.elasticsearch.common.io.stream.Streamable#readFrom(org.elasticsearch.common.io.stream.StreamInput)
      */
+    @SuppressWarnings("deprecation")
     @Override
     public void readFrom(final StreamInput in) throws IOException {
-        _name = in.readString();
-        final int size = in.readVInt();
-        final byte dataType = in.readByte();
-        switch(dataType) {
-        case -1:
-            _strings = null;
-            _ints = null;
-            _longs = null;
-            break;
-        case 0:
-            _strings = CacheRecycler.popObjectArray(size);
-            _ints = null;
-            _longs = null;
-            break;
-        case 1:
-            _strings = null;
-            _ints = CacheRecycler.popIntArray(size);
-            _longs = null;
-            break;
-        case 2:
-            _strings = null;
-            _ints = null;
 
-            //allocate object array, no popLongArray in the CacheRecycler object
-            _longs = (Long[]) CacheRecycler.popObjectArray(size);
-
-        default:
-            throw new IllegalArgumentException("dataType " + dataType + " is not known");
-        }
-        for(int i = 0; i < size; i++) {
-            switch(dataType) {
-            case 0:
-                _strings[i] = in.readString();
-                break;
-            case 1:
-                _ints[i] = in.readInt();
-                break;
-            case 2:
-                _longs[i] = in.readLong();
-                break;
+        try {
+            _name = in.readUTF();
+            final int size = in.readVInt();
+            //final byte dataType = in.readByte();
+            _objects = CacheRecycler.popObjectArray(size);
+            for(int i = 0; i < size; i++) {
+                _objects[i] = in.readUTF();
             }
+        } catch(final Exception ex) {
+            _logger.error("[readFrom: Exception ( " + _name + ")]", ex);
         }
     }
 
     /* (non-Javadoc)
      * @see org.elasticsearch.common.io.stream.Streamable#writeTo(org.elasticsearch.common.io.stream.StreamOutput)
      */
+    @SuppressWarnings("deprecation")
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
-        out.writeString(_name);
-        out.writeByte(_dataType);
-        switch(_dataType) {
-        case -1:
-            out.writeVInt(0);
-            out.writeByte((byte) -1);
-            break;
-        case 0:
-            out.writeVInt(_strings.length);
-            out.writeStringArray((String[]) _strings);
-            break;
-        case 1:
-            for(final int i : _ints) {
-                out.writeVInt(i);
-            }
-            break;
-        case 2:
-            for(final Long i : _longs) {
-                out.writeVLong(i);
-            }
+
+        final String[] strArray = new String[_objects.length];
+        for(int i = 0; i < _objects.length; i++) {
+            strArray[i] = _objects[i].toString();
         }
+        out.writeUTF(_name);
+        out.writeVInt(_objects.length);
+        for(int i = 0; i < strArray.length; i++)
+            out.writeUTF(strArray[i]);
         releaseCache();
     }
 
@@ -247,19 +190,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
         builder.startObject(_name);
         builder.field(Fields._TYPE, STREAM_TYPE);
-        switch(_dataType) {
-        case -1:
-            break;
-        case 0:
-            builder.array(Fields.ENTRIES, _strings);
-            break;
-        case 1:
-            builder.array(Fields.ENTRIES, _ints);
-            break;
-        case 2:
-            builder.array(Fields.ENTRIES, (Object[]) _longs);
-            break;
-        }
+        builder.array(Fields.ENTRIES, _objects);
         builder.endObject();
         return builder;
     }
@@ -276,12 +207,8 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
      * Release cache.
      */
     private void releaseCache() {
-        if(_strings != null)
-            CacheRecycler.pushObjectArray(_strings);
-        if(_ints != null)
-            CacheRecycler.pushIntArray(_ints);
-        if(_longs != null)
-            CacheRecycler.pushObjectArray(_longs);
+        if(_objects != null)
+            CacheRecycler.pushObjectArray(_objects);
 
     }
 
@@ -298,23 +225,7 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
      */
     @Override
     public List<Object> entries() {
-
-        switch(_dataType) {
-        case 0:
-            return Arrays.asList(_strings);
-        case 1:
-            final List<Object> ret = newArrayList();
-            for(final int i : _ints)
-                ret.add(i);
-            return ret;
-        case 2:
-            final List<Object> retL = newArrayList();
-            for(final long l : _longs)
-                retL.add(l);
-            return retL;
-        }
-        return newArrayList();
-
+        return Arrays.asList(_objects);
     }
 
     /* (non-Javadoc)
@@ -333,51 +244,16 @@ public class InternalTermListFacet implements TermListFacet, InternalFacet {
      * @return the resulting reduced facet
      */
     public Facet reduce(final String name, final List<Facet> facets) {
-
-        final Set<String> reducedStrings = new HashSet<String>();
-        final Set<Integer> reducedInts = new HashSet<Integer>();
-        final Set<Long> reducedLongs = new HashSet<Long>();
-
+        final Collection<Object> list = newHashSet();
         for(final Facet facet : facets) {
             final InternalTermListFacet itlf = (InternalTermListFacet) facet;
-            switch(_dataType) {
-            case 0:
-
-                for(final Object obj : itlf._strings) {
-                    reducedStrings.add(obj.toString());
-                }
-                break;
-            case 1:
-
-                for(final Object obj : itlf._ints) {
-                    reducedInts.add(Integer.parseInt(obj.toString()));
-                }
-                break;
-            case 2:
-
-                for(final Long obj : itlf._longs) {
-                    reducedLongs.add(Long.parseLong(obj.toString()));
-                }
-                break;
-            default:
-                throw new InvalidParameterException("Data type not supported for this plugin");
+            for(final Object obj : itlf._objects) {
+                if(obj != null)
+                    list.add(obj.toString());
             }
-        }
-
-        switch(_dataType) {
-        case 0:
-            final Object[] strings = reducedStrings.toArray(new Object[reducedStrings.size()]);
-            return new InternalTermListFacet(name, strings);
-        case 1:
-            final Object[] ints = reducedInts.toArray(new Object[reducedInts.size()]);
-            return new InternalTermListFacet(name, ints);
-        case 2:
-            final Object[] longs = reducedLongs.toArray(new Object[reducedLongs.size()]);
-            return new InternalTermListFacet(name, longs);
-        default:
-            return null;
-        }
+        } 
+        final Object[] ret = list.toArray(new Object[list.size()]);
+        return new InternalTermListFacet(name, ret);
 
     }
-
 }

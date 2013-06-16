@@ -2,7 +2,6 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static java.lang.Math.abs;
-import static java.lang.Math.max;
 import static java.lang.Math.pow;
 import static java.lang.Math.random;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
@@ -11,14 +10,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.elasticsearch.ElasticSearchException;
-import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.admin.indices.optimize.OptimizeRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequestBuilder;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.index.IndexRequest;
@@ -67,8 +63,6 @@ public class DistinctDateHistogramFacetTest {
 
     private static final AtomicInteger __counter = new AtomicInteger(0);
 
-    private final Random _random = new Random(0);
-
     @BeforeClass
     public static void setUpClass() {
         final Settings settings = ImmutableSettings.settingsBuilder()
@@ -78,10 +72,9 @@ public class DistinctDateHistogramFacetTest {
                 //.put("index.store.type", "memory")
                 .put("index.number_of_shards", 3)
                 .put("index.number_of_replicas", 0)
-                .put("index.cache.field.type", "soft")
-                .put("index.merge.policy.merge_factor", 30)
                 .put("path.data", "target")
                 .put("refresh_interval", -1)
+                .put("index.cache.field.type", "soft")
                 .build();
         __node = nodeBuilder()
                 .local(true)
@@ -118,9 +111,6 @@ public class DistinctDateHistogramFacetTest {
                 .setType(__type)
                 .setSource(mapping)
                 .execute().actionGet();
-        client().admin().indices().clearCache(
-                new ClearIndicesCacheRequest("_all"));
-        System.gc();
         assertEquals(0L, countAll());
     }
 
@@ -247,15 +237,13 @@ public class DistinctDateHistogramFacetTest {
     @Test
     public void testRandomizedWithManyItemsOnDayBucket() throws Exception {
         // Do this 20 times for different amounts of data
-        for(int t = 1; t <= 20; t++) {
+        for(int t = 1; t < 21; t++) {
             setUp();
             final int minPerDay = (int) pow(2, t);
-            System.out.println("Randomized testing: inserting minimum " + 7 * minPerDay + " items");
             final int[] itemsPerDay = prepareRandomData(minPerDay);
             final int totalItems = add(itemsPerDay);
             assertEquals(totalItems, countAll());
 
-            System.out.println("Randomized testing: running facet");
             final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, 1000);
             final DistinctDateHistogramFacet facet1 = response.facets().facet(__facetName);
             final ArrayList<Entry> facetList1 = newArrayList(facet1);
@@ -335,7 +323,7 @@ public class DistinctDateHistogramFacetTest {
     }
 
     private void putBulk(final String[] ids, final int[] users, final long[] timestamps) throws Exception {
-        final int batchSize = 5000;
+        final int batchSize = 1000;
         for(int i = 0; i < ids.length; i += batchSize) {
             final BulkRequestBuilder bulk = client().prepareBulk();
             for(int j = 0; j < batchSize; j++) {
@@ -360,21 +348,19 @@ public class DistinctDateHistogramFacetTest {
 
     private int[] prepareRandomData(final int minPerDay) throws Exception {
         final int[] itemsPerDay = new int[7];
-        final int variationPerDay = max(1, minPerDay / 10);
+        final int variationPerDay = minPerDay / 10;
         for(int i = 0; i < 7; i++) {
-            itemsPerDay[i] = minPerDay + _random.nextInt(variationPerDay);
+            itemsPerDay[i] = minPerDay + (int) (random() * variationPerDay);
             final int[] ids = new int[itemsPerDay[i]];
             final String[] stringIDs = new String[itemsPerDay[i]];
             final long[] timestamps = new long[itemsPerDay[i]];
             for(int j = 0; j < itemsPerDay[i]; j++) {
-                timestamps[j] = __days[i] + (60 * 1000 * (int) (random() * 1440));
+                timestamps[j] = __days[i] + (int) (random() * 86400000);
                 ids[j] = newID();
                 stringIDs[j] = String.valueOf(ids[j]);
             }
             putBulk(stringIDs, ids, timestamps);
         }
-        client().admin().indices().optimize(
-                new OptimizeRequest().waitForMerge(true));
         return itemsPerDay;
     }
 

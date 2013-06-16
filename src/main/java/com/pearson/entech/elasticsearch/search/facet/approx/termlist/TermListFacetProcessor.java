@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.mapper.FieldMapper;
@@ -15,6 +17,7 @@ import org.elasticsearch.search.facet.FacetProcessor;
 import org.elasticsearch.search.internal.SearchContext;
 
 public class TermListFacetProcessor extends AbstractComponent implements FacetProcessor {
+    protected final ESLogger _logger;
 
     /**
      * Instantiates a new term list facet processor.
@@ -25,6 +28,7 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
     public TermListFacetProcessor(final Settings settings) {
         super(settings);
         InternalTermListFacet.registerStreams();
+        _logger = Loggers.getLogger(getClass());
     }
 
     /* (non-Javadoc)
@@ -35,8 +39,8 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
         String keyField = null;
         XContentParser.Token token;
         String fieldName = null;
-        int maxPerShard = 100;
-        boolean readFromCache = true;
+        int maxPerShard = 10;
+        boolean readFromCache = false;
         while((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if(token == XContentParser.Token.FIELD_NAME) {
                 fieldName = parser.currentName();
@@ -48,9 +52,8 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
                 } else if("max_per_shard".equals(fieldName) || "maxPerShard".equals(fieldName)) {
                     maxPerShard = parser.intValue();
                 }
-                else if("read_from_cache".equals(fieldName) || "readFromCache".equals(fieldName)
-                        || "use_cache".equals(fieldName) || "useCache".equals(fieldName)
-                        || "use_field_data".equals(fieldName) || "useFieldData".equals(fieldName)) {
+                else if("read_from_cache".equals(fieldName) || "readFromCache".equals(fieldName) || "useCache".equals(fieldName)
+                        || "use_cache".equals(fieldName)) {
                     readFromCache = parser.booleanValue();
                 }
             }
@@ -64,7 +67,6 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
         if(mapper == null) {
             throw new FacetPhaseExecutionException(facetName, "(key) field [" + keyField + "] not found");
         }
-
         return new TermListFacetCollector(facetName, keyField, context, maxPerShard, readFromCache);
     }
 
@@ -73,8 +75,16 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
      */
     @Override
     public Facet reduce(final String name, final List<Facet> facets) {
-        final InternalTermListFacet base = (InternalTermListFacet) facets.get(0);
-        return base.reduce(name, facets);
+        Facet facet = null;
+        try {
+            _logger.debug("TermListFacetProcessor", "Entering");
+            final InternalTermListFacet base = (InternalTermListFacet) facets.get(0);
+            facet = base.reduce(name, facets);
+            _logger.debug("TermListFacetProcessor", "Leaving");
+        } catch(final NullPointerException ex) {
+            _logger.debug("TermListFacetProcessor", ex);
+        }
+        return facet;
 
     }
 
@@ -83,7 +93,7 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
      */
     @Override
     public String[] types() {
-        return new String[] { TermListFacet.TYPE, "term_list_facet" };
+        return new String[] { TermListFacet.TYPE, "term_list" };
     }
 
 }
