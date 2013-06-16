@@ -3,11 +3,10 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.pearson.entech</groupId>
 	<artifactId>elasticsearch-approx-plugin</artifactId>
-	<version>1.3.0</version>
+	<version>1.1.2-SNAPSHOT</version>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<elasticsearch.version>0.20.6</elasticsearch.version>
 	</properties>
 
 	<name>elasticsearch-approx-plugin</name>
@@ -27,12 +26,15 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.12.4</version>
+                <!--
                 <configuration>
                     <forkMode>pertest</forkMode>
-                    <argLine>-Xms1g -Xmx1g</argLine>
+                    <argLine>-Xms2512m -Xmx2512m -XX:MaxDirectMemorySize=2g</argLine>
                     <testFailureIgnore>false</testFailureIgnore>
                     <skip>false</skip>
                 </configuration>
+                  -->
+                
             </plugin>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
@@ -71,12 +73,12 @@
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
-			<version>${elasticsearch.version}</version>
+			<version>0.20.6</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>14.0.1</version>
+			<artifactId>guava-collections</artifactId>
+			<version>r03</version>
 		</dependency>
 		<dependency>
 			<groupId>com.clearspring.analytics</groupId>
