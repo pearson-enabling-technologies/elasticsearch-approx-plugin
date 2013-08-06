@@ -1,38 +1,38 @@
 package com.pearson.entech.elasticsearch.plugin.approx;
 
+import java.util.Collection;
+
+import org.elasticsearch.common.collect.Lists;
 import org.elasticsearch.common.inject.Module;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.search.facet.FacetModule;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacetProcessor;
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.InternalDistinctDateHistogramFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.termlist.InternalTermListFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetProcessor;
+import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacetParser;
 
-/**
- * This class registers the facets themselves with ES, as well as the stream classes
- * which govern how a facet is deserialized.
- */
+
 public class FacetPlugin extends AbstractPlugin {
+
+    public FacetPlugin(final Settings settings) {}
 
     @Override
     public String name() {
-        return "approx-plugin";
+        return "time-facets";
     }
 
     @Override
     public String description() {
-        return "Plugin to use approximate methods for enabling and/or speeding up certain queries."; // TODO
+        return "Time-Facets Plugins";
     }
 
     @Override
-    public void processModule(final Module module) {
-        if(module instanceof FacetModule) {
-            ((FacetModule) module).addFacetProcessor(DistinctDateHistogramFacetProcessor.class);
-            InternalDistinctDateHistogramFacet.registerStreams();
-            
-            ((FacetModule) module).addFacetProcessor(TermListFacetProcessor.class);
-            InternalTermListFacet.registerStreams();
-        }
+    public Collection<Class<? extends Module>> modules() {
+        final Collection<Class<? extends Module>> modules = Lists.newArrayList();
+        modules.add(TimeFacetsModule.class);
+        return modules;
+    }
+
+    public void onModule(final FacetModule module) {
+        module.addFacetProcessor(DistinctDateHistogramFacetParser.class);
     }
 }
