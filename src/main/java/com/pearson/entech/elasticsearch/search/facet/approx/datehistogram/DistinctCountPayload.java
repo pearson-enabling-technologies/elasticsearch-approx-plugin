@@ -3,7 +3,7 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 import java.io.IOException;
 
 import org.elasticsearch.ElasticSearchException;
-import org.elasticsearch.common.trove.map.TLongObjectMap;
+import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 import com.clearspring.analytics.stream.cardinality.CountThenEstimate;
@@ -53,26 +53,26 @@ public class DistinctCountPayload {
         return _cardinality;
     }
 
-    DistinctCountPayload merge(final DistinctCountPayload other) throws CardinalityMergeException {
-        _count += other._count;
+    DistinctCountPayload merge(final DistinctCountPayload object) throws CardinalityMergeException {
+        _count += object._count;
         //        final int size = other._cardinality.sizeof();
         //        if(size == -1)
         //            System.out.println("Merging set with " + other._cardinality.cardinality() + " elements");
         //        else
         //            System.out.println("Merging estimator with size " + other._cardinality.sizeof() + " bytes");
-        _cardinality = CountThenEstimate.mergeEstimators(this._cardinality, other._cardinality);
+        _cardinality = CountThenEstimate.mergeEstimators(this._cardinality, object._cardinality);
         return this;
     }
 
-    DistinctCountPayload mergeInto(final TLongObjectMap<DistinctCountPayload> map, final long key) {
-        if(map.containsKey(key))
+    DistinctCountPayload mergeInto(final ExtTLongObjectHashMap<DistinctCountPayload> counts, final long key) {
+        if(counts.containsKey(key))
             try {
-                map.put(key, this.merge(map.get(key)));
+                counts.put(key, this.merge(counts.get(key)));
             } catch(final CardinalityMergeException e) {
                 throw new ElasticSearchException("Unable to merge two facet cardinality objects", e);
             }
         else
-            map.put(key, this);
+            counts.put(key, this);
         return this;
     }
 }

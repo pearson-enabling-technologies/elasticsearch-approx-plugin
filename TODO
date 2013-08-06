@@ -1,0 +1,32 @@
+This isn't even remotely close to compiling yet.
+
+Plan for distinct date histogram:
+
+Get rid of DistinctDateHistogramFacetExecutor as we don't have a mode with just
+a key field. (But keep it somewhere for reference as I tinkered with it quite a
+lot.)
+
+Base the new DistinctDateHistogramFacetExecutor on
+ValueDistinctDateHistogramFacetExecutor as it has a key field and a value field
+Do counts of all hits, and distinct counts on the value field.
+
+Then extend it to allow a third field to be specified (query_field?) which we
+can calculate additional stats on, depending on the data type.
+
+- Numeric fields: statistics as in the statistical facet?
+
+- String fields: length statistics, cardinality?
+
+- Datetime fields: earliest, latest, frequency, interval covered?
+
+And maybe we could allow nested distinct counts: e.g. for each distinct value
+of "choice", what are the counts of each distinct value of "subchoice"?
+
+Also, it would be nice to support script fields as well. Actually, this would
+provide an alternative way of doing nested distincts: what are the counts of
+each distinct value of "choice+subchoice"?
+
+Plan for term list:
+
+This should be much more straightforward.
+
