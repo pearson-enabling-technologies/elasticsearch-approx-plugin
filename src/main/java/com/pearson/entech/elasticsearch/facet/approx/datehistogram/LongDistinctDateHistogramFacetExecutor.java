@@ -159,7 +159,7 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
 
             @Override
             public void onValue(final int docId, final long value) {
-                entry.getCardinality().offer(value);
+                entry.update(value);
             }
         }
     }

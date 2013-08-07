@@ -3,10 +3,8 @@ package com.pearson.entech.elasticsearch.facet.approx.datehistogram;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.common.CacheRecycler;
@@ -37,6 +35,7 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
     public InternalDistinctDateHistogramFacet() {}
 
     public InternalDistinctDateHistogramFacet(final String facetName) {
+        super(facetName);
         this.name = facetName;
     }
 
@@ -154,7 +153,7 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
         final InternalDistinctDateHistogramFacet ret = newFacet();
         ret.comparatorType = comparatorType;
         ret.counts = counts;
-        CacheRecycler.pushLongObjectMap(counts);
+        ret.cachedCounts = true;
         return ret;
     }
 
@@ -167,10 +166,6 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
      */
     @Override
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
-        Set<Object> all = null;
-        if(entries().size() != 1) {
-            all = new HashSet<Object>();
-        }
         builder.startObject(this.name);
         builder.field(Fields._TYPE, TYPE);
         builder.startArray(Fields.ENTRIES);

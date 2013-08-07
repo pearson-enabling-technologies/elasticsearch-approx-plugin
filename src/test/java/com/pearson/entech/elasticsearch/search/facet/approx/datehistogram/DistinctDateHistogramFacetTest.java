@@ -133,22 +133,23 @@ public class DistinctDateHistogramFacetTest {
         putSync(newID(), 1, __days[6]);
         assertEquals(4, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
+        System.out.println(response);
         assertEquals(4, response.getHits().getTotalHits());
         final InternalDistinctDateHistogramFacet facet = response.getFacets().facet(__facetName);
         final List<DistinctEntry> facetList = facet.entries();
         // Expecting just one hit and one distinct hit per doc, for the username.
         assertEquals(4, facetList.size());
         assertEquals(__days[0], facetList.get(0).getTime());
-        assertEquals(1, facetList.get(0).getCount());
+        assertEquals(1, facetList.get(0).getTotalCount());
         assertEquals(1, facetList.get(0).getDistinctCount());
         assertEquals(__days[2], facetList.get(1).getTime());
-        assertEquals(1, facetList.get(1).getCount());
+        assertEquals(1, facetList.get(1).getTotalCount());
         assertEquals(1, facetList.get(1).getDistinctCount());
         assertEquals(__days[4], facetList.get(2).getTime());
-        assertEquals(1, facetList.get(2).getCount());
+        assertEquals(1, facetList.get(2).getTotalCount());
         assertEquals(1, facetList.get(2).getDistinctCount());
         assertEquals(__days[6], facetList.get(3).getTime());
-        assertEquals(1, facetList.get(3).getCount());
+        assertEquals(1, facetList.get(3).getTotalCount());
         assertEquals(1, facetList.get(3).getDistinctCount());
     }
 
@@ -168,16 +169,16 @@ public class DistinctDateHistogramFacetTest {
         // is a stopword and is removed.
         assertEquals(4, facetList.size());
         assertEquals(__days[0], facetList.get(0).getTime());
-        assertEquals(3, facetList.get(0).getCount());
+        assertEquals(3, facetList.get(0).getTotalCount());
         assertEquals(3, facetList.get(0).getDistinctCount());
         assertEquals(__days[2], facetList.get(1).getTime());
-        assertEquals(3, facetList.get(1).getCount());
+        assertEquals(3, facetList.get(1).getTotalCount());
         assertEquals(3, facetList.get(1).getDistinctCount());
         assertEquals(__days[4], facetList.get(2).getTime());
-        assertEquals(3, facetList.get(2).getCount());
+        assertEquals(3, facetList.get(2).getTotalCount());
         assertEquals(3, facetList.get(2).getDistinctCount());
         assertEquals(__days[6], facetList.get(3).getTime());
-        assertEquals(3, facetList.get(3).getCount());
+        assertEquals(3, facetList.get(3).getTotalCount());
         assertEquals(3, facetList.get(3).getDistinctCount());
     }
 
@@ -200,16 +201,16 @@ public class DistinctDateHistogramFacetTest {
         // than once (i.e. day 0 here).
         assertEquals(4, facetList.size());
         assertEquals(__days[0], facetList.get(0).getTime());
-        assertEquals(3, facetList.get(0).getCount());
+        assertEquals(3, facetList.get(0).getTotalCount());
         assertEquals(2, facetList.get(0).getDistinctCount());
         assertEquals(__days[2], facetList.get(1).getTime());
-        assertEquals(1, facetList.get(1).getCount());
+        assertEquals(1, facetList.get(1).getTotalCount());
         assertEquals(1, facetList.get(1).getDistinctCount());
         assertEquals(__days[4], facetList.get(2).getTime());
-        assertEquals(1, facetList.get(2).getCount());
+        assertEquals(1, facetList.get(2).getTotalCount());
         assertEquals(1, facetList.get(2).getDistinctCount());
         assertEquals(__days[6], facetList.get(3).getTime());
-        assertEquals(3, facetList.get(3).getCount());
+        assertEquals(3, facetList.get(3).getTotalCount());
         assertEquals(3, facetList.get(3).getDistinctCount());
     }
 
@@ -232,16 +233,16 @@ public class DistinctDateHistogramFacetTest {
         // from the timestamp at the end. 3 tokens indexed per each instance of the field.
         assertEquals(4, facetList.size());
         assertEquals(__days[0], facetList.get(0).getTime());
-        assertEquals(3 * 3, facetList.get(0).getCount());
+        assertEquals(3 * 3, facetList.get(0).getTotalCount());
         assertEquals(2 + (1 * 3), facetList.get(0).getDistinctCount());
         assertEquals(__days[2], facetList.get(1).getTime());
-        assertEquals(1 * 3, facetList.get(1).getCount());
+        assertEquals(1 * 3, facetList.get(1).getTotalCount());
         assertEquals(1 * 3, facetList.get(1).getDistinctCount());
         assertEquals(__days[4], facetList.get(2).getTime());
-        assertEquals(1 * 3, facetList.get(2).getCount());
+        assertEquals(1 * 3, facetList.get(2).getTotalCount());
         assertEquals(1 * 3, facetList.get(2).getDistinctCount());
         assertEquals(__days[6], facetList.get(3).getTime());
-        assertEquals(3 * 3, facetList.get(3).getCount());
+        assertEquals(3 * 3, facetList.get(3).getTotalCount());
         assertEquals(2 + (1 * 3), facetList.get(3).getDistinctCount());
     }
 
@@ -263,7 +264,7 @@ public class DistinctDateHistogramFacetTest {
             assertEquals(7, facetList1.size());
             for(int i = 0; i < 7; i++) {
                 final int exactUsers = itemsPerDay[i];
-                assertEquals(exactUsers, facetList1.get(i).getCount());
+                assertEquals(exactUsers, facetList1.get(i).getTotalCount());
                 final int tolerance = exactUsers / 100;
                 final long fuzzyUsers = facetList1.get(i).getDistinctCount();
                 //System.out.println("Exact user count = " + exactUsers);
@@ -281,7 +282,7 @@ public class DistinctDateHistogramFacetTest {
             for(int i = 0; i < 7; i++) {
                 final int exactTokens = itemsPerDay[i] * 3; // "Document created [by] <ID>"
                 final int exactDistinctTokens = itemsPerDay[i] + 2;
-                assertEquals(exactTokens, facetList2.get(i).getCount());
+                assertEquals(exactTokens, facetList2.get(i).getTotalCount());
                 final int tolerance = exactDistinctTokens / 100;
                 final long fuzzyDistinctTokens = facetList2.get(i).getDistinctCount();
                 //System.out.println("Exact distinct token count = " + exactDistinctTokens);
@@ -318,7 +319,8 @@ public class DistinctDateHistogramFacetTest {
         return client().prepareSearch(__index)
                 .setSearchType(SearchType.COUNT)
                 .addFacet(facet)
-                .execute().actionGet();
+                .execute()
+                .actionGet();
     }
 
     private void putSync(final int id, final int user, final long timestamp) throws ElasticSearchException, IOException {

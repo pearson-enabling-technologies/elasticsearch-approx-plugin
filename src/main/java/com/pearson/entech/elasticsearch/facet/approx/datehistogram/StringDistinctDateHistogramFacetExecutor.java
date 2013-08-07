@@ -165,7 +165,7 @@ public class StringDistinctDateHistogramFacetExecutor extends FacetExecutor {
 
             @Override
             protected void onValue(final int docId, final BytesRef value, final int hashCode, final BytesValues values) {
-                entry.getCardinality().offer(value);
+                entry.update(value);
             }
         }
     }
