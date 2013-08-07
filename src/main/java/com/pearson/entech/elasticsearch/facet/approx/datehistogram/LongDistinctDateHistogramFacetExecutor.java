@@ -47,7 +47,9 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
 
     @Override
     public InternalFacet buildFacet(final String facetName) {
-        return new LongInternalDistinctDateHistogramFacet(facetName, comparatorType, counts, true);
+        final LongInternalDistinctDateHistogramFacet facet = new LongInternalDistinctDateHistogramFacet(facetName, comparatorType, counts, true);
+        System.out.println("Built facet " + facet);
+        return facet;
     }
 
     /*

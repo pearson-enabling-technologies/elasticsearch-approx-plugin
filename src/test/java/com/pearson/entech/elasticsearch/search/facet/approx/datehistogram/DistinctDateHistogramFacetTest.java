@@ -276,7 +276,7 @@ public class DistinctDateHistogramFacetTest {
             }
 
             final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, 1000);
-            final InternalDistinctDateHistogramFacet facet2 = response.getFacets().facet(__facetName);
+            final InternalDistinctDateHistogramFacet facet2 = response2.getFacets().facet(__facetName);
             final List<DistinctEntry> facetList2 = facet2.entries();
             assertEquals(7, facetList2.size());
             for(int i = 0; i < 7; i++) {

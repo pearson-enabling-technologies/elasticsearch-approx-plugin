@@ -2,7 +2,6 @@ package com.pearson.entech.elasticsearch.facet.approx.datehistogram;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -129,19 +128,12 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
 
     @Override
     public Facet reduce(final List<Facet> facets) {
-        if(facets.size() == 1) {
-            // we need to sort it
-            final InternalDistinctDateHistogramFacet internalFacet = (InternalDistinctDateHistogramFacet) facets.get(0);
-            final List<DistinctEntry> entries = internalFacet.entries();
-            Collections.sort(entries, comparatorType.comparator());
-            internalFacet.releaseCache();
-            return internalFacet;
-        }
-
         final ExtTLongObjectHashMap<DistinctCountPayload> counts = CacheRecycler.popLongObjectMap();
 
+        System.out.println("Merging " + facets.size() + " facets");
         for(final Facet facet : facets) {
             final InternalDistinctDateHistogramFacet histoFacet = (InternalDistinctDateHistogramFacet) facet;
+            System.out.println("Merging facet " + histoFacet);
             for(final TLongObjectIterator<DistinctCountPayload> it = histoFacet.counts.iterator(); it.hasNext();) {
                 it.advance();
                 final long facetKey = it.key();
@@ -154,7 +146,21 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
         ret.comparatorType = comparatorType;
         ret.counts = counts;
         ret.cachedCounts = true;
+        System.out.println("Returning merged facet " + ret);
         return ret;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder(this.getClass().getSimpleName()).append(": ");
+        counts.forEachEntry(new TLongObjectProcedure<DistinctCountPayload>() {
+            @Override
+            public boolean execute(final long histoKey, final DistinctCountPayload count) {
+                sb.append(String.format("%d={%s}, ", histoKey, count));
+                return true;
+            }
+        });
+        return sb.substring(0, sb.lastIndexOf(","));
     }
 
     protected abstract InternalDistinctDateHistogramFacet newFacet();
@@ -224,4 +230,5 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
         }
         releaseCache();
     }
+
 }
