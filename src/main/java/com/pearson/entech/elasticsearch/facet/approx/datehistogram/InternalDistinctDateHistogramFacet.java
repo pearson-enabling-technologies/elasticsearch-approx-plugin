@@ -17,12 +17,9 @@ import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.InternalFacet;
 
-import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacet.ComparatorType;
-import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacet.Entry;
-
 /**
  */
-public abstract class InternalDistinctDateHistogramFacet extends InternalFacet implements Facet {
+public abstract class InternalDistinctDateHistogramFacet extends InternalFacet implements DistinctDateHistogramFacet {
 
     public static final String TYPE = "distinct_date_histogram";
     protected ComparatorType comparatorType;
@@ -53,12 +50,12 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
      *
      * It holds a set of distinct values and the time.
      */
-    public static class DistinctEntry implements Entry {
+    public static class InternalEntry implements Entry {
         private final long time;
         private final long distinctCount;
         private final long totalCount;
 
-        public DistinctEntry(final long time, final long distinctCount, final long totalCount) {
+        public InternalEntry(final long time, final long distinctCount, final long totalCount) {
             this.time = time;
             this.distinctCount = distinctCount;
             this.totalCount = totalCount;
@@ -80,17 +77,16 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public List<DistinctEntry> entries() {
+    public List<Entry> entries() {
 
         // Materialize entries
-        final DistinctEntry[] entries = new DistinctEntry[counts.size()];
+        final Entry[] entries = new InternalEntry[counts.size()];
         counts.forEachEntry(new TLongObjectProcedure<DistinctCountPayload>() {
             int idx = 0;
 
             @Override
             public boolean execute(final long histoKey, final DistinctCountPayload payload) {
-                entries[idx] = new DistinctEntry(histoKey,
+                entries[idx] = new InternalEntry(histoKey,
                         payload.getCardinality().cardinality(), payload.getCount());
                 idx++;
                 return true;
@@ -102,11 +98,13 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
         return Arrays.asList(entries);
     }
 
-    public List<DistinctEntry> getEntries() {
+    @Override
+    public List<Entry> getEntries() {
         return entries();
     }
 
-    public Iterator<DistinctEntry> iterator() {
+    @Override
+    public Iterator<Entry> iterator() {
         return entries().iterator();
     }
 
@@ -160,7 +158,7 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
                 return true;
             }
         });
-        return sb.substring(0, sb.lastIndexOf(","));
+        return counts.size() > 0 ? sb.substring(0, sb.lastIndexOf(",")) : sb.toString();
     }
 
     protected abstract InternalDistinctDateHistogramFacet newFacet();
@@ -175,7 +173,7 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
         builder.startObject(this.name);
         builder.field(Fields._TYPE, TYPE);
         builder.startArray(Fields.ENTRIES);
-        for(final DistinctEntry entry : entries()) {
+        for(final Entry entry : entries()) {
             builder.startObject();
             builder.field(Fields.TIME, entry.getTime());
             builder.field(Fields.COUNT, entry.getTotalCount());

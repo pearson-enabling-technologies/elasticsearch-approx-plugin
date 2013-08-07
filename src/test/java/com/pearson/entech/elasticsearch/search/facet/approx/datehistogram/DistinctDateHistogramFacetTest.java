@@ -11,6 +11,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.List;
@@ -44,10 +45,11 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.google.common.base.Joiner;
 import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacet;
+import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacet.Entry;
 import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacetBuilder;
 import com.pearson.entech.elasticsearch.facet.approx.datehistogram.InternalDistinctDateHistogramFacet;
-import com.pearson.entech.elasticsearch.facet.approx.datehistogram.InternalDistinctDateHistogramFacet.DistinctEntry;
 
 public class DistinctDateHistogramFacetTest {
 
@@ -192,15 +194,10 @@ public class DistinctDateHistogramFacetTest {
                 .addFacet(new DistinctDateHistogramFacetBuilder("stats7").keyField("date").valueField("num").interval("quarter").mode(mode))
                 .execute().actionGet();
 
-        /*
         if(searchResponse.getFailedShards() > 0) {
-            logger.warn("Failed shards:");
-            for(final ShardSearchFailure shardSearchFailure : searchResponse.getShardFailures()) {
-                logger.warn("-> {}", shardSearchFailure);
-            }
+            System.out.println(searchResponse); // TODO remove all printlns
+            fail(Joiner.on(", ").join(searchResponse.getShardFailures()));
         }
-        */
-        assertThat(searchResponse.getFailedShards(), equalTo(0));
 
         DistinctDateHistogramFacet facet = searchResponse.getFacets().facet("stats1");
         assertThat(facet.getName(), equalTo("stats1"));
@@ -306,15 +303,10 @@ public class DistinctDateHistogramFacetTest {
                 .addFacet(new DistinctDateHistogramFacetBuilder("stats2").keyField("date").valueField("num").interval("day").preZone("+01:30"))
                 .execute().actionGet();
 
-        /*
         if(searchResponse.getFailedShards() > 0) {
-            logger.warn("Failed shards:");
-            for(final ShardSearchFailure shardSearchFailure : searchResponse.getShardFailures()) {
-                logger.warn("-> {}", shardSearchFailure);
-            }
+            System.out.println(searchResponse); // TODO remove all printlns
+            fail(Joiner.on(", ").join(searchResponse.getShardFailures()));
         }
-        */
-        assertThat(searchResponse.getFailedShards(), equalTo(0));
 
         // time zone causes the dates to shift by 2:00
         DistinctDateHistogramFacet facet = searchResponse.getFacets().facet("stats1");
@@ -348,7 +340,7 @@ public class DistinctDateHistogramFacetTest {
         System.out.println(response);
         assertEquals(4, response.getHits().getTotalHits());
         final InternalDistinctDateHistogramFacet facet = response.getFacets().facet(__facetName);
-        final List<DistinctEntry> facetList = facet.entries();
+        final List<Entry> facetList = facet.entries();
         // Expecting just one hit and one distinct hit per doc, for the username.
         assertEquals(4, facetList.size());
         assertEquals(__days[0], facetList.get(0).getTime());
@@ -375,7 +367,7 @@ public class DistinctDateHistogramFacetTest {
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __txtField);
         assertEquals(4, response.getHits().getTotalHits());
         final InternalDistinctDateHistogramFacet facet = response.getFacets().facet(__facetName);
-        final List<DistinctEntry> facetList = facet.entries();
+        final List<Entry> facetList = facet.entries();
         // Expecting one hit for each token in the string "Document created [at] <TIMESTAMP>"
         // for each document, in this case these are unique per bucket too. The word "at"
         // is a stopword and is removed.
@@ -408,7 +400,7 @@ public class DistinctDateHistogramFacetTest {
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
         assertEquals(8, response.getHits().getTotalHits());
         final InternalDistinctDateHistogramFacet facet = response.getFacets().facet(__facetName);
-        final List<DistinctEntry> facetList = facet.entries();
+        final List<Entry> facetList = facet.entries();
         // Hits and distinct hits can now vary in intervals where the same user posted more
         // than once (i.e. day 0 here).
         assertEquals(4, facetList.size());
@@ -440,7 +432,7 @@ public class DistinctDateHistogramFacetTest {
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __txtField);
         assertEquals(8, response.getHits().getTotalHits());
         final InternalDistinctDateHistogramFacet facet = response.getFacets().facet(__facetName);
-        final List<DistinctEntry> facetList = facet.entries();
+        final List<Entry> facetList = facet.entries();
         // Now things get a bit more complex as all the posts are identically worded apart
         // from the timestamp at the end. 3 tokens indexed per each instance of the field.
         assertEquals(4, facetList.size());
@@ -472,7 +464,7 @@ public class DistinctDateHistogramFacetTest {
             System.out.println("Randomized testing: running facet");
             final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, 1000);
             final InternalDistinctDateHistogramFacet facet1 = response.getFacets().facet(__facetName);
-            final List<DistinctEntry> facetList1 = facet1.entries();
+            final List<Entry> facetList1 = facet1.entries();
             assertEquals(7, facetList1.size());
             for(int i = 0; i < 7; i++) {
                 final int exactUsers = itemsPerDay[i];
@@ -489,7 +481,7 @@ public class DistinctDateHistogramFacetTest {
 
             final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, 1000);
             final InternalDistinctDateHistogramFacet facet2 = response2.getFacets().facet(__facetName);
-            final List<DistinctEntry> facetList2 = facet2.entries();
+            final List<Entry> facetList2 = facet2.entries();
             assertEquals(7, facetList2.size());
             for(int i = 0; i < 7; i++) {
                 final int exactTokens = itemsPerDay[i] * 3; // "Document created [by] <ID>"
