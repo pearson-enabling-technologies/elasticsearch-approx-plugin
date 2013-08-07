@@ -117,6 +117,8 @@ public class DistinctDateHistogramFacetBuilder extends FacetBuilder {
         return this;
     }
 
+    // TODO do we use the original style of TZ control (shown here) or Crate's new approach (see parser class)?
+
     /**
      * Should pre zone be adjusted for large (day and above) intervals. Defaults to <tt>false</tt>.
      */

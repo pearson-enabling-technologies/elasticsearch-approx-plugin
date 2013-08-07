@@ -198,7 +198,7 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
             }
         }
 
-        // TODO refactor...
+        // TODO refactor... and short/double fields
         if(distinctFieldMapper.fieldDataType().getType().equals("string")) {
             final PagedBytesIndexFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
             final LongArrayIndexFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);

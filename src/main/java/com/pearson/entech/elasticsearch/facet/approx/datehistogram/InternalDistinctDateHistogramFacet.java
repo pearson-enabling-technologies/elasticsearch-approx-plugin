@@ -3,7 +3,6 @@ package com.pearson.entech.elasticsearch.facet.approx.datehistogram;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -25,9 +24,8 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalDateHis
     public static final String TYPE = "distinct_date_histogram";
     protected ComparatorType comparatorType;
 
-    ExtTLongObjectHashMap<InternalDistinctDateHistogramFacet.DistinctEntry> tEntries;
+    ExtTLongObjectHashMap<DistinctCountPayload> tEntries;
     boolean cachedEntries;
-    Collection<DistinctEntry> entries = null;
 
     public InternalDistinctDateHistogramFacet() {}
 
