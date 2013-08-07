@@ -1,36 +1,48 @@
 package com.pearson.entech.elasticsearch.facet.approx.datehistogram;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.common.CacheRecycler;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
+import org.elasticsearch.common.trove.iterator.TLongObjectIterator;
+import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
-import org.elasticsearch.search.facet.datehistogram.InternalDateHistogramFacet;
+import org.elasticsearch.search.facet.InternalFacet;
+
+import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacet.ComparatorType;
+import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacet.Entry;
 
 /**
  */
-public abstract class InternalDistinctDateHistogramFacet extends InternalDateHistogramFacet {
+public abstract class InternalDistinctDateHistogramFacet extends InternalFacet implements Facet {
 
     public static final String TYPE = "distinct_date_histogram";
     protected ComparatorType comparatorType;
 
-    ExtTLongObjectHashMap<DistinctCountPayload> tEntries;
-    boolean cachedEntries;
+    ExtTLongObjectHashMap<DistinctCountPayload> counts;
+    boolean cachedCounts;
+    protected String name;
 
     public InternalDistinctDateHistogramFacet() {}
 
     public InternalDistinctDateHistogramFacet(final String facetName) {
-        super(facetName);
+        this.name = facetName;
+    }
+
+    @Override
+    public String getType() {
+        return TYPE;
     }
 
     public static void registerStreams() {
@@ -45,16 +57,13 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalDateHis
      */
     public static class DistinctEntry implements Entry {
         private final long time;
-        private final Set<Object> values;
+        private final long distinctCount;
+        private final long totalCount;
 
-        public DistinctEntry(final long time, final Set<Object> values) {
+        public DistinctEntry(final long time, final long distinctCount, final long totalCount) {
             this.time = time;
-            this.values = values;
-        }
-
-        public DistinctEntry(final long time) {
-            this.time = time;
-            this.values = new HashSet<Object>();
+            this.distinctCount = distinctCount;
+            this.totalCount = totalCount;
         }
 
         @Override
@@ -62,68 +71,52 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalDateHis
             return time;
         }
 
-        public Set<Object> getValues() {
-            return this.values;
-        }
-
         @Override
-        public long getCount() {
-            // FIXME this should return the total hits, not the distinct hits
-            return this.values.size();
-        }
-
         public long getDistinctCount() {
-            return this.values.size();
+            return this.distinctCount;
         }
 
         @Override
         public long getTotalCount() {
-            return 0;
-        }
-
-        @Override
-        public double getTotal() {
-            return Double.NaN;
-        }
-
-        @Override
-        public double getMean() {
-            return Double.NaN;
-        }
-
-        @Override
-        public double getMin() {
-            return Double.NaN;
-        }
-
-        @Override
-        public double getMax() {
-            return Double.NaN;
+            return this.totalCount;
         }
     }
 
+    @SuppressWarnings("unchecked")
     public List<DistinctEntry> entries() {
-        if(!(entries instanceof List)) {
-            entries = new ArrayList<DistinctEntry>(entries);
-        }
-        return (List<DistinctEntry>) entries;
+
+        // Materialize entries
+        final DistinctEntry[] entries = new DistinctEntry[counts.size()];
+        counts.forEachEntry(new TLongObjectProcedure<DistinctCountPayload>() {
+            int idx = 0;
+
+            @Override
+            public boolean execute(final long histoKey, final DistinctCountPayload payload) {
+                entries[idx] = new DistinctEntry(histoKey,
+                        payload.getCardinality().cardinality(), payload.getCount());
+                idx++;
+                return true;
+            }
+        });
+
+        // Sort and return them
+        Arrays.sort(entries, comparatorType.comparator());
+        return Arrays.asList(entries);
     }
 
-    @Override
     public List<DistinctEntry> getEntries() {
         return entries();
     }
 
-    @Override
-    public Iterator<Entry> iterator() {
-        return (Iterator) entries().iterator();
+    public Iterator<DistinctEntry> iterator() {
+        return entries().iterator();
     }
 
     void releaseCache() {
-        if(cachedEntries) {
-            CacheRecycler.pushLongObjectMap(tEntries);
-            cachedEntries = false;
-            tEntries = null;
+        if(cachedCounts) {
+            CacheRecycler.pushLongObjectMap(counts);
+            cachedCounts = false;
+            counts = null;
         }
     }
 
@@ -132,7 +125,7 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalDateHis
         static final XContentBuilderString ENTRIES = new XContentBuilderString("entries");
         static final XContentBuilderString TIME = new XContentBuilderString("time");
         static final XContentBuilderString COUNT = new XContentBuilderString("count");
-        static final XContentBuilderString TOTAL_COUNT = new XContentBuilderString("count");
+        static final XContentBuilderString DISTINCT_COUNT = new XContentBuilderString("distinct_count");
     }
 
     @Override
@@ -146,39 +139,22 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalDateHis
             return internalFacet;
         }
 
-        final ExtTLongObjectHashMap<DistinctEntry> map = CacheRecycler.popLongObjectMap();
+        final ExtTLongObjectHashMap<DistinctCountPayload> counts = CacheRecycler.popLongObjectMap();
+
         for(final Facet facet : facets) {
             final InternalDistinctDateHistogramFacet histoFacet = (InternalDistinctDateHistogramFacet) facet;
-            for(final DistinctEntry fullEntry : histoFacet.entries) {
-                final DistinctEntry current = map.get(fullEntry.getTime());
-                if(current != null) {
-                    current.getValues().addAll(fullEntry.getValues());
-
-                } else {
-                    map.put(fullEntry.getTime(), fullEntry);
-                }
+            for(final TLongObjectIterator<DistinctCountPayload> it = histoFacet.counts.iterator(); it.hasNext();) {
+                it.advance();
+                final long facetKey = it.key();
+                it.value().mergeInto(counts, facetKey);
             }
             histoFacet.releaseCache();
         }
 
-        // sort
-        final Object[] values = map.internalValues();
-        Arrays.sort(values, (Comparator) comparatorType.comparator());
-        final List<DistinctEntry> ordered = new ArrayList<DistinctEntry>(map.size());
-        for(int i = 0; i < map.size(); i++) {
-            final DistinctEntry value = (DistinctEntry) values[i];
-            if(value == null) {
-                break;
-            }
-            ordered.add(value);
-        }
-
-        CacheRecycler.pushLongObjectMap(map);
-
-        // just initialize it as already ordered facet
         final InternalDistinctDateHistogramFacet ret = newFacet();
         ret.comparatorType = comparatorType;
-        ret.entries = ordered;
+        ret.counts = counts;
+        CacheRecycler.pushLongObjectMap(counts);
         return ret;
     }
 
@@ -195,23 +171,62 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalDateHis
         if(entries().size() != 1) {
             all = new HashSet<Object>();
         }
-        builder.startObject(getName());
+        builder.startObject(this.name);
         builder.field(Fields._TYPE, TYPE);
         builder.startArray(Fields.ENTRIES);
-        for(final DistinctEntry entry : entries) {
+        for(final DistinctEntry entry : entries()) {
             builder.startObject();
             builder.field(Fields.TIME, entry.getTime());
-            builder.field(Fields.COUNT, entry.getCount());
+            builder.field(Fields.COUNT, entry.getTotalCount());
+            builder.field(Fields.DISTINCT_COUNT, entry.getDistinctCount());
             builder.endObject();
-            if(entries().size() == 1) {
-                all = entry.getValues();
-            } else {
-                all.addAll(entry.getValues());
-            }
         }
         builder.endArray();
-        builder.field(Fields.TOTAL_COUNT, all.size());
         builder.endObject();
+        // TODO add overall count and distinct count
         return builder;
+    }
+
+    /**
+     * The reader for the internal transport protocol.
+     */
+    @Override
+    public void readFrom(final StreamInput in) throws IOException {
+        name = in.readString();
+        comparatorType = ComparatorType.fromId(in.readByte());
+        final int size = in.readVInt();
+        counts = CacheRecycler.popLongObjectMap();
+        cachedCounts = true;
+        for(int i = 0; i < size; i++) {
+            final long key = in.readLong();
+            final long count = in.readVLong();
+            final int cardLength = in.readVInt();
+            final byte[] cardinality = new byte[cardLength];
+            in.read(cardinality, 0, cardLength);
+            try {
+                counts.put(key, new DistinctCountPayload(count, cardinality));
+            } catch(final ClassNotFoundException e) {
+                throw new ElasticSearchException("Unable to deserialize facet cardinality object", e);
+            }
+        }
+    }
+
+    /**
+     * The writer for the internal transport protocol.
+     */
+    @Override
+    public void writeTo(final StreamOutput out) throws IOException {
+        out.writeString(getName());
+        out.writeByte(comparatorType.id());
+        out.writeVInt(counts.size());
+        for(final TLongObjectIterator<DistinctCountPayload> it = counts.iterator(); it.hasNext();) {
+            it.advance();
+            out.writeLong(it.key());
+            out.writeVLong(it.value().getCount());
+            final byte[] cardinality = it.value().cardinalityBytes();
+            out.writeVInt(cardinality.length);
+            out.write(cardinality);
+        }
+        releaseCache();
     }
 }

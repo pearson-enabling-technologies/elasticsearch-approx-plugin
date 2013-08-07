@@ -1,5 +1,7 @@
 package com.pearson.entech.elasticsearch.facet.approx.datehistogram;
 
+import java.io.IOException;
+
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.CacheRecycler;
@@ -11,10 +13,7 @@ import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.index.fielddata.plain.PagedBytesIndexFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.InternalFacet;
-import org.elasticsearch.search.facet.datehistogram.DateHistogramFacet;
 import org.elasticsearch.search.facet.terms.strings.HashedAggregator;
-
-import java.io.IOException;
 
 /**
  * Collect the distinct values per time interval.
@@ -24,21 +23,25 @@ public class StringDistinctDateHistogramFacetExecutor extends FacetExecutor {
     private final LongArrayIndexFieldData keyIndexFieldData;
     private final PagedBytesIndexFieldData distinctIndexFieldData;
 
-
-    private MutableDateTime dateTime;
+    private final MutableDateTime dateTime;
     private final long interval;
-    private final DateHistogramFacet.ComparatorType comparatorType;
-    final ExtTLongObjectHashMap<InternalDistinctDateHistogramFacet.DistinctEntry> entries;
+    private final DistinctDateHistogramFacet.ComparatorType comparatorType;
+    final ExtTLongObjectHashMap<DistinctCountPayload> counts;
+    private final int maxExactPerShard;
 
-    public StringDistinctDateHistogramFacetExecutor(LongArrayIndexFieldData keyIndexFieldData,
-                                                    PagedBytesIndexFieldData distinctIndexFieldData,
-                                                    MutableDateTime dateTime, long interval, DateHistogramFacet.ComparatorType comparatorType) {
+    public StringDistinctDateHistogramFacetExecutor(final LongArrayIndexFieldData keyIndexFieldData,
+            final PagedBytesIndexFieldData distinctIndexFieldData,
+            final MutableDateTime dateTime,
+            final long interval,
+            final DistinctDateHistogramFacet.ComparatorType comparatorType,
+            final int maxExactPerShard) {
         this.comparatorType = comparatorType;
         this.keyIndexFieldData = keyIndexFieldData;
         this.distinctIndexFieldData = distinctIndexFieldData;
-        this.entries = CacheRecycler.popLongObjectMap();
+        this.counts = CacheRecycler.popLongObjectMap();
         this.dateTime = dateTime;
         this.interval = interval;
+        this.maxExactPerShard = maxExactPerShard;
     }
 
     @Override
@@ -47,8 +50,8 @@ public class StringDistinctDateHistogramFacetExecutor extends FacetExecutor {
     }
 
     @Override
-    public InternalFacet buildFacet(String facetName) {
-        return new StringInternalDistinctDateHistogramFacet(facetName, comparatorType, entries, true);
+    public InternalFacet buildFacet(final String facetName) {
+        return new StringInternalDistinctDateHistogramFacet(facetName, comparatorType, counts, true);
     }
 
     /*
@@ -62,54 +65,58 @@ public class StringDistinctDateHistogramFacetExecutor extends FacetExecutor {
         private final DateHistogramProc histoProc;
 
         public Collector() {
-            this.histoProc = new DateHistogramProc(entries, dateTime, interval);
+            this.histoProc = new DateHistogramProc(counts, dateTime, interval, maxExactPerShard);
         }
 
         @Override
-        public void setNextReader(AtomicReaderContext context) throws IOException {
+        public void setNextReader(final AtomicReaderContext context) throws IOException {
             keyValues = keyIndexFieldData.load(context).getLongValues();
             histoProc.valueValues = distinctIndexFieldData.load(context).getBytesValues();
         }
 
         @Override
-        public void collect(int doc) throws IOException {
+        public void collect(final int doc) throws IOException {
             histoProc.onDoc(doc, keyValues);
         }
 
         @Override
-        public void postCollection() {
-        }
+        public void postCollection() {}
     }
-
 
     /**
      * Collect the time intervals in value aggregators for each time interval found.
      * The value aggregator finally contains the facet entry.
      */
-    public static class DateHistogramProc  {
+    // TODO remove duplication between this and LongDistinctDateHistogramFacetExecutor
+    public static class DateHistogramProc {
 
         private int total;
         private int missing;
         BytesValues.WithOrdinals valueValues;
         private final long interval;
-        private MutableDateTime dateTime;
-        final ExtTLongObjectHashMap<InternalDistinctDateHistogramFacet.DistinctEntry> entries;
+        private final int maxExactPerShard;
+        private final MutableDateTime dateTime;
+        final ExtTLongObjectHashMap<DistinctCountPayload> counts;
 
         final ValueAggregator valueAggregator = new ValueAggregator();
 
-        public DateHistogramProc(ExtTLongObjectHashMap<InternalDistinctDateHistogramFacet.DistinctEntry>  entries, MutableDateTime dateTime, long interval) {
+        public DateHistogramProc(final ExtTLongObjectHashMap<DistinctCountPayload> counts,
+                final MutableDateTime dateTime,
+                final long interval,
+                final int maxExactPerShard) {
             this.dateTime = dateTime;
-            this.entries = entries;
+            this.counts = counts;
             this.interval = interval;
+            this.maxExactPerShard = maxExactPerShard;
         }
 
         /*
          * Pass a dateTime to onValue to account for the interval and rounding that is set in the Parser
          */
-        public void onDoc(int docId, LongValues values) {
-            if (values.hasValue(docId)) {
+        public void onDoc(final int docId, final LongValues values) {
+            if(values.hasValue(docId)) {
                 final LongValues.Iter iter = values.getIter(docId);
-                while (iter.hasNext()) {
+                while(iter.hasNext()) {
                     dateTime.setMillis(iter.next());
                     onValue(docId, dateTime);
                     total++;
@@ -119,25 +126,25 @@ public class StringDistinctDateHistogramFacetExecutor extends FacetExecutor {
             }
         }
 
-        protected void onValue(int docId, MutableDateTime dateTime) {
-            long time = dateTime.getMillis();
+        protected void onValue(final int docId, final MutableDateTime dateTime) {
+            final long time = dateTime.getMillis();
             onValue(docId, time);
         }
 
         /*
          * for each time interval an entry is created in which the distinct values are aggregated
          */
-        protected void onValue(int docId, long time) {
-            if (interval != 1) {
+        protected void onValue(final int docId, long time) {
+            if(interval != 1) {
                 time = ((time / interval) * interval);
             }
 
-            InternalDistinctDateHistogramFacet.DistinctEntry entry = entries.get(time);
-            if (entry == null) {
-                entry = new InternalDistinctDateHistogramFacet.DistinctEntry(time);
-                entries.put(time, entry);
+            DistinctCountPayload count = counts.get(time);
+            if(count == null) {
+                count = new DistinctCountPayload(maxExactPerShard);
+                counts.put(time, count);
             }
-            valueAggregator.entry = entry;
+            valueAggregator.entry = count;
             valueAggregator.onDoc(docId, valueValues);
         }
 
@@ -154,11 +161,11 @@ public class StringDistinctDateHistogramFacetExecutor extends FacetExecutor {
          */
         public final static class ValueAggregator extends HashedAggregator {
 
-            InternalDistinctDateHistogramFacet.DistinctEntry entry;
+            DistinctCountPayload entry;
 
             @Override
-            protected void onValue(int docId, BytesRef value, int hashCode, BytesValues values) {
-                entry.getValues().add(value.utf8ToString());
+            protected void onValue(final int docId, final BytesRef value, final int hashCode, final BytesValues values) {
+                entry.getCardinality().offer(value);
             }
         }
     }

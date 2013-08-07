@@ -22,8 +22,9 @@ import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.FacetParser;
 import org.elasticsearch.search.facet.FacetPhaseExecutionException;
-import org.elasticsearch.search.facet.datehistogram.DateHistogramFacet;
 import org.elasticsearch.search.internal.SearchContext;
+
+import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacet.ComparatorType;
 
 /**
  * Parser is responsible to make sense of a SearchRequests "facet query" and
@@ -91,9 +92,10 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         long interval = 1;
         String sInterval = null;
         boolean intervalSet = false;
-        DateHistogramFacet.ComparatorType comparatorType = DateHistogramFacet.ComparatorType.TIME;
+        ComparatorType comparatorType = ComparatorType.TIME;
         XContentParser.Token token;
         String fieldName = null;
+        int maxExactPerShard = 1000;
 
         String distinctField = null;
         final MutableDateTime dateTime = new MutableDateTime(DateTimeZone.UTC);
@@ -135,7 +137,9 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
                         }
                     }
                 } else if("order".equals(fieldName) || "comparator".equals(fieldName)) {
-                    comparatorType = DateHistogramFacet.ComparatorType.fromString(parser.text());
+                    comparatorType = ComparatorType.fromString(parser.text());
+                } else if("max_exact_per_shard".equals(fieldName) || "maxExactPerShard".equals(fieldName)) {
+                    maxExactPerShard = parser.intValue();
                 }
             }
         }
@@ -202,14 +206,16 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         if(distinctFieldMapper.fieldDataType().getType().equals("string")) {
             final PagedBytesIndexFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
             final LongArrayIndexFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
-            return new StringDistinctDateHistogramFacetExecutor(keyIndexFieldData, distinctFieldData, dateTime, interval, comparatorType);
+            return new StringDistinctDateHistogramFacetExecutor(
+                    keyIndexFieldData, distinctFieldData, dateTime, interval, comparatorType, maxExactPerShard);
         } else if(distinctFieldMapper.fieldDataType().getType().equals("long")
                 || distinctFieldMapper.fieldDataType().getType().equals("int")
                 || distinctFieldMapper.fieldDataType().getType().equals("short")
                 || distinctFieldMapper.fieldDataType().getType().equals("byte")) {
             final IndexNumericFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
             final IndexNumericFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
-            return new LongDistinctDateHistogramFacetExecutor(keyIndexFieldData, distinctFieldData, dateTime, interval, comparatorType);
+            return new LongDistinctDateHistogramFacetExecutor(
+                    keyIndexFieldData, distinctFieldData, dateTime, interval, comparatorType, maxExactPerShard);
         } else {
             throw new FacetPhaseExecutionException(facetName, "distinct field [" + distinctField + "] is not of type string or long");
         }
