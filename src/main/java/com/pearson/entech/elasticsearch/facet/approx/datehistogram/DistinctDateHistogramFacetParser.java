@@ -6,6 +6,7 @@ import org.elasticsearch.common.collect.ImmutableMap;
 import org.elasticsearch.common.collect.MapBuilder;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.joda.Joda;
 import org.elasticsearch.common.joda.time.Chronology;
 import org.elasticsearch.common.joda.time.DateTimeField;
 import org.elasticsearch.common.joda.time.DateTimeZone;
@@ -44,6 +45,7 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         dateFieldParsers = MapBuilder.<String, DateFieldParser> newMapBuilder()
                 .put("year", new DateFieldParser.YearOfCentury())
                 .put("1y", new DateFieldParser.YearOfCentury())
+                .put("quarter", new DateFieldParser.Quarter())
                 .put("month", new DateFieldParser.MonthOfYear())
                 .put("1m", new DateFieldParser.MonthOfYear())
                 .put("week", new DateFieldParser.WeekOfWeekyear())
@@ -238,6 +240,13 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
             @Override
             public DateTimeField parse(final Chronology chronology) {
                 return chronology.yearOfCentury();
+            }
+        }
+
+        static class Quarter implements DateFieldParser {
+            @Override
+            public DateTimeField parse(final Chronology chronology) {
+                return Joda.QuarterOfYear.getField(chronology);
             }
         }
 

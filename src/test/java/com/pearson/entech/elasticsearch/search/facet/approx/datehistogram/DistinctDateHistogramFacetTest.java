@@ -4,8 +4,12 @@ import static java.lang.Math.abs;
 import static java.lang.Math.max;
 import static java.lang.Math.pow;
 import static java.lang.Math.random;
+import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -24,17 +28,23 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.joda.time.DateTimeZone;
+import org.elasticsearch.common.joda.time.format.ISODateTimeFormat;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.node.Node;
+import org.elasticsearch.search.facet.FacetBuilder;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacet;
 import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacetBuilder;
 import com.pearson.entech.elasticsearch.facet.approx.datehistogram.InternalDistinctDateHistogramFacet;
 import com.pearson.entech.elasticsearch.facet.approx.datehistogram.InternalDistinctDateHistogramFacet.DistinctEntry;
@@ -56,7 +66,11 @@ public class DistinctDateHistogramFacetTest {
 
     private static final String __index = "myindex";
 
-    private static final String __type = "testtype";
+    private static final String __type1 = "testtype";
+
+    private static final String __type2 = "anothertesttype";
+
+    private static final String __type3 = "yetanothertesttype";
 
     private static final String __tsField = "timestamp";
 
@@ -104,7 +118,7 @@ public class DistinctDateHistogramFacetTest {
         client().admin().cluster().prepareHealth().setWaitForGreenStatus().execute().actionGet();
         final String mapping = XContentFactory.jsonBuilder()
                 .startObject()
-                .startObject(__type)
+                .startObject(__type1)
                 .startObject("_all").field("enabled", false).endObject()
                 .startObject("_source").field("enabled", false).endObject()
                 .startObject("properties")
@@ -116,13 +130,211 @@ public class DistinctDateHistogramFacetTest {
                 .endObject().string();
         client().admin().indices()
                 .preparePutMapping(__index)
-                .setType(__type)
+                .setType(__type1)
                 .setSource(mapping)
                 .execute().actionGet();
         client().admin().indices().clearCache(
                 new ClearIndicesCacheRequest("_all"));
         System.gc();
         assertEquals(0L, countAll());
+    }
+
+    @Test
+    public void testDateHistoFacetsCollectorMode() throws Exception {
+        testDateHistoFacets(FacetBuilder.Mode.COLLECTOR);
+    }
+
+    @Test
+    public void testDateHistoFacetsPostMode() throws Exception {
+        testDateHistoFacets(FacetBuilder.Mode.POST);
+    }
+
+    private void testDateHistoFacets(final FacetBuilder.Mode mode) throws Exception {
+        // TODO: facet shouldn't fail when faceted field is mapped dynamically
+        final String mapping = jsonBuilder().startObject().startObject(__type2).startObject("properties")
+                .startObject("num").field("type", "integer").endObject()
+                .startObject("date").field("type", "date").endObject()
+                .endObject().endObject().endObject().string();
+        client().admin().indices().preparePutMapping(__index).setType(__type2).setSource(mapping).execute().actionGet();
+        client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().execute().actionGet();
+
+        client().prepareIndex(__index, __type2).setSource(jsonBuilder().startObject()
+                .field("date", "2009-03-05T01:01:01")
+                .field("num", 1)
+                .endObject()).execute().actionGet();
+        client().admin().indices().prepareFlush().setRefresh(true).execute().actionGet();
+
+        client().prepareIndex(__index, __type2).setSource(jsonBuilder().startObject()
+                .field("date", "2009-03-05T04:01:01")
+                .field("num", 2)
+                .endObject()).execute().actionGet();
+        client().admin().indices().prepareRefresh().execute().actionGet();
+
+        client().prepareIndex(__index, __type2).setSource(jsonBuilder().startObject()
+                .field("date", "2009-03-06T01:01:01")
+                .field("num", 3)
+                .endObject()).execute().actionGet();
+        client().admin().indices().prepareRefresh().execute().actionGet();
+
+        final SearchResponse searchResponse = client()
+                .prepareSearch()
+                .setQuery(matchAllQuery())
+                .addFacet(new DistinctDateHistogramFacetBuilder("stats1").keyField("date").valueField("num").interval("day").mode(mode))
+                .addFacet(new DistinctDateHistogramFacetBuilder("stats2").keyField("date").valueField("num").interval("day").preZone("-02:00").mode(mode))
+                .addFacet(new DistinctDateHistogramFacetBuilder("stats3").keyField("date").valueField("num").interval("day").preZone("-02:00").mode(mode))
+                //                .addFacet(
+                //                        new DistinctDateHistogramFacetBuilder("stats4").keyField("date").valueScript("doc['num'].value * 2").interval("day").preZone("-02:00")
+                //                                .mode(mode))
+                .addFacet(new DistinctDateHistogramFacetBuilder("stats5").keyField("date").valueField("num").interval("24h").mode(mode))
+                .addFacet(
+                        new DistinctDateHistogramFacetBuilder("stats6").keyField("date").valueField("num").interval("day").preZone("-02:00").postZone("-02:00")
+                                .mode(mode))
+                .addFacet(new DistinctDateHistogramFacetBuilder("stats7").keyField("date").valueField("num").interval("quarter").mode(mode))
+                .execute().actionGet();
+
+        /*
+        if(searchResponse.getFailedShards() > 0) {
+            logger.warn("Failed shards:");
+            for(final ShardSearchFailure shardSearchFailure : searchResponse.getShardFailures()) {
+                logger.warn("-> {}", shardSearchFailure);
+            }
+        }
+        */
+        assertThat(searchResponse.getFailedShards(), equalTo(0));
+
+        DistinctDateHistogramFacet facet = searchResponse.getFacets().facet("stats1");
+        assertThat(facet.getName(), equalTo("stats1"));
+        assertThat(facet.getEntries().size(), equalTo(2));
+        assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
+        assertThat(facet.getEntries().get(0).getTotalCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
+        assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+
+        // time zone causes the dates to shift by 2
+        facet = searchResponse.getFacets().facet("stats2");
+        assertThat(facet.getName(), equalTo("stats2"));
+        assertThat(facet.getEntries().size(), equalTo(2));
+        assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-04")));
+        assertThat(facet.getEntries().get(0).getTotalCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
+        assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+
+        // time zone causes the dates to shift by 2
+        facet = searchResponse.getFacets().facet("stats3");
+        assertThat(facet.getName(), equalTo("stats3"));
+        assertThat(facet.getEntries().size(), equalTo(2));
+        assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-04")));
+        assertThat(facet.getEntries().get(0).getTotalCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
+        assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+
+        // time zone causes the dates to shift by 2
+        //        facet = searchResponse.getFacets().facet("stats4");
+        //        assertThat(facet.getName(), equalTo("stats4"));
+        //        assertThat(facet.getEntries().size(), equalTo(2));
+        //        assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-04")));
+        //        assertThat(facet.getEntries().get(0).getTotalCount(), equalTo(1l));
+        //        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
+        //        assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
+        //        assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
+        //        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+
+        facet = searchResponse.getFacets().facet("stats5");
+        assertThat(facet.getName(), equalTo("stats5"));
+        assertThat(facet.getEntries().size(), equalTo(2));
+        assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
+        assertThat(facet.getEntries().get(0).getTotalCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
+        assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
+
+        facet = searchResponse.getFacets().facet("stats6");
+        assertThat(facet.getName(), equalTo("stats6"));
+        assertThat(facet.getEntries().size(), equalTo(2));
+        assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-04") - TimeValue.timeValueHours(2).millis()));
+        assertThat(facet.getEntries().get(0).getTotalCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-05") - TimeValue.timeValueHours(2).millis()));
+        assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+
+        facet = searchResponse.getFacets().facet("stats7");
+        assertThat(facet.getName(), equalTo("stats7"));
+        assertThat(facet.getEntries().size(), equalTo(1));
+        assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-01-01")));
+    }
+
+    @Test
+    // https://github.com/elasticsearch/elasticsearch/issues/2141
+    public void testDateHistoFacets_preZoneBug() throws Exception {
+        // TODO: facet shouldn't fail when faceted field is mapped dynamically
+        final String mapping = jsonBuilder().startObject().startObject(__type3).startObject("properties")
+                .startObject("num").field("type", "integer").endObject()
+                .startObject("date").field("type", "date").endObject()
+                .endObject().endObject().endObject().string();
+        client().admin().indices().preparePutMapping(__index).setType(__type3).setSource(mapping).execute().actionGet();
+        client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().execute().actionGet();
+
+        client().prepareIndex(__index, __type3).setSource(jsonBuilder().startObject()
+                .field("date", "2009-03-05T23:31:01")
+                .field("num", 1)
+                .endObject()).execute().actionGet();
+        client().admin().indices().prepareFlush().setRefresh(true).execute().actionGet();
+
+        client().prepareIndex(__index, __type1).setSource(jsonBuilder().startObject()
+                .field("date", "2009-03-__type3:01:01")
+                .field("num", 2)
+                .endObject()).execute().actionGet();
+        client().admin().indices().prepareRefresh().execute().actionGet();
+
+        client().prepareIndex(__index, __type3).setSource(jsonBuilder().startObject()
+                .field("date", "2009-03-05T22:01:01")
+                .field("num", 3)
+                .endObject()).execute().actionGet();
+        client().admin().indices().prepareRefresh().execute().actionGet();
+
+        final SearchResponse searchResponse = client().prepareSearch()
+                .setQuery(matchAllQuery())
+                .addFacet(new DistinctDateHistogramFacetBuilder("stats1").keyField("date").valueField("num").interval("day").preZone("+02:00"))
+                .addFacet(new DistinctDateHistogramFacetBuilder("stats2").keyField("date").valueField("num").interval("day").preZone("+01:30"))
+                .execute().actionGet();
+
+        /*
+        if(searchResponse.getFailedShards() > 0) {
+            logger.warn("Failed shards:");
+            for(final ShardSearchFailure shardSearchFailure : searchResponse.getShardFailures()) {
+                logger.warn("-> {}", shardSearchFailure);
+            }
+        }
+        */
+        assertThat(searchResponse.getFailedShards(), equalTo(0));
+
+        // time zone causes the dates to shift by 2:00
+        DistinctDateHistogramFacet facet = searchResponse.getFacets().facet("stats1");
+        assertThat(facet.getName(), equalTo("stats1"));
+        assertThat(facet.getEntries().size(), equalTo(2));
+        assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
+        assertThat(facet.getEntries().get(0).getTotalCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
+        assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
+
+        // time zone causes the dates to shift by 1:30
+        facet = searchResponse.getFacets().facet("stats2");
+        assertThat(facet.getName(), equalTo("stats2"));
+        assertThat(facet.getEntries().size(), equalTo(2));
+        assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
+        assertThat(facet.getEntries().get(0).getTotalCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
+        assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
     }
 
     @Test
@@ -325,7 +537,7 @@ public class DistinctDateHistogramFacetTest {
 
     private void putSync(final int id, final int user, final long timestamp) throws ElasticSearchException, IOException {
         final String stringID = String.valueOf(id);
-        client().prepareIndex(__index, __type, String.valueOf(stringID))
+        client().prepareIndex(__index, __type1, String.valueOf(stringID))
                 .setRefresh(true)
                 .setRouting(stringID)
                 .setSource(XContentFactory.jsonBuilder()
@@ -346,7 +558,7 @@ public class DistinctDateHistogramFacetTest {
                     bulk.setRefresh(true).execute().actionGet();
                     return;
                 }
-                bulk.add(new IndexRequest(__index, __type, ids[idx])
+                bulk.add(new IndexRequest(__index, __type1, ids[idx])
                         .routing(ids[idx])
                         .source(XContentFactory.jsonBuilder()
                                 .startObject()
@@ -394,6 +606,14 @@ public class DistinctDateHistogramFacetTest {
                 .execute()
                 .actionGet()
                 .getCount();
+    }
+
+    private long utcTimeInMillis(final String time) {
+        return timeInMillis(time, DateTimeZone.UTC);
+    }
+
+    private long timeInMillis(final String time, final DateTimeZone zone) {
+        return ISODateTimeFormat.dateOptionalTimeParser().withZone(zone).parseMillis(time);
     }
 
     private Client client() {
