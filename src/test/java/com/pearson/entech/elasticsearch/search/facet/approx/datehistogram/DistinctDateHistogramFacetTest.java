@@ -207,7 +207,7 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(1l));
-        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(1l));
 
         // time zone causes the dates to shift by 2
         facet = searchResponse.getFacets().facet("stats2");
@@ -215,10 +215,10 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().size(), equalTo(2));
         assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-04")));
         assertThat(facet.getEntries().get(0).getTotalCount(), equalTo(1l));
-        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
-        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(2l));
 
         // time zone causes the dates to shift by 2
         facet = searchResponse.getFacets().facet("stats3");
@@ -229,7 +229,7 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
-        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(2l));
 
         // time zone causes the dates to shift by 2
         //        facet = searchResponse.getFacets().facet("stats4");
@@ -250,7 +250,7 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(1l));
-        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(1l));
 
         facet = searchResponse.getFacets().facet("stats6");
         assertThat(facet.getName(), equalTo("stats6"));
@@ -260,7 +260,7 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-05") - TimeValue.timeValueHours(2).millis()));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
-        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(2l));
 
         facet = searchResponse.getFacets().facet("stats7");
         assertThat(facet.getName(), equalTo("stats7"));
@@ -314,8 +314,10 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().size(), equalTo(2));
         assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
         assertThat(facet.getEntries().get(0).getTotalCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
+        assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(1l));
 
         // time zone causes the dates to shift by 1:30
         facet = searchResponse.getFacets().facet("stats2");
@@ -326,7 +328,7 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(2l));
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(1l));
-        assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(1l));
     }
 
     @Test

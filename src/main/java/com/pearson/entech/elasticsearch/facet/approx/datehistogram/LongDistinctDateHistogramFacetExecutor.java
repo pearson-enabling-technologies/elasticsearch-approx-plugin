@@ -4,7 +4,7 @@ import java.io.IOException;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.elasticsearch.common.CacheRecycler;
-import org.elasticsearch.common.joda.time.MutableDateTime;
+import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.index.fielddata.LongValues;
@@ -20,23 +20,21 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
     private final IndexNumericFieldData keyIndexFieldData;
     private final IndexNumericFieldData distinctIndexFieldData;
 
-    private final MutableDateTime dateTime;
-    private final long interval;
+    private final TimeZoneRounding tzRounding;
     private final DistinctDateHistogramFacet.ComparatorType comparatorType;
     final ExtTLongObjectHashMap<DistinctCountPayload> counts;
     private final int maxExactPerShard;
 
     public LongDistinctDateHistogramFacetExecutor(final IndexNumericFieldData keyIndexFieldData,
             final IndexNumericFieldData distinctIndexFieldData,
-            final MutableDateTime dateTime, final long interval,
+            final TimeZoneRounding tzRounding,
             final DistinctDateHistogramFacet.ComparatorType comparatorType,
             final int maxExactPerShard) {
         this.comparatorType = comparatorType;
         this.keyIndexFieldData = keyIndexFieldData;
         this.distinctIndexFieldData = distinctIndexFieldData;
         this.counts = CacheRecycler.popLongObjectMap();
-        this.dateTime = dateTime;
-        this.interval = interval;
+        this.tzRounding = tzRounding;
         this.maxExactPerShard = maxExactPerShard;
     }
 
@@ -63,7 +61,7 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
         private final DateHistogramProc histoProc;
 
         public Collector() {
-            this.histoProc = new DateHistogramProc(counts, dateTime, interval, maxExactPerShard);
+            this.histoProc = new DateHistogramProc(counts, tzRounding, maxExactPerShard);
         }
 
         @Override
@@ -90,59 +88,24 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
     // TODO remove duplication between this and StringDistinctDateHistogramFacetExecutor
     public static class DateHistogramProc extends LongFacetAggregatorBase {
 
-        private int total;
-        private int missing;
         LongValues valueValues;
-        private final long interval;
         private final int maxExactPerShard;
-        private final MutableDateTime dateTime;
+        private final TimeZoneRounding tzRounding;
         final ExtTLongObjectHashMap<DistinctCountPayload> counts;
 
         final ValueAggregator valueAggregator = new ValueAggregator();
 
         public DateHistogramProc(final ExtTLongObjectHashMap<DistinctCountPayload> counts,
-                final MutableDateTime dateTime,
-                final long interval,
+                final TimeZoneRounding tzRounding,
                 final int maxExactPerShard) {
-            this.dateTime = dateTime;
+            this.tzRounding = tzRounding;
             this.counts = counts;
-            this.interval = interval;
             this.maxExactPerShard = maxExactPerShard;
         }
 
-        /*
-         * Extend the onDoc implementation of LongFacetAggregatorBase to pass a dateTime to onValue
-         * to account for the interval and rounding that is set in the Parser
-         */
         @Override
-        public void onDoc(final int docId, final LongValues values) {
-            if(values.hasValue(docId)) {
-                final LongValues.Iter iter = values.getIter(docId);
-                while(iter.hasNext()) {
-                    dateTime.setMillis(iter.next());
-                    //dateTime = new MutableDateTime(iter.next());
-                    onValue(docId, dateTime);
-                    total++;
-                }
-            } else {
-                missing++;
-            }
-        }
-
-        protected void onValue(final int docId, final MutableDateTime dateTime) {
-            final long time = dateTime.getMillis();
-            onValue(docId, time);
-        }
-
-        /*
-         * for each time interval an entry is created in which the distinct values are aggregated
-         */
-        @Override
-        protected void onValue(final int docId, long time) {
-            if(interval != 1) {
-                time = ((time / interval) * interval);
-            }
-
+        protected void onValue(final int docId, final long value) {
+            final long time = tzRounding.calc(value);
             DistinctCountPayload count = counts.get(time);
             if(count == null) {
                 count = new DistinctCountPayload(maxExactPerShard);

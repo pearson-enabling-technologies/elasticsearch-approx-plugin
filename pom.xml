@@ -28,7 +28,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.12.4</version>
                 <configuration>
-                    <!-- >forkMode>pertest</forkMode -->
+                    <forkMode>pertest</forkMode>
                     <argLine>-Xms1g -Xmx1g</argLine>
                     <testFailureIgnore>false</testFailureIgnore>
                     <skip>false</skip>
