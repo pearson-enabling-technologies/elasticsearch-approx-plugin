@@ -12,10 +12,13 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.iterator.TLongObjectIterator;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
+import org.elasticsearch.common.trove.procedure.TObjectProcedure;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.InternalFacet;
+
+import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
 /**
  */
@@ -25,6 +28,7 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
     protected ComparatorType comparatorType;
 
     ExtTLongObjectHashMap<DistinctCountPayload> counts;
+    DistinctCountPayload overallCount;
     boolean cachedCounts;
     protected String name;
 
@@ -122,6 +126,8 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
         static final XContentBuilderString TIME = new XContentBuilderString("time");
         static final XContentBuilderString COUNT = new XContentBuilderString("count");
         static final XContentBuilderString DISTINCT_COUNT = new XContentBuilderString("distinct_count");
+        static final XContentBuilderString TOTAL_COUNT = new XContentBuilderString("total_count");
+        static final XContentBuilderString TOTAL_DISTINCT_COUNT = new XContentBuilderString("total_distinct_count");
     }
 
     @Override
@@ -182,8 +188,35 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
         }
         builder.endArray();
         builder.endObject();
-        // TODO add overall count and distinct count
+        builder.field(Fields.TOTAL_COUNT, getTotalCount());
+        builder.field(Fields.TOTAL_DISTINCT_COUNT, getDistinctCount());
         return builder;
+    }
+
+    private long getDistinctCount() {
+        return overallCount().getCardinality().cardinality();
+    }
+
+    private long getTotalCount() {
+        return overallCount().getCount();
+    }
+
+    private synchronized DistinctCountPayload overallCount() {
+        if(overallCount == null) {
+            overallCount = new DistinctCountPayload(Integer.MAX_VALUE);
+            counts.forEachValue(new TObjectProcedure<DistinctCountPayload>() {
+                @Override
+                public boolean execute(final DistinctCountPayload slice) {
+                    try {
+                        overallCount.merge(slice);
+                    } catch(final CardinalityMergeException e) {
+                        throw new IllegalStateException(e);
+                    }
+                    return true;
+                }
+            });
+        }
+        return overallCount;
     }
 
     /**
