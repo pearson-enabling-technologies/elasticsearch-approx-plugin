@@ -285,8 +285,8 @@ public class DistinctDateHistogramFacetTest {
                 .endObject()).execute().actionGet();
         client().admin().indices().prepareFlush().setRefresh(true).execute().actionGet();
 
-        client().prepareIndex(__index, __type1).setSource(jsonBuilder().startObject()
-                .field("date", "2009-03-__type3:01:01")
+        client().prepareIndex(__index, __type3).setSource(jsonBuilder().startObject()
+                .field("date", "2009-03-05T18:01:01")
                 .field("num", 2)
                 .endObject()).execute().actionGet();
         client().admin().indices().prepareRefresh().execute().actionGet();
@@ -317,7 +317,7 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(0).getDistinctCount(), equalTo(1l));
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
-        assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(1l));
+        assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(2l));
 
         // time zone causes the dates to shift by 1:30
         facet = searchResponse.getFacets().facet("stats2");
