@@ -208,6 +208,8 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(1l));
         assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(1l));
+        assertThat(facet.getTotalCount(), equalTo(3l));
+        assertThat(facet.getDistinctCount(), equalTo(3l));
 
         // time zone causes the dates to shift by 2
         facet = searchResponse.getFacets().facet("stats2");
@@ -219,6 +221,8 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
         assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getTotalCount(), equalTo(3l));
+        assertThat(facet.getDistinctCount(), equalTo(3l));
 
         // time zone causes the dates to shift by 2
         facet = searchResponse.getFacets().facet("stats3");
@@ -230,6 +234,8 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
         assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getTotalCount(), equalTo(3l));
+        assertThat(facet.getDistinctCount(), equalTo(3l));
 
         // time zone causes the dates to shift by 2
         //        facet = searchResponse.getFacets().facet("stats4");
@@ -251,6 +257,8 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(1l));
         assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(1l));
+        assertThat(facet.getTotalCount(), equalTo(3l));
+        assertThat(facet.getDistinctCount(), equalTo(3l));
 
         facet = searchResponse.getFacets().facet("stats6");
         assertThat(facet.getName(), equalTo("stats6"));
@@ -261,11 +269,15 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-05") - TimeValue.timeValueHours(2).millis()));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
         assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getTotalCount(), equalTo(3l));
+        assertThat(facet.getDistinctCount(), equalTo(3l));
 
         facet = searchResponse.getFacets().facet("stats7");
         assertThat(facet.getName(), equalTo("stats7"));
         assertThat(facet.getEntries().size(), equalTo(1));
         assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-01-01")));
+        assertThat(facet.getTotalCount(), equalTo(3l));
+        assertThat(facet.getDistinctCount(), equalTo(3l));
     }
 
     @Test
@@ -318,6 +330,8 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(2l));
         assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(2l));
+        assertThat(facet.getTotalCount(), equalTo(3l));
+        assertThat(facet.getDistinctCount(), equalTo(3l));
 
         // time zone causes the dates to shift by 1:30
         facet = searchResponse.getFacets().facet("stats2");
@@ -329,6 +343,8 @@ public class DistinctDateHistogramFacetTest {
         assertThat(facet.getEntries().get(1).getTime(), equalTo(utcTimeInMillis("2009-03-06")));
         assertThat(facet.getEntries().get(1).getTotalCount(), equalTo(1l));
         assertThat(facet.getEntries().get(1).getDistinctCount(), equalTo(1l));
+        assertThat(facet.getTotalCount(), equalTo(3l));
+        assertThat(facet.getDistinctCount(), equalTo(3l));
     }
 
     @Test
@@ -357,6 +373,8 @@ public class DistinctDateHistogramFacetTest {
         assertEquals(__days[6], facetList.get(3).getTime());
         assertEquals(1, facetList.get(3).getTotalCount());
         assertEquals(1, facetList.get(3).getDistinctCount());
+        assertThat(facet.getTotalCount(), equalTo(4l));
+        assertThat(facet.getDistinctCount(), equalTo(1l)); // same user each time
     }
 
     @Test
@@ -386,6 +404,8 @@ public class DistinctDateHistogramFacetTest {
         assertEquals(__days[6], facetList.get(3).getTime());
         assertEquals(3, facetList.get(3).getTotalCount());
         assertEquals(3, facetList.get(3).getDistinctCount());
+        assertThat(facet.getTotalCount(), equalTo(12l));
+        assertThat(facet.getDistinctCount(), equalTo(6l)); // "document", "created", 4 usernames
     }
 
     @Test
@@ -418,6 +438,8 @@ public class DistinctDateHistogramFacetTest {
         assertEquals(__days[6], facetList.get(3).getTime());
         assertEquals(3, facetList.get(3).getTotalCount());
         assertEquals(3, facetList.get(3).getDistinctCount());
+        assertThat(facet.getTotalCount(), equalTo(8l));
+        assertThat(facet.getDistinctCount(), equalTo(4l)); // 4 different users
     }
 
     @Test
@@ -450,10 +472,15 @@ public class DistinctDateHistogramFacetTest {
         assertEquals(__days[6], facetList.get(3).getTime());
         assertEquals(3 * 3, facetList.get(3).getTotalCount());
         assertEquals(2 + (1 * 3), facetList.get(3).getDistinctCount());
+        assertThat(facet.getTotalCount(), equalTo(24l));
+        assertThat(facet.getDistinctCount(), equalTo(10l)); // "document", "created", 8 usernames
     }
 
     @Test
     public void testRandomizedWithManyItemsOnDayBucket() throws Exception {
+
+        // TODO test other data types
+
         // Do this 20 times for different amounts of data
         for(int t = 1; t <= 20; t++) {
             setUp();
@@ -468,10 +495,17 @@ public class DistinctDateHistogramFacetTest {
             final InternalDistinctDateHistogramFacet facet1 = response.getFacets().facet(__facetName);
             final List<Entry> facetList1 = facet1.entries();
             assertEquals(7, facetList1.size());
+            assertEquals(totalItems, facet1.getTotalCount());
+            int tolerance = totalItems / 100;
+            int totalDistinct = totalItems;
+            assertTrue(String.format(
+                    "With %d total distinct items: Estimated overall distinct count %d is not within 1%% tolerance of %d",
+                    totalDistinct, facet1.getDistinctCount(), totalDistinct),
+                    abs(totalDistinct - facet1.getDistinctCount()) <= tolerance);
             for(int i = 0; i < 7; i++) {
                 final int exactUsers = itemsPerDay[i];
                 assertEquals(exactUsers, facetList1.get(i).getTotalCount());
-                final int tolerance = exactUsers / 100;
+                tolerance = exactUsers / 100;
                 final long fuzzyUsers = facetList1.get(i).getDistinctCount();
                 //System.out.println("Exact user count = " + exactUsers);
                 //System.out.println("Fuzzy user count = " + fuzzyUsers);
@@ -485,11 +519,18 @@ public class DistinctDateHistogramFacetTest {
             final InternalDistinctDateHistogramFacet facet2 = response2.getFacets().facet(__facetName);
             final List<Entry> facetList2 = facet2.entries();
             assertEquals(7, facetList2.size());
+            assertEquals(3 * totalItems, facet2.getTotalCount());
+            tolerance = totalItems / 100;
+            totalDistinct = 2 + totalItems;
+            assertTrue(String.format(
+                    "With %d total distinct items: Estimated overall distinct count %d is not within 1%% tolerance of %d",
+                    totalDistinct, facet2.getDistinctCount(), totalDistinct),
+                    abs(totalDistinct - facet2.getDistinctCount()) <= tolerance);
             for(int i = 0; i < 7; i++) {
                 final int exactTokens = itemsPerDay[i] * 3; // "Document created [by] <ID>"
                 final int exactDistinctTokens = itemsPerDay[i] + 2;
                 assertEquals(exactTokens, facetList2.get(i).getTotalCount());
-                final int tolerance = exactDistinctTokens / 100;
+                tolerance = exactDistinctTokens / 100;
                 final long fuzzyDistinctTokens = facetList2.get(i).getDistinctCount();
                 //System.out.println("Exact distinct token count = " + exactDistinctTokens);
                 //System.out.println("Fuzzy distinct token count = " + fuzzyDistinctTokens);
@@ -499,6 +540,8 @@ public class DistinctDateHistogramFacetTest {
                         abs(fuzzyDistinctTokens - exactDistinctTokens) <= tolerance);
             }
         }
+
+        // TODO test total count/distinct
     }
 
     // Helper methods

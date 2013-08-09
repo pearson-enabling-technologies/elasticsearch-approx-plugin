@@ -18,6 +18,10 @@ public interface DistinctDateHistogramFacet extends Facet, Iterable<DistinctDate
      */
     List<? extends Entry> getEntries();
 
+    public long getDistinctCount();
+
+    public long getTotalCount();
+
     public static enum ComparatorType {
         TIME((byte) 0, "time", new Comparator<Entry>() {
 

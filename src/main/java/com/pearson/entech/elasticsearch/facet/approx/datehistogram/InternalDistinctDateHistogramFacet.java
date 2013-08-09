@@ -178,6 +178,8 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
         builder.startObject(this.name);
         builder.field(Fields._TYPE, TYPE);
+        builder.field(Fields.TOTAL_COUNT, getTotalCount());
+        builder.field(Fields.TOTAL_DISTINCT_COUNT, getDistinctCount());
         builder.startArray(Fields.ENTRIES);
         for(final Entry entry : entries()) {
             builder.startObject();
@@ -188,16 +190,16 @@ public abstract class InternalDistinctDateHistogramFacet extends InternalFacet i
         }
         builder.endArray();
         builder.endObject();
-        builder.field(Fields.TOTAL_COUNT, getTotalCount());
-        builder.field(Fields.TOTAL_DISTINCT_COUNT, getDistinctCount());
         return builder;
     }
 
-    private long getDistinctCount() {
+    @Override
+    public long getDistinctCount() {
         return overallCount().getCardinality().cardinality();
     }
 
-    private long getTotalCount() {
+    @Override
+    public long getTotalCount() {
         return overallCount().getCount();
     }
 
