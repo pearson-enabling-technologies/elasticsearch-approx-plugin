@@ -221,7 +221,7 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
                 || distinctFieldMapper.fieldDataType().getType().equals("short")
                 || distinctFieldMapper.fieldDataType().getType().equals("byte")) {
             final IndexNumericFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
-            final IndexNumericFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
+            final LongArrayIndexFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
             return new LongDistinctDateHistogramFacetExecutor(
                     keyIndexFieldData, distinctFieldData, tzRounding, comparatorType, maxExactPerShard);
         } else {
