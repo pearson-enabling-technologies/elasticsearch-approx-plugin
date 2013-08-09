@@ -152,12 +152,12 @@ public class DistinctDateHistogramFacetTest {
     }
 
     private void testDateHistoFacets(final FacetBuilder.Mode mode) throws Exception {
-        // TODO: facet shouldn't fail when faceted field is mapped dynamically
-        final String mapping = jsonBuilder().startObject().startObject(__type2).startObject("properties")
-                .startObject("num").field("type", "integer").endObject()
-                .startObject("date").field("type", "date").endObject()
-                .endObject().endObject().endObject().string();
-        client().admin().indices().preparePutMapping(__index).setType(__type2).setSource(mapping).execute().actionGet();
+        // Tests pass whether or not fields are explicitly mapped
+        //        final String mapping = jsonBuilder().startObject().startObject(__type2).startObject("properties")
+        //                .startObject("num").field("type", "integer").endObject()
+        //                .startObject("date").field("type", "date").endObject()
+        //                .endObject().endObject().endObject().string();
+        //        client().admin().indices().preparePutMapping(__index).setType(__type2).setSource(mapping).execute().actionGet();
         client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().execute().actionGet();
 
         client().prepareIndex(__index, __type2).setSource(jsonBuilder().startObject()
@@ -271,12 +271,12 @@ public class DistinctDateHistogramFacetTest {
     @Test
     // https://github.com/elasticsearch/elasticsearch/issues/2141
     public void testDateHistoFacets_preZoneBug() throws Exception {
-        // TODO: facet shouldn't fail when faceted field is mapped dynamically
-        final String mapping = jsonBuilder().startObject().startObject(__type3).startObject("properties")
-                .startObject("num").field("type", "integer").endObject()
-                .startObject("date").field("type", "date").endObject()
-                .endObject().endObject().endObject().string();
-        client().admin().indices().preparePutMapping(__index).setType(__type3).setSource(mapping).execute().actionGet();
+        // Tests pass whether or not fields are explicitly mapped
+        //        final String mapping = jsonBuilder().startObject().startObject(__type3).startObject("properties")
+        //                .startObject("num").field("type", "integer").endObject()
+        //                .startObject("date").field("type", "date").endObject()
+        //                .endObject().endObject().endObject().string();
+        //        client().admin().indices().preparePutMapping(__index).setType(__type3).setSource(mapping).execute().actionGet();
         client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().execute().actionGet();
 
         client().prepareIndex(__index, __type3).setSource(jsonBuilder().startObject()
