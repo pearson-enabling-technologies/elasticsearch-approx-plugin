@@ -8,8 +8,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.search.facet.FacetModule;
 
-import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacetParser;
-import com.pearson.entech.elasticsearch.facet.approx.datehistogram.InternalDistinctDateHistogramFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacetParser;
+import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.InternalDistinctDateHistogramFacet;
 import com.pearson.entech.elasticsearch.search.facet.approx.termlist.InternalTermListFacet;
 import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetParser;
 

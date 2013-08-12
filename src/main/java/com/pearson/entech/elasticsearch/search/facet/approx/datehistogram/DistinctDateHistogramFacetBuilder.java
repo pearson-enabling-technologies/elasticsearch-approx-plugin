@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.pearson.entech.elasticsearch.facet.approx.datehistogram;
+package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.io.IOException;
 import java.util.Map;

@@ -46,10 +46,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.base.Joiner;
-import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacet;
-import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacet.Entry;
-import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacetBuilder;
-import com.pearson.entech.elasticsearch.facet.approx.datehistogram.InternalDistinctDateHistogramFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacet.Entry;
 
 public class DistinctDateHistogramFacetTest {
 

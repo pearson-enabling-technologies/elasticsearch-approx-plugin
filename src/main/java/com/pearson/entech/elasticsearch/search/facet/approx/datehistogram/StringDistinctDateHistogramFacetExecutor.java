@@ -1,32 +1,36 @@
-package com.pearson.entech.elasticsearch.facet.approx.datehistogram;
+package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.io.IOException;
 
 import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
-import org.elasticsearch.index.fielddata.IndexNumericFieldData;
+import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.LongValues;
+import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
+import org.elasticsearch.index.fielddata.plain.PagedBytesIndexFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.InternalFacet;
 import org.elasticsearch.search.facet.LongFacetAggregatorBase;
+import org.elasticsearch.search.facet.terms.strings.HashedAggregator;
 
 /**
  * Collect the distinct values per time interval.
  */
-public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
+public class StringDistinctDateHistogramFacetExecutor extends FacetExecutor {
 
-    private final IndexNumericFieldData keyIndexFieldData;
-    private final IndexNumericFieldData distinctIndexFieldData;
+    private final LongArrayIndexFieldData keyIndexFieldData;
+    private final PagedBytesIndexFieldData distinctIndexFieldData;
 
     private final TimeZoneRounding tzRounding;
     private final DistinctDateHistogramFacet.ComparatorType comparatorType;
-    final ExtTLongObjectHashMap<DistinctCountPayload> counts;
+    private final ExtTLongObjectHashMap<DistinctCountPayload> counts;
     private final int maxExactPerShard;
 
-    public LongDistinctDateHistogramFacetExecutor(final IndexNumericFieldData keyIndexFieldData,
-            final IndexNumericFieldData distinctIndexFieldData,
+    public StringDistinctDateHistogramFacetExecutor(final LongArrayIndexFieldData keyIndexFieldData,
+            final PagedBytesIndexFieldData distinctIndexFieldData,
             final TimeZoneRounding tzRounding,
             final DistinctDateHistogramFacet.ComparatorType comparatorType,
             final int maxExactPerShard) {
@@ -45,16 +49,11 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
 
     @Override
     public InternalFacet buildFacet(final String facetName) {
-        final LongInternalDistinctDateHistogramFacet facet = new LongInternalDistinctDateHistogramFacet(facetName, comparatorType, counts, true);
+        final StringInternalDistinctDateHistogramFacet facet = new StringInternalDistinctDateHistogramFacet(facetName, comparatorType, counts, true);
         System.out.println("Built facet " + facet);
         return facet;
     }
 
-    /*
-     * Similar to the Collector from the ValueDateHistogramFacetExecutor
-     *
-     * Only difference is that dateTime and interval is passed to DateHistogramProc instead of tzRounding
-     */
     class Collector extends FacetExecutor.Collector {
 
         private LongValues keyValues;
@@ -67,7 +66,7 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
             keyValues = keyIndexFieldData.load(context).getLongValues();
-            histoProc.valueValues = distinctIndexFieldData.load(context).getLongValues();
+            histoProc.valueValues = distinctIndexFieldData.load(context).getBytesValues();
         }
 
         @Override
@@ -82,13 +81,11 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
     /**
      * Collect the time intervals in value aggregators for each time interval found.
      * The value aggregator finally contains the facet entry.
-     *
-     *
      */
-    // TODO remove duplication between this and StringDistinctDateHistogramFacetExecutor
+    // TODO remove duplication between this and LongDistinctDateHistogramFacetExecutor
     public static class DateHistogramProc extends LongFacetAggregatorBase {
 
-        LongValues valueValues;
+        BytesValues.WithOrdinals valueValues;
         private final int maxExactPerShard;
         private final TimeZoneRounding tzRounding;
         final ExtTLongObjectHashMap<DistinctCountPayload> counts;
@@ -104,13 +101,14 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
         }
 
         @Override
-        protected void onValue(final int docId, final long value) {
+        public void onValue(final int docId, final long value) {
             final long time = tzRounding.calc(value);
             DistinctCountPayload count = counts.get(time);
             if(count == null) {
                 count = new DistinctCountPayload(maxExactPerShard);
                 counts.put(time, count);
             }
+
             valueAggregator.entry = count;
             valueAggregator.onDoc(docId, valueValues);
         }
@@ -118,13 +116,14 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
         /*
          * aggregates the values in a set
          */
-        public final static class ValueAggregator extends LongFacetAggregatorBase {
+        public final static class ValueAggregator extends HashedAggregator {
 
             DistinctCountPayload entry;
 
             @Override
-            public void onValue(final int docId, final long value) {
-                entry.update(value);
+            protected void onValue(final int docId, final BytesRef value, final int hashCode, final BytesValues values) {
+                final String val = value.utf8ToString();
+                entry.update(val);
             }
         }
     }

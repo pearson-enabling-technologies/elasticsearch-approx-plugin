@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.facet.approx.datehistogram;
+package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.util.Comparator;
 import java.util.List;

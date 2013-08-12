@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.facet.approx.datehistogram;
+package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.io.IOException;
 
@@ -9,7 +9,7 @@ import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.InternalFacet;
 
-import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacet.ComparatorType;
+import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacet.ComparatorType;
 
 /*
  *
