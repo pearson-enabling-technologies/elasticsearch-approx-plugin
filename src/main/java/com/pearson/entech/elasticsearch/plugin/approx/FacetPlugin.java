@@ -9,7 +9,9 @@ import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.search.facet.FacetModule;
 
 import com.pearson.entech.elasticsearch.facet.approx.datehistogram.DistinctDateHistogramFacetParser;
-
+import com.pearson.entech.elasticsearch.facet.approx.datehistogram.InternalDistinctDateHistogramFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.termlist.InternalTermListFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetParser;
 
 public class FacetPlugin extends AbstractPlugin {
 
@@ -17,12 +19,12 @@ public class FacetPlugin extends AbstractPlugin {
 
     @Override
     public String name() {
-        return "time-facets";
+        return "approx-plugin";
     }
 
     @Override
     public String description() {
-        return "Time-Facets Plugins";
+        return "Plugin to use approximate methods for enabling and/or speeding up certain queries";
     }
 
     @Override
@@ -32,7 +34,15 @@ public class FacetPlugin extends AbstractPlugin {
         return modules;
     }
 
-    public void onModule(final FacetModule module) {
-        module.addFacetProcessor(DistinctDateHistogramFacetParser.class);
+    @Override
+    public void processModule(final Module module) {
+        if(module instanceof FacetModule) {
+            ((FacetModule) module).addFacetProcessor(DistinctDateHistogramFacetParser.class);
+            InternalDistinctDateHistogramFacet.registerStreams();
+
+            ((FacetModule) module).addFacetProcessor(TermListFacetParser.class);
+            InternalTermListFacet.registerStreams();
+        }
     }
+
 }
