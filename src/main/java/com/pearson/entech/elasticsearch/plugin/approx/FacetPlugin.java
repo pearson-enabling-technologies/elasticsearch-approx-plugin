@@ -4,10 +4,8 @@ import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.search.facet.FacetModule;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacetProcessor;
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.InternalDistinctDateHistogramFacet;
 import com.pearson.entech.elasticsearch.search.facet.approx.termlist.InternalTermListFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetProcessor;
+import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetParser;
 
 /**
  * This class registers the facets themselves with ES, as well as the stream classes
@@ -28,11 +26,14 @@ public class FacetPlugin extends AbstractPlugin {
     @Override
     public void processModule(final Module module) {
         if(module instanceof FacetModule) {
+            /*
             ((FacetModule) module).addFacetProcessor(DistinctDateHistogramFacetProcessor.class);
             InternalDistinctDateHistogramFacet.registerStreams();
-            
-            ((FacetModule) module).addFacetProcessor(TermListFacetProcessor.class);
+            */
+
+            ((FacetModule) module).addFacetProcessor(TermListFacetParser.class);
             InternalTermListFacet.registerStreams();
+
         }
     }
 }
