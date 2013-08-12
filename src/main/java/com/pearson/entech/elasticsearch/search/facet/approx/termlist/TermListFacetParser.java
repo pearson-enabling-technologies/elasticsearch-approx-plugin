@@ -1,37 +1,49 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.termlist;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
-import org.elasticsearch.search.facet.Facet;
-import org.elasticsearch.search.facet.FacetCollector;
+import org.elasticsearch.search.facet.FacetExecutor;
+import org.elasticsearch.search.facet.FacetExecutor.Mode;
+import org.elasticsearch.search.facet.FacetParser;
 import org.elasticsearch.search.facet.FacetPhaseExecutionException;
-import org.elasticsearch.search.facet.FacetProcessor;
 import org.elasticsearch.search.internal.SearchContext;
 
-public class TermListFacetProcessor extends AbstractComponent implements FacetProcessor {
+public class TermListFacetParser extends AbstractComponent implements FacetParser {
 
-    /**
-     * Instantiates a new term list facet processor.
-     *
-     * @param settings the settings
-     */
+   // private final int ordinalsCacheAbove;
+
     @Inject
-    public TermListFacetProcessor(final Settings settings) {
+    public TermListFacetParser(final Settings settings) {
         super(settings);
         InternalTermListFacet.registerStreams();
+        //this.ordinalsCacheAbove = componentSettings.getAsInt("ordinals_cache_above", 10000); // above 40k we want to cache
     }
 
-    /* (non-Javadoc)
-     * @see org.elasticsearch.search.facet.FacetProcessor#parse(java.lang.String, org.elasticsearch.common.xcontent.XContentParser, org.elasticsearch.search.internal.SearchContext)
-     */
     @Override
-    public FacetCollector parse(final String facetName, final XContentParser parser, final SearchContext context) throws IOException {
+    public String[] types() {
+        return new String[] { TermListFacet.TYPE };
+    }
+
+    @Override
+    public Mode defaultMainMode() {
+        return FacetExecutor.Mode.COLLECTOR;
+
+    }
+
+    @Override
+    public Mode defaultGlobalMode() {
+        return FacetExecutor.Mode.COLLECTOR;
+    }
+
+    @Override
+    public FacetExecutor parse(final String facetName, final XContentParser parser, final SearchContext context) throws IOException {
+
         String keyField = null;
         XContentParser.Token token;
         String fieldName = null;
@@ -55,35 +67,28 @@ public class TermListFacetProcessor extends AbstractComponent implements FacetPr
                 }
             }
         }
-
+        
         if(keyField == null) {
             throw new FacetPhaseExecutionException(facetName, "key field is required to be set for term list facet, either using [field] or using [key_field]");
         }
 
-        final FieldMapper mapper = context.smartNameFieldMapper(keyField);
+        final FieldMapper<?> mapper = context.smartNameFieldMapper(keyField);
         if(mapper == null) {
             throw new FacetPhaseExecutionException(facetName, "(key) field [" + keyField + "] not found");
         }
 
-        return new TermListFacetCollector(facetName, keyField, context, maxPerShard, readFromCache);
-    }
-
-    /* (non-Javadoc)
-     * @see org.elasticsearch.search.facet.FacetProcessor#reduce(java.lang.String, java.util.List)
-     */
-    @Override
-    public Facet reduce(final String name, final List<Facet> facets) {
-        final InternalTermListFacet base = (InternalTermListFacet) facets.get(0);
-        return base.reduce(name, facets);
-
-    }
-
-    /* (non-Javadoc)
-     * @see org.elasticsearch.search.facet.FacetProcessor#types()
-     */
-    @Override
-    public String[] types() {
-        return new String[] { TermListFacet.TYPE, "term_list_facet" };
+        final IndexFieldData<?> indexFieldData = context.fieldData().getForField(mapper);
+        /*
+        if(indexFieldData instanceof IndexNumericFieldData) {
+            final IndexNumericFieldData<?> indexNumericFieldData = (IndexNumericFieldData<?>) indexFieldData;
+            if(indexNumericFieldData.getNumericType().isFloatingPoint()) {
+                System.out.println("floating point field");
+            }
+            else {
+               System.out.println("numeric fields");
+            }
+        }*/
+        return new TermListFacetExecutor(indexFieldData, facetName, maxPerShard); 
     }
 
 }
