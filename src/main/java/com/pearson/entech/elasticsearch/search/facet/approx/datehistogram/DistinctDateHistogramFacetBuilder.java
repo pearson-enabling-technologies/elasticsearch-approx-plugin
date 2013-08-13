@@ -1,35 +1,54 @@
+/*
+ * Licensed to ElasticSearch and Shay Banon under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. ElasticSearch licenses this
+ * file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.io.IOException;
 import java.util.Map;
 
-import org.elasticsearch.common.collect.Maps;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilderException;
-import org.elasticsearch.search.facet.AbstractFacetBuilder;
+import org.elasticsearch.search.facet.FacetBuilder;
+import org.elasticsearch.search.facet.datehistogram.DateHistogramFacet;
+
+import com.google.common.collect.Maps;
 
 /**
- * A facet builder of approximate date histogram facets.
+ * A facet builder of date histogram facets.
  */
-public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
+public class DistinctDateHistogramFacetBuilder extends FacetBuilder {
     private String keyFieldName;
     private String valueFieldName;
     private String interval = null;
     private String preZone = null;
     private String postZone = null;
     private Boolean preZoneAdjustLargeInterval;
-    private int maxExactPerShard = -1;
     long preOffset = 0;
     long postOffset = 0;
     float factor = 1.0f;
-    private DistinctDateHistogramFacet.ComparatorType comparatorType;
+    private DateHistogramFacet.ComparatorType comparatorType;
 
-    //private String valueScript;
+    private String valueScript;
     private Map<String, Object> params;
-
-    //private String lang;
+    private String lang;
 
     /**
      * Constructs a new date histogram facet with the provided facet logical name.
@@ -60,10 +79,16 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
     }
 
     /**
-     * The field name to use as the value of the hit to compute counts based on values within the interval.
+     * The field name to use as the value of the hit to compute data based on values within the interval
+     * (for example, total).
      */
     public DistinctDateHistogramFacetBuilder valueField(final String valueField) {
         this.valueFieldName = valueField;
+        return this;
+    }
+
+    public DistinctDateHistogramFacetBuilder valueScript(final String valueScript) {
+        this.valueScript = valueScript;
         return this;
     }
 
@@ -72,6 +97,14 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
             params = Maps.newHashMap();
         }
         params.put(name, value);
+        return this;
+    }
+
+    /**
+     * The language of the value script.
+     */
+    public DistinctDateHistogramFacetBuilder lang(final String lang) {
+        this.lang = lang;
         return this;
     }
 
@@ -141,26 +174,18 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
         return this;
     }
 
-    /**
-     * Sets the number of exact values that are allowed per shard before we fall back to doing
-     * approximate counts.
-     */
-    public DistinctDateHistogramFacetBuilder maxExactPerShard(final int maxExactPerShard) {
-        this.maxExactPerShard = maxExactPerShard;
-        return this;
-    }
-
-    public DistinctDateHistogramFacetBuilder comparator(final DistinctDateHistogramFacet.ComparatorType comparatorType) {
+    public DistinctDateHistogramFacetBuilder comparator(final DateHistogramFacet.ComparatorType comparatorType) {
         this.comparatorType = comparatorType;
         return this;
     }
 
     /**
-     * Marks the facet to run in a specific scope.
+     * Should the facet run in global mode (not bounded by the search query) or not (bounded by
+     * the search query). Defaults to <tt>false</tt>.
      */
     @Override
-    public DistinctDateHistogramFacetBuilder scope(final String scope) {
-        super.scope(scope);
+    public DistinctDateHistogramFacetBuilder global(final boolean global) {
+        super.global(global);
         return this;
     }
 
@@ -200,6 +225,15 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
         } else {
             builder.field("field", keyFieldName);
         }
+        if(valueScript != null) {
+            builder.field("value_script", valueScript);
+            if(lang != null) {
+                builder.field("lang", lang);
+            }
+            if(this.params != null) {
+                builder.field("params", this.params);
+            }
+        }
         builder.field("interval", interval);
         if(preZone != null) {
             builder.field("pre_zone", preZone);
@@ -219,9 +253,6 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
         if(factor != 1.0f) {
             builder.field("factor", factor);
         }
-        if(maxExactPerShard >= 0) {
-            builder.field("max_exact_per_shard", maxExactPerShard);
-        }
         if(comparatorType != null) {
             builder.field("comparator", comparatorType.description());
         }
@@ -232,5 +263,4 @@ public class DistinctDateHistogramFacetBuilder extends AbstractFacetBuilder {
         builder.endObject();
         return builder;
     }
-
 }

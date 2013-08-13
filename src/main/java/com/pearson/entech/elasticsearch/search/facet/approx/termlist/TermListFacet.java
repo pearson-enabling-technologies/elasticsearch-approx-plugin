@@ -5,23 +5,17 @@ import java.util.List;
 import org.elasticsearch.search.facet.Facet;
 
 /**
- * Defines the content and abilities of a facet class.
+ * Terms facet allows to return facets of the most popular terms within the search query.
  */
-public interface TermListFacet extends Facet, Iterable<Object> {
+public interface TermListFacet extends Facet, Iterable<String> {
 
     /**
-     * The type of the facet.
+     * The type of the filter facet.
      */
     public static final String TYPE = "term_list";
 
     /**
-     * An ordered list of term list facet entries.
+     * The terms and counts.
      */
-    List<? extends Object> entries();
-
-    /**
-     * An ordered list of term list facet entries.
-     */
-    List<? extends Object> getEntries();
-
+    List<? extends String> getEntries();
 }

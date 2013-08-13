@@ -3,11 +3,13 @@ package com.pearson.entech.elasticsearch.search.facet.approx.termlist;
 import static com.google.common.collect.Lists.newArrayList;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -29,6 +31,9 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetBuilder;
 
 public class TermListFacetTest {
 
@@ -102,6 +107,50 @@ public class TermListFacetTest {
     }
 
     @Test
+    public void testWithFixedVocabulary() throws Exception {
+
+        final String[] _words = { "foo", "bar", "baz", "test", "alpha", "beta", "phi", "rho" };
+        final List<String> words = new ArrayList<String>();
+        for(final String word : _words)
+            words.add(word);
+
+        final int numOfDocs = _words.length;
+
+        for(int i = 0; i < _words.length; i++) {
+            putSync(newID(), _words[i], _words[i], 0, 0);
+        }
+
+        final Set<String> uniqs = new HashSet<String>(Arrays.asList(_words));
+
+        assertEquals(numOfDocs, countAll());
+        final SearchResponse response1 = getTermList("src/test/resources/TermListFacetTest.json");
+        checkStringSearchResponse(response1, numOfDocs, uniqs.size(), words);
+    }
+
+    @Test
+    public void testWithFixedIntegers() throws Exception {
+
+        final int[] _words = { 0, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+        final List<Integer> words = new ArrayList<Integer>();
+        for(final int word : _words)
+            words.add(word);
+
+        final int numOfDocs = _words.length;
+
+        for(int i = 0; i < _words.length; i++) {
+            putSync(newID(), "", "", _words[i], _words[i]);
+        }
+
+        final Set<Integer> uniqs = new HashSet<Integer>();
+        uniqs.addAll(words);
+
+        assertEquals(numOfDocs, countAll());
+        final SearchResponse response1 = getTermList(__intField1, _words.length, true);
+
+        checkIntSearchResponse(response1, numOfDocs, uniqs.size(), words);
+    }
+
+    @Test
     public void testWithJsonWithRandomStringsNoCache() throws Exception {
         final int numOfElements = 100 + _random.nextInt(100);
         final int numOfWords = 20 + _random.nextInt(10);
@@ -122,6 +171,9 @@ public class TermListFacetTest {
 
         assertEquals(numOfElements, countAll());
         final SearchResponse response1 = getTermList("src/test/resources/TermListFacetTest.json");
+
+        System.out.println(response1.toString());
+
         checkStringSearchResponse(response1, numOfElements, uniqs.size(), words);
     }
 
@@ -304,16 +356,16 @@ public class TermListFacetTest {
 
     @Test
     public void testAllFieldsWithRandomValues() throws Exception {
-        final int numOfElements = 300 + _random.nextInt(100);
-        final int numOfWords = 30 + _random.nextInt(10);
+        final int numOfElements = 300;// + _random.nextInt(100);
+        final int numOfWords = 30;// + _random.nextInt(10);
         final List<String> words = generateRandomWords(numOfWords);
         final List<Integer> ints = generateRandomInts(numOfWords);
         final List<Long> longs = generateRandomLongs(numOfWords);
 
-        int rIndex1 = _random.nextInt(numOfWords);
-        int rIndex2 = _random.nextInt(numOfWords);
-        int rIndex3 = _random.nextInt(numOfWords);
-        int rIndex4 = _random.nextInt(numOfWords);
+        int rIndex1 = 0; //_random.nextInt(numOfWords);
+        int rIndex2 = 1;//_random.nextInt(numOfWords);
+        int rIndex3 = 2;//_random.nextInt(numOfWords);
+        int rIndex4 = 3; //_random.nextInt(numOfWords);
 
         for(int i = 0; i < numOfElements; i++) {
             putSync(newID(), words.get(rIndex1), words.get(rIndex2), ints.get(rIndex3), longs.get(rIndex4));
@@ -419,44 +471,46 @@ public class TermListFacetTest {
 
     private void checkStringSearchResponse(final SearchResponse sr, final int numOfDocs, final int numOfElements, final List<String> words) {
 
-        assertEquals(numOfDocs, sr.hits().getTotalHits());
-        final TermListFacet facet = sr.facets().facet(__facetName);
-        final ArrayList<Object> facetList = newArrayList(facet);
-        final List<? extends Object> entries = facet.entries();
+        assertEquals(numOfDocs, sr.getHits().getTotalHits());
+        final TermListFacet facet = sr.getFacets().facet(__facetName);
+        final ArrayList<String> facetList = newArrayList(facet);
+        final List<? extends String> entries = facet.getEntries();
         final int len = facetList.size();
-        assertEquals(len, numOfElements);
-        for(final Object item : entries)
-            assertEquals(true, words.contains(item.toString()));
+        assertEquals(numOfElements, len);
+        for(final Object item : entries) {
+            assertTrue(words.contains(item.toString()));
+        }
 
     }
 
     private void checkIntSearchResponse(final SearchResponse sr, final int numOfReturnedDocs, final int numOfReturnedFacetElements, final List<Integer> ints) {
 
-        assertEquals(numOfReturnedDocs, sr.hits().getTotalHits());
+        assertEquals(numOfReturnedDocs, sr.getHits().getTotalHits());
 
-        final TermListFacet facet = sr.facets().facet(__facetName);
-        final ArrayList<Object> facetList = newArrayList(facet);
-        final List<? extends Object> entries = facet.entries();
+        final TermListFacet facet = sr.getFacets().facet(__facetName);
+        final ArrayList<String> facetList = newArrayList(facet);
+        final List<? extends Object> entries = facet.getEntries();
         final int len = facetList.size();
 
         assertEquals(numOfReturnedFacetElements, len);
         for(final Object item : entries) {
-            final int t = (Integer) item;
-            assertEquals(true, ints.contains(t));
+            final int t = Integer.parseInt(item.toString());
+            assertTrue(ints.contains(t));
         }
     }
 
     private void checkLongSearchResponse(final SearchResponse sr, final int numOfDocs, final int numOfElements, final List<Long> longs) {
 
-        assertEquals(numOfDocs, sr.hits().getTotalHits());
-        final TermListFacet facet = sr.facets().facet(__facetName);
-        final ArrayList<Object> facetList = newArrayList(facet);
+        assertEquals(numOfDocs, sr.getHits().getTotalHits());
+        final TermListFacet facet = sr.getFacets().facet(__facetName);
+        final ArrayList<String> facetList = newArrayList(facet);
 
         final int len = facetList.size();
         assertEquals(numOfElements, len);
 
         for(final Object item : facetList) {
-            assertEquals(true, longs.contains(item));
+            final Long val = Long.parseLong(item.toString());
+            assertTrue(longs.contains(val));
         }
     }
 
@@ -479,7 +533,7 @@ public class TermListFacetTest {
                 .prepareCount("_all")
                 .execute()
                 .actionGet()
-                .count();
+                .getCount();
     }
 
     private Client client() {
