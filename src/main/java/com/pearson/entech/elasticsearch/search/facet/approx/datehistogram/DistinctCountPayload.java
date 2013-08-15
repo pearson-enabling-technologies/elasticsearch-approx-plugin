@@ -3,7 +3,7 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 import java.io.IOException;
 
 import org.elasticsearch.ElasticSearchException;
-import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
+import org.elasticsearch.common.trove.map.TLongObjectMap;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 import com.clearspring.analytics.stream.cardinality.CountThenEstimate;
@@ -53,26 +53,42 @@ public class DistinctCountPayload {
         return _cardinality;
     }
 
-    DistinctCountPayload merge(final DistinctCountPayload object) throws CardinalityMergeException {
-        _count += object._count;
-        //        final int size = other._cardinality.sizeof();
+    DistinctCountPayload merge(final DistinctCountPayload other) throws CardinalityMergeException {
+        _count += other._count;
+        final int size = other._cardinality.sizeof();
+        _cardinality = CountThenEstimate.mergeEstimators(this._cardinality, other._cardinality);
         //        if(size == -1)
-        //            System.out.println("Merging set with " + other._cardinality.cardinality() + " elements");
+        //            System.out.println(
+        //                    String.format(
+        //                            "Merging set with %d distinct elements (%d total), new set has %d distinct elements (%d total)",
+        //                            other._cardinality.cardinality(), other._count, _cardinality.cardinality(), _count));
         //        else
-        //            System.out.println("Merging estimator with size " + other._cardinality.sizeof() + " bytes");
-        _cardinality = CountThenEstimate.mergeEstimators(this._cardinality, object._cardinality);
+        //            System.out.println(
+        //                    String.format(
+        //                            "Merging estimator with %d distinct elements (%d total), new set has %d distinct elements (%d total)",
+        //                            other._cardinality.cardinality(), other._count, _cardinality.cardinality(), _count));
         return this;
     }
 
-    DistinctCountPayload mergeInto(final ExtTLongObjectHashMap<DistinctCountPayload> counts, final long key) {
-        if(counts.containsKey(key))
+    DistinctCountPayload mergeInto(final TLongObjectMap<DistinctCountPayload> map, final long key) {
+        if(map.containsKey(key))
             try {
-                counts.put(key, this.merge(counts.get(key)));
+                map.put(key, this.merge(map.get(key)));
             } catch(final CardinalityMergeException e) {
                 throw new ElasticSearchException("Unable to merge two facet cardinality objects", e);
             }
         else
-            counts.put(key, this);
+            map.put(key, this);
         return this;
     }
+
+    @Override
+    public String toString() {
+        final String descr = _cardinality.sizeof() == -1 ?
+                "Set" : "Estimator";
+        return String.format(
+                "%s of %d distinct elements (%d total elements)",
+                descr, _cardinality.cardinality(), _count);
+    }
+
 }

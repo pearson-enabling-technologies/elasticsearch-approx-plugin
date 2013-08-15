@@ -17,7 +17,9 @@ Plugin < 1.3.0: ElasticSearch 0.19.X, tested on 0.19.11
 
 Plugin 1.3.X: ElasticSearch 0.20.X, tested on 0.20.6
 
-Plugin 2.X.X (forthcoming): ElasticSearch 0.90.X
+Plugin 2.0.1: ElasticSearch 0.90.2
+
+ElasticSearch 0.90.3 is not supported yet.
 
 
 ## Distinct Date Histogram
@@ -25,59 +27,121 @@ Plugin 2.X.X (forthcoming): ElasticSearch 0.90.X
 Counts the total numbers of terms and _unique_ terms in a given field, for each
 interval in a date range.
 
-For example:
+The API is basically the same as the regular date histogram facet, but with a
+few small differences.
 
-    curl -XPOST "http://localhost:9200/pop1/_search?search_type=count&pretty=true" -d'{
+* Instead of just a `field`, you must supply a `key_field` (the datetime field
+that determines the bucket boundaries) and a `value_field` (the field you are
+counting the distinct values of).
+
+* Only string and integer-based numeric fields are currently supported for the
+`value_field` (we are working on other types).
+
+* Script fields are not yet supported.
+
+* There is an additional `max_exact_per_shard` parameter (see below).
+
+The output is similar to the date histogram, except each bucket has a `count`
+(number of hits) and a `distinct_count` (distinct terms). The facet also returns
+a `total_count` and a `total_distinct_count` showing the overall hits and
+distinct terms across all buckets.
+
+Example:
+
+    curl -XPOST "http://localhost:9200/my_index/_search?search_type=count&pretty=true" -d'
+    {
         "query": {
-            "match_all" : {}
+            "filtered" : {
+                "query" : {
+                    "match_all" : {}
+                },
+                    "filter" : {
+                        "range": {
+                            "datetime": {
+                                "gte": "2012-01-01T00:00:00Z", 
+                                "lte":"2013-08-13T00:00:00Z"
+                            }
+                        }
+                    }
+            }
         },
-            "facets" : {
+            "facets": {
                 "histo" : {
-                    "distinct_date_histogram" : {
-                        "key_field" : "datetime",
-                        "value_field" : "userid",
-                        "max_exact_per_shard" : 100,
-                        "interval" : "hour"
+                    "date_histogram" : {
+                        "field" : "datetime",
+                        "interval": "day",
+                        "pre_zone": "Europe/London",
+                        "pre_zone_adjust_large_interval": true
                     }
                 }
             }
-    }'
+    }
+    '
 
 Returns something like:
 
     {
-      "took" : 3966,
-      "timed_out" : false,
-      "_shards" : {
-        "total" : 5,
-        "successful" : 5,
-        "failed" : 0
-      },
-      "hits" : {
-        "total" : 24131101,
-        "max_score" : 0.0,
-        "hits" : [ ]
-      },
-      "facets" : {
-        "histo" : {
-          "_type" : "distinct_date_histogram",
-          "entries" : [ {
-            "time" : 1333580400000,
-            "count" : 2133,
-            "distinct_count" : 1515
-          }, {
-            "time" : 1333584000000,
-            "count" : 191991,
-            "distinct_count" : 12407
-          }, {
-              ...
-          }, {
-            "time" : 1333753200000,
-            "count" : 238022,
-            "distinct_count" : 26092
-          } ]
+        "took": 23546,
+        "timed_out": false,
+        "_shards": {
+            "total": 7,
+            "successful": 7,
+            "failed": 0
+        },
+        "hits": {
+            "total": 79654816,
+            "max_score": 0,
+            "hits": []
+        },
+        "facets": {
+            "histo": {
+                "_type": "distinct_date_histogram",
+                "total_count": 79654816,
+                "total_distinct_count": 1404299,
+                "entries": [
+                    {
+                        "time": 1341097200000,
+                        "count": 9363213,
+                        "distinct_count": 288009
+                    },
+                    {
+                        "time": 1341183600000,
+                        "count": 11076159,
+                        "distinct_count": 343941
+                    },
+                    {
+                        "time": 1341270000000,
+                        "count": 12456810,
+                        "distinct_count": 345968
+                    },
+                    {
+                        "time": 1341356400000,
+                        "count": 10688778,
+                        "distinct_count": 299095
+                    },
+                    {
+                        "time": 1341442800000,
+                        "count": 11974238,
+                        "distinct_count": 342964
+                    },
+                    {
+                        "time": 1341529200000,
+                        "count": 12462188,
+                        "distinct_count": 343151
+                    },
+                    {
+                        "time": 1341615600000,
+                        "count": 11223578,
+                        "distinct_count": 306811
+                    },
+                    {
+                        "time": 1341702000000,
+                        "count": 409852,
+                        "distinct_count": 26391
+                    }
+                ]
+            }
         }
-      }
     }
 
 The facet works initially by keeping a hashset of all terms encountered, but

@@ -6,25 +6,21 @@ import java.util.List;
 import org.elasticsearch.ElasticSearchIllegalArgumentException;
 import org.elasticsearch.search.facet.Facet;
 
-/**
- * An approximate distinct-values date histogram facet.
- */
 public interface DistinctDateHistogramFacet extends Facet, Iterable<DistinctDateHistogramFacet.Entry> {
 
     /**
-     * The type of the facet.
+     * The type of the filter facet.
      */
     public static final String TYPE = "distinct_date_histogram";
 
     /**
      * An ordered list of histogram facet entries.
      */
-    List<? extends Entry> entries();
-
-    /**
-     * An ordered list of histogram facet entries.
-     */
     List<? extends Entry> getEntries();
+
+    public long getDistinctCount();
+
+    public long getTotalCount();
 
     public static enum ComparatorType {
         TIME((byte) 0, "time", new Comparator<Entry>() {
@@ -41,7 +37,7 @@ public interface DistinctDateHistogramFacet extends Facet, Iterable<DistinctDate
                 if(o2 == null) {
                     return -1;
                 }
-                return(o1.time() < o2.time() ? -1 : (o1.time() == o2.time() ? 0 : 1));
+                return(o1.getTime() < o2.getTime() ? -1 : (o1.getTime() == o2.getTime() ? 0 : 1));
             }
         }),
         COUNT((byte) 1, "count", new Comparator<Entry>() {
@@ -58,7 +54,7 @@ public interface DistinctDateHistogramFacet extends Facet, Iterable<DistinctDate
                 if(o2 == null) {
                     return -1;
                 }
-                return(o1.count() < o2.count() ? -1 : (o1.count() == o2.count() ? 0 : 1));
+                return(o1.getTotalCount() < o2.getTotalCount() ? -1 : (o1.getTotalCount() == o2.getTotalCount() ? 0 : 1));
             }
         }),
         DISTINCT((byte) 2, "distinct", new Comparator<Entry>() {
@@ -75,7 +71,7 @@ public interface DistinctDateHistogramFacet extends Facet, Iterable<DistinctDate
                 if(o2 == null) {
                     return -1;
                 }
-                return(o1.distinctCount() < o2.distinctCount() ? -1 : (o1.distinctCount() == o2.distinctCount() ? 0 : 1));
+                return(o1.getDistinctCount() < o2.getDistinctCount() ? -1 : (o1.getDistinctCount() == o2.getDistinctCount() ? 0 : 1));
             }
         });
 
@@ -131,42 +127,18 @@ public interface DistinctDateHistogramFacet extends Facet, Iterable<DistinctDate
         /**
          * The time bucket start (in milliseconds).
          */
-        long time();
-
-        /**
-         * The time bucket start (in milliseconds).
-         */
         long getTime();
 
         /**
-         * The number of hits that fall within that key "range" or "interval".
-         */
-        long count();
-
-        /**
-         * The number of hits that fall within that key "range" or "interval".
-         */
-        long getCount();
-
-        /**
-         * The number of distinct values of the value field that fall within that key "range" or "interval".
-         */
-        long distinctCount();
-
-        /**
-         * The number of distinct values of the value field that fall within that key "range" or "interval".
+         * The number of distinct values that fall within that key "range" or "interval".
          */
         long getDistinctCount();
 
+        /**
+         * The total number of hits that fall within that key "range" or "interval".
+         */
         long getTotalCount();
 
-        double getTotal();
-
-        double getMean();
-
-        double getMin();
-
-        double getMax();
-
     }
+
 }

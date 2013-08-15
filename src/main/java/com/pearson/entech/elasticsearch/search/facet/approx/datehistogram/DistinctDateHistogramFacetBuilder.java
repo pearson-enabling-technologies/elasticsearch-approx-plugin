@@ -19,20 +19,22 @@
 
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
-import com.google.common.collect.Maps;
+import java.io.IOException;
+import java.util.Map;
+
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilderException;
 import org.elasticsearch.search.facet.FacetBuilder;
+import org.elasticsearch.search.facet.datehistogram.DateHistogramFacet;
 
-import java.io.IOException;
-import java.util.Map;
+import com.google.common.collect.Maps;
 
 /**
  * A facet builder of date histogram facets.
  */
-public class DateHistogramFacetBuilder extends FacetBuilder {
+public class DistinctDateHistogramFacetBuilder extends FacetBuilder {
     private String keyFieldName;
     private String valueFieldName;
     private String interval = null;
@@ -53,7 +55,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
      *
      * @param name The logical name of the facet
      */
-    public DateHistogramFacetBuilder(String name) {
+    public DistinctDateHistogramFacetBuilder(final String name) {
         super(name);
     }
 
@@ -61,7 +63,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
      * The field name to perform the histogram facet. Translates to perform the histogram facet
      * using the provided field as both the {@link #keyField(String)} and {@link #valueField(String)}.
      */
-    public DateHistogramFacetBuilder field(String field) {
+    public DistinctDateHistogramFacetBuilder field(final String field) {
         this.keyFieldName = field;
         return this;
     }
@@ -71,7 +73,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
      * entries. Essentially, using the key field numeric value, the hit will be "rounded" into the relevant
      * bucket controlled by the interval.
      */
-    public DateHistogramFacetBuilder keyField(String keyField) {
+    public DistinctDateHistogramFacetBuilder keyField(final String keyField) {
         this.keyFieldName = keyField;
         return this;
     }
@@ -80,18 +82,18 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
      * The field name to use as the value of the hit to compute data based on values within the interval
      * (for example, total).
      */
-    public DateHistogramFacetBuilder valueField(String valueField) {
+    public DistinctDateHistogramFacetBuilder valueField(final String valueField) {
         this.valueFieldName = valueField;
         return this;
     }
 
-    public DateHistogramFacetBuilder valueScript(String valueScript) {
+    public DistinctDateHistogramFacetBuilder valueScript(final String valueScript) {
         this.valueScript = valueScript;
         return this;
     }
 
-    public DateHistogramFacetBuilder param(String name, Object value) {
-        if (params == null) {
+    public DistinctDateHistogramFacetBuilder param(final String name, final Object value) {
+        if(params == null) {
             params = Maps.newHashMap();
         }
         params.put(name, value);
@@ -101,7 +103,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
     /**
      * The language of the value script.
      */
-    public DateHistogramFacetBuilder lang(String lang) {
+    public DistinctDateHistogramFacetBuilder lang(final String lang) {
         this.lang = lang;
         return this;
     }
@@ -110,7 +112,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
      * The interval used to control the bucket "size" where each key value of a hit will fall into. Check
      * the docs for all available values.
      */
-    public DateHistogramFacetBuilder interval(String interval) {
+    public DistinctDateHistogramFacetBuilder interval(final String interval) {
         this.interval = interval;
         return this;
     }
@@ -118,7 +120,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
     /**
      * Should pre zone be adjusted for large (day and above) intervals. Defaults to <tt>false</tt>.
      */
-    public DateHistogramFacetBuilder preZoneAdjustLargeInterval(boolean preZoneAdjustLargeInterval) {
+    public DistinctDateHistogramFacetBuilder preZoneAdjustLargeInterval(final boolean preZoneAdjustLargeInterval) {
         this.preZoneAdjustLargeInterval = preZoneAdjustLargeInterval;
         return this;
     }
@@ -130,7 +132,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
      * Can either be in the form of "-10:00" or
      * one of the values listed here: http://joda-time.sourceforge.net/timezones.html.
      */
-    public DateHistogramFacetBuilder preZone(String preZone) {
+    public DistinctDateHistogramFacetBuilder preZone(final String preZone) {
         this.preZone = preZone;
         return this;
     }
@@ -142,7 +144,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
      * Can either be in the form of "-10:00" or
      * one of the values listed here: http://joda-time.sourceforge.net/timezones.html.
      */
-    public DateHistogramFacetBuilder postZone(String postZone) {
+    public DistinctDateHistogramFacetBuilder postZone(final String postZone) {
         this.postZone = postZone;
         return this;
     }
@@ -150,7 +152,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
     /**
      * Sets a pre offset that will be applied before rounding the results.
      */
-    public DateHistogramFacetBuilder preOffset(TimeValue preOffset) {
+    public DistinctDateHistogramFacetBuilder preOffset(final TimeValue preOffset) {
         this.preOffset = preOffset.millis();
         return this;
     }
@@ -158,7 +160,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
     /**
      * Sets a post offset that will be applied after rounding the results.
      */
-    public DateHistogramFacetBuilder postOffset(TimeValue postOffset) {
+    public DistinctDateHistogramFacetBuilder postOffset(final TimeValue postOffset) {
         this.postOffset = postOffset.millis();
         return this;
     }
@@ -167,12 +169,12 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
      * Sets the factor that will be used to multiply the value with before and divided
      * by after the rounding of the results.
      */
-    public DateHistogramFacetBuilder factor(float factor) {
+    public DistinctDateHistogramFacetBuilder factor(final float factor) {
         this.factor = factor;
         return this;
     }
 
-    public DateHistogramFacetBuilder comparator(DateHistogramFacet.ComparatorType comparatorType) {
+    public DistinctDateHistogramFacetBuilder comparator(final DateHistogramFacet.ComparatorType comparatorType) {
         this.comparatorType = comparatorType;
         return this;
     }
@@ -182,7 +184,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
      * the search query). Defaults to <tt>false</tt>.
      */
     @Override
-    public DateHistogramFacetBuilder global(boolean global) {
+    public DistinctDateHistogramFacetBuilder global(final boolean global) {
         super.global(global);
         return this;
     }
@@ -191,7 +193,7 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
      * An additional filter used to further filter down the set of documents the facet will run on.
      */
     @Override
-    public DateHistogramFacetBuilder facetFilter(FilterBuilder filter) {
+    public DistinctDateHistogramFacetBuilder facetFilter(final FilterBuilder filter) {
         this.facetFilter = filter;
         return this;
     }
@@ -200,58 +202,58 @@ public class DateHistogramFacetBuilder extends FacetBuilder {
      * Sets the nested path the facet will execute on. A match (root object) will then cause all the
      * nested objects matching the path to be computed into the facet.
      */
-    public DateHistogramFacetBuilder nested(String nested) {
+    @Override
+    public DistinctDateHistogramFacetBuilder nested(final String nested) {
         this.nested = nested;
         return this;
     }
 
-
     @Override
-    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        if (keyFieldName == null) {
+    public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
+        if(keyFieldName == null) {
             throw new SearchSourceBuilderException("field must be set on date histogram facet for facet [" + name + "]");
         }
-        if (interval == null) {
+        if(interval == null) {
             throw new SearchSourceBuilderException("interval must be set on date histogram facet for facet [" + name + "]");
         }
         builder.startObject(name);
 
-        builder.startObject(DateHistogramFacet.TYPE);
-        if (valueFieldName != null) {
+        builder.startObject(DistinctDateHistogramFacet.TYPE);
+        if(valueFieldName != null) {
             builder.field("key_field", keyFieldName);
             builder.field("value_field", valueFieldName);
         } else {
             builder.field("field", keyFieldName);
         }
-        if (valueScript != null) {
+        if(valueScript != null) {
             builder.field("value_script", valueScript);
-            if (lang != null) {
+            if(lang != null) {
                 builder.field("lang", lang);
             }
-            if (this.params != null) {
+            if(this.params != null) {
                 builder.field("params", this.params);
             }
         }
         builder.field("interval", interval);
-        if (preZone != null) {
+        if(preZone != null) {
             builder.field("pre_zone", preZone);
         }
-        if (preZoneAdjustLargeInterval != null) {
+        if(preZoneAdjustLargeInterval != null) {
             builder.field("pre_zone_adjust_large_interval", preZoneAdjustLargeInterval);
         }
-        if (postZone != null) {
+        if(postZone != null) {
             builder.field("post_zone", postZone);
         }
-        if (preOffset != 0) {
+        if(preOffset != 0) {
             builder.field("pre_offset", preOffset);
         }
-        if (postOffset != 0) {
+        if(postOffset != 0) {
             builder.field("post_offset", postOffset);
         }
-        if (factor != 1.0f) {
+        if(factor != 1.0f) {
             builder.field("factor", factor);
         }
-        if (comparatorType != null) {
+        if(comparatorType != null) {
             builder.field("comparator", comparatorType.description());
         }
         builder.endObject();
