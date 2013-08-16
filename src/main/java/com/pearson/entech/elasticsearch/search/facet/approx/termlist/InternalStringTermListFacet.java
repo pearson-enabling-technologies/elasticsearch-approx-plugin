@@ -3,10 +3,8 @@ package com.pearson.entech.elasticsearch.search.facet.approx.termlist;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.Strings;
@@ -96,26 +94,23 @@ public class InternalStringTermListFacet extends InternalTermListFacet {
     @Override
     public Facet reduce(final List<Facet> facets) {
 
-        final Set<String> items = new HashSet<String>();
-
         if(facets.size() == 1) {
             return facets.get(0);
         }
         final THashSet<String> aggregated = CacheRecycler.popHashSet();
+
         for(final Facet facet : facets) {
             final InternalTermListFacet termListFacet = (InternalTermListFacet) facet;
-
             for(final String entry : termListFacet.getEntries()) {
                 aggregated.add(entry);
-                items.add(entry);
-
             }
         }
-        CacheRecycler.pushHashSet(aggregated);
 
         final List<String> ret = new ArrayList<String>();
-        ret.addAll(items);
+        for(final String item : aggregated)
+            ret.add(item);
 
+        CacheRecycler.pushHashSet(aggregated);
         return new InternalStringTermListFacet(facets.get(0).getName(), ret);
 
     }
