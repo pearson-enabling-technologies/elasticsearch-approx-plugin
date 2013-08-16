@@ -93,6 +93,7 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
     public FacetExecutor parse(final String facetName, final XContentParser parser, final SearchContext context) throws IOException {
         String keyField = null;
         String distinctField = null;
+        String sliceField = null;
         final String valueScript = null;
         String scriptLang = null;
         Map<String, Object> params = null;
@@ -108,6 +109,9 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         XContentParser.Token token;
         String fieldName = null;
         int maxExactPerShard = 1000;
+        final FieldMapper keyFieldMapper;
+        FieldMapper distinctFieldMapper;
+        final FieldMapper sliceFieldMapper;
 
         while((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if(token == XContentParser.Token.FIELD_NAME) {
@@ -124,6 +128,8 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
                 } else if("value_field".equals(fieldName) || "valueField".equals(fieldName) ||
                         "distinct_field".equals(fieldName) || "distinctField".equals(fieldName)) {
                     distinctField = parser.text();
+                } else if("slice_field".equals(fieldName) || "sliceField".equals(fieldName)) {
+                    sliceField = parser.text();
                 } else if("interval".equals(fieldName)) {
                     interval = parser.text();
                 } else if("time_zone".equals(fieldName) || "timeZone".equals(fieldName)) {
@@ -159,7 +165,7 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         }
 
         if(keyField == null) {
-            throw new FacetPhaseExecutionException(facetName, "key field is required to be set for histogram facet, either using [field] or using [key_field]");
+            throw new FacetPhaseExecutionException(facetName, "[key_field] is required to be set for histogram facet");
         }
 
         final FieldMapper keyMapper = context.smartNameFieldMapper(keyField);
@@ -168,13 +174,17 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         } else if(!keyMapper.fieldDataType().getType().equals("long")) {
             throw new FacetPhaseExecutionException(facetName, "(key) field [" + keyField + "] is not of type date");
         }
-        if(distinctField == null) {
-            throw new FacetPhaseExecutionException(facetName,
-                    "distinct field is required to be set for distinct histogram facet, either using [value_field] or using [distinctField]");
-        }
-        final FieldMapper distinctFieldMapper = context.smartNameFieldMapper(distinctField);
-        if(distinctFieldMapper == null) {
-            throw new FacetPhaseExecutionException(facetName, "no mapping found for " + distinctField);
+
+        //        if(distinctField == null) {
+        //            throw new FacetPhaseExecutionException(facetName,
+        //                    "distinct field is required to be set for distinct histogram facet, either using [value_field] or using [distinctField]");
+        //        }
+
+        if(distinctField != null) {
+            distinctFieldMapper = context.smartNameFieldMapper(distinctField);
+            if(distinctFieldMapper == null) {
+                throw new FacetPhaseExecutionException(facetName, "no mapping found for " + distinctField);
+            }
         }
 
         TimeZoneRounding.Builder tzRoundingBuilder;
