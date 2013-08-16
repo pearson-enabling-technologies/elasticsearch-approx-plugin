@@ -19,9 +19,8 @@ import org.elasticsearch.common.trove.impl.Constants;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.index.fielddata.IndexNumericFieldData;
-import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
-import org.elasticsearch.index.fielddata.plain.PagedBytesIndexFieldData;
+import org.elasticsearch.index.fielddata.FieldDataType;
+import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.FacetParser;
@@ -109,9 +108,6 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         XContentParser.Token token;
         String fieldName = null;
         int maxExactPerShard = 1000;
-        final FieldMapper keyFieldMapper;
-        FieldMapper distinctFieldMapper;
-        final FieldMapper sliceFieldMapper;
 
         while((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if(token == XContentParser.Token.FIELD_NAME) {
@@ -164,29 +160,6 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
             throw new FacetPhaseExecutionException(facetName, "[interval] is required to be set for histogram facet");
         }
 
-        if(keyField == null) {
-            throw new FacetPhaseExecutionException(facetName, "[key_field] is required to be set for histogram facet");
-        }
-
-        final FieldMapper keyMapper = context.smartNameFieldMapper(keyField);
-        if(keyMapper == null) {
-            throw new FacetPhaseExecutionException(facetName, "(key) field [" + keyField + "] not found");
-        } else if(!keyMapper.fieldDataType().getType().equals("long")) {
-            throw new FacetPhaseExecutionException(facetName, "(key) field [" + keyField + "] is not of type date");
-        }
-
-        //        if(distinctField == null) {
-        //            throw new FacetPhaseExecutionException(facetName,
-        //                    "distinct field is required to be set for distinct histogram facet, either using [value_field] or using [distinctField]");
-        //        }
-
-        if(distinctField != null) {
-            distinctFieldMapper = context.smartNameFieldMapper(distinctField);
-            if(distinctFieldMapper == null) {
-                throw new FacetPhaseExecutionException(facetName, "no mapping found for " + distinctField);
-            }
-        }
-
         TimeZoneRounding.Builder tzRoundingBuilder;
         final DateFieldParser fieldParser = dateFieldParsers.get(interval);
         if(fieldParser != null) {
@@ -202,6 +175,18 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
                 .preOffset(preOffset).postOffset(postOffset)
                 .factor(factor)
                 .build();
+
+        final TypedFieldData keyFieldData = getFieldData(keyField, context);
+        if(keyFieldData == null)
+            throw new FacetPhaseExecutionException(facetName, "[key_field] is required to be set for distinct date histogram facet");
+        if(!"long".equals(keyFieldData.type.getType()))
+            throw new FacetPhaseExecutionException(facetName, "key field [" + keyField + "] is not of type date");
+
+        final TypedFieldData distinctFieldData = getFieldData(distinctField, context);
+        final TypedFieldData sliceFieldData = getFieldData(sliceField, context);
+
+        return new DistinctDateHistogramFacetExecutor(keyFieldData, distinctFieldData, sliceFieldData,
+                tzRounding, comparatorType, maxExactPerShard);
 
         // TODO implement scripts
         /*
@@ -221,22 +206,35 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         */
         // TODO refactor... and short/double fields
 
-        if(distinctFieldMapper.fieldDataType().getType().equals("string")) {
-            final PagedBytesIndexFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
-            final LongArrayIndexFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
-            return new StringDistinctDateHistogramFacetExecutor(
-                    keyIndexFieldData, distinctFieldData, tzRounding, comparatorType, maxExactPerShard);
-        } else if(distinctFieldMapper.fieldDataType().getType().equals("long")
-                || distinctFieldMapper.fieldDataType().getType().equals("int")
-                || distinctFieldMapper.fieldDataType().getType().equals("short")
-                || distinctFieldMapper.fieldDataType().getType().equals("byte")) {
-            final IndexNumericFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
-            final LongArrayIndexFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
-            return new LongDistinctDateHistogramFacetExecutor(
-                    keyIndexFieldData, distinctFieldData, tzRounding, comparatorType, maxExactPerShard);
-        } else {
-            throw new FacetPhaseExecutionException(facetName, "distinct field [" + distinctField + "] is not of type string or long");
+        //            if(distinctFieldMapper.fieldDataType().getType().equals("string")) {
+        //                final PagedBytesIndexFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
+        //                final LongArrayIndexFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
+        //                return new StringDistinctDateHistogramFacetExecutor(
+        //                        keyIndexFieldData, distinctFieldData, tzRounding, comparatorType, maxExactPerShard);
+        //            } else if(distinctFieldMapper.fieldDataType().getType().equals("long")
+        //                    || distinctFieldMapper.fieldDataType().getType().equals("int")
+        //                    || distinctFieldMapper.fieldDataType().getType().equals("short")
+        //                    || distinctFieldMapper.fieldDataType().getType().equals("byte")) {
+        //                final IndexNumericFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
+        //                final LongArrayIndexFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
+        //                return new LongDistinctDateHistogramFacetExecutor(
+        //                        keyIndexFieldData, distinctFieldData, tzRounding, comparatorType, maxExactPerShard);
+        //            } else {
+        //                throw new FacetPhaseExecutionException(facetName, "distinct field [" + distinctField + "] is not of type string or long");
+        //            }
+    }
+
+    private TypedFieldData getFieldData(final String fieldName, final SearchContext context) {
+        if(fieldName != null) {
+            final FieldMapper<?> mapper = context.smartNameFieldMapper(fieldName);
+            if(mapper == null) {
+                throw new FacetPhaseExecutionException(fieldName, "no mapping found for " + fieldName);
+            }
+            final FieldDataType fieldDataType = mapper.fieldDataType();
+            final IndexFieldData fieldData = context.fieldData().getForField(mapper);
+            return new TypedFieldData(fieldData, fieldDataType);
         }
+        return null;
     }
 
     private long parseOffset(final String offset) throws IOException {
@@ -265,6 +263,23 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
                 return DateTimeZone.forID(text);
             }
         }
+    }
+
+    private boolean isIntegral(final TypedFieldData typedFieldData) {
+        if(typedFieldData == null)
+            return false;
+        final String typeName = typedFieldData.type.getType();
+        return "byte".equals(typeName)
+                || "short".equals(typeName)
+                || "int".equals(typeName)
+                || "long".equals(typeName);
+    }
+
+    private boolean isString(final TypedFieldData typedFieldData) {
+        if(typedFieldData == null)
+            return false;
+        final String typeName = typedFieldData.type.getType();
+        return "string".equals(typeName);
     }
 
     static interface DateFieldParser {

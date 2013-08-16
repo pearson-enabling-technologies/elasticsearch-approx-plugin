@@ -17,10 +17,6 @@ public class DistinctCountPayload {
 
     public DistinctCountPayload(final int entryLimit) {
         _count = 0;
-        // Enforce a sensible entry limit 
-        //        final int realEntryLimit = entryLimit == 0 ? 1 : entryLimit;
-        //        _cardinality = new CountThenEstimate(realEntryLimit,
-        //                AdaptiveCounting.Builder.obyCount(realEntryLimit * 1000));
         _cardinality = new CountThenEstimate(entryLimit,
                 new HyperLogLog.Builder(0.0025));
     }
