@@ -36,6 +36,10 @@ public class InternalSlicedDistinctFacet
     private static final String TYPE = "sliced_distinct_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
+    public static void registerStreams() {
+        Streams.registerStream(STREAM, STREAM_TYPE);
+    }
+
     static Stream STREAM = new Stream() {
         @Override
         public Facet readFacet(final StreamInput in) throws IOException {

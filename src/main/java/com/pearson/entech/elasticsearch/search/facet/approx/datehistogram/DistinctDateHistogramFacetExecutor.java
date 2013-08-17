@@ -66,7 +66,6 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     // TODO make interval optional, so we can just have one bucket (custom TimeZoneRounding)
     // TODO stop using long arrays as wrappers for counters (materialize methods)
     // TODO support other slice labels apart from String?
-    // TODO register streams
     // TODO replace NullEntry with a mixin for having an entry, maybe
     // TODO surface the slice field and the distinct field name in the results
     // TODO exclude deserialized objects from CacheRecycler?

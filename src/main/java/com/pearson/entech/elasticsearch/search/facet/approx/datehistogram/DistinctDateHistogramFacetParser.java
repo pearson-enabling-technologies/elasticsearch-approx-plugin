@@ -1,7 +1,6 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.io.IOException;
-import java.util.Map;
 
 import org.elasticsearch.common.collect.ImmutableMap;
 import org.elasticsearch.common.collect.MapBuilder;
@@ -93,9 +92,9 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         String keyField = null;
         String distinctField = null;
         String sliceField = null;
-        final String valueScript = null;
-        String scriptLang = null;
-        Map<String, Object> params = null;
+        //        final String valueScript = null;
+        //        String scriptLang = null;
+        //        Map<String, Object> params = null;
         String interval = null;
         DateTimeZone preZone = DateTimeZone.UTC;
         DateTimeZone postZone = DateTimeZone.UTC;
@@ -112,9 +111,9 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
             if(token == XContentParser.Token.FIELD_NAME) {
                 fieldName = parser.currentName();
             } else if(token == XContentParser.Token.START_OBJECT) {
-                if("params".equals(fieldName)) {
-                    params = parser.map();
-                }
+                //                if("params".equals(fieldName)) {
+                //                    params = parser.map();
+                //                }
             } else if(token.isValue()) {
                 if("field".equals(fieldName)) {
                     keyField = parser.text();
@@ -145,8 +144,8 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
                     } else if("value_script".equals(fieldName) || "valueScript".equals(fieldName)) {
                     valueScript = parser.text();
                     */
-                } else if("lang".equals(fieldName)) {
-                    scriptLang = parser.text();
+                    //                } else if("lang".equals(fieldName)) {
+                    //                    scriptLang = parser.text();
                 } else if("max_exact_per_shard".equals(fieldName) || "maxExactPerShard".equals(fieldName)) {
                     maxExactPerShard = parser.intValue();
                 }
