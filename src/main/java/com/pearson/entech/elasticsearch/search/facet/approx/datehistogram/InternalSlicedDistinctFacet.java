@@ -2,6 +2,9 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.List;
 
@@ -22,7 +25,7 @@ public class InternalSlicedDistinctFacet
         extends TimeFacet<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>>
         implements HasDistinct {
 
-    private final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> _counts;
+    private ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> _counts;
 
     private long _total;
     private List<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> _periods;
@@ -66,6 +69,17 @@ public class InternalSlicedDistinctFacet
         return STREAM_TYPE;
     }
 
+    @Override
+    protected void readData(final ObjectInputStream oIn) throws ClassNotFoundException, IOException {
+        _counts = CacheRecycler.popLongObjectMap();
+        _counts.readExternal(oIn);
+    }
+
+    @Override
+    protected void writeData(final ObjectOutputStream oOut) throws IOException {
+        _counts.writeExternal(oOut);
+    }
+
     // TODO reduce and materialize logic is similar to InternalSlicedFacet -- factor out?
 
     @Override
@@ -97,7 +111,8 @@ public class InternalSlicedDistinctFacet
         releaseCache();
     }
 
-    private void releaseCache() {
+    @Override
+    protected void releaseCache() {
         _counts.forEachValue(_releaseCachedMaps);
         CacheRecycler.pushLongObjectMap(_counts);
     }

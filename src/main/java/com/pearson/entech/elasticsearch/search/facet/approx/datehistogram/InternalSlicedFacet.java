@@ -2,6 +2,9 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.List;
 
@@ -9,6 +12,7 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
+import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
@@ -18,7 +22,7 @@ import org.elasticsearch.search.facet.Facet;
 
 public class InternalSlicedFacet extends TimeFacet<TimePeriod<XContentEnabledList<Slice<String>>>> {
 
-    private final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
+    private ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
 
     private long _total;
     private List<TimePeriod<XContentEnabledList<Slice<String>>>> _periods;
@@ -26,6 +30,17 @@ public class InternalSlicedFacet extends TimeFacet<TimePeriod<XContentEnabledLis
     private static final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> EMPTY = new ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>>();
     private static final String TYPE = "sliced_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
+
+    public static void registerStreams() {
+        Streams.registerStream(STREAM, STREAM_TYPE);
+    }
+
+    static Stream STREAM = new Stream() {
+        @Override
+        public Facet readFacet(final String type, final StreamInput in) throws IOException {
+            return readHistogramFacet(in);
+        }
+    };
 
     public InternalSlicedFacet(final String facetName, final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> counts) {
         super(facetName);
@@ -52,6 +67,17 @@ public class InternalSlicedFacet extends TimeFacet<TimePeriod<XContentEnabledLis
     @Override
     public BytesReference streamType() {
         return STREAM_TYPE;
+    }
+
+    @Override
+    protected void readData(final ObjectInputStream oIn) throws ClassNotFoundException, IOException {
+        _counts = CacheRecycler.popLongObjectMap();
+        _counts.readExternal(oIn);
+    }
+
+    @Override
+    protected void writeData(final ObjectOutputStream oOut) throws IOException {
+        _counts.writeExternal(oOut);
     }
 
     @Override
@@ -83,7 +109,8 @@ public class InternalSlicedFacet extends TimeFacet<TimePeriod<XContentEnabledLis
         releaseCache();
     }
 
-    private void releaseCache() {
+    @Override
+    protected void releaseCache() {
         _counts.forEachValue(new TObjectProcedure<TObjectIntHashMap<BytesRef>>() {
             @Override
             public boolean execute(final TObjectIntHashMap<BytesRef> subMap) {

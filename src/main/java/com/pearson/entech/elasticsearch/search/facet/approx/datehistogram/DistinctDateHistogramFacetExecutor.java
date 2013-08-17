@@ -56,7 +56,6 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
         return _collector;
     }
 
-    // TODO SERIALIZATION!!!
     // TODO sorting (sigh)
     // TODO keep track of totals and missing values
     // TODO replace "new DistinctCountPayload()" with an object cache
@@ -70,6 +69,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     // TODO register streams
     // TODO replace NullEntry with a mixin for having an entry, maybe
     // TODO surface the slice field and the distinct field name in the results
+    // TODO exclude deserialized objects from CacheRecycler?
 
     private class CountingCollector extends BuildableCollector {
 

@@ -2,6 +2,9 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.List;
 
@@ -16,7 +19,7 @@ import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
 public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<NullEntry>> implements HasDistinct {
 
-    private final ExtTLongObjectHashMap<DistinctCountPayload> _counts;
+    private ExtTLongObjectHashMap<DistinctCountPayload> _counts;
 
     private long _total;
     private List<DistinctTimePeriod<NullEntry>> _periods;
@@ -60,6 +63,17 @@ public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<NullEntr
     }
 
     @Override
+    protected void readData(final ObjectInputStream oIn) throws ClassNotFoundException, IOException {
+        _counts = CacheRecycler.popLongObjectMap();
+        _counts.readExternal(oIn);
+    }
+
+    @Override
+    protected void writeData(final ObjectOutputStream oOut) throws IOException {
+        _counts.writeExternal(oOut);
+    }
+
+    @Override
     public Facet reduce(final List<Facet> facets) {
         if(facets.size() > 0) {
             // Reduce into the first facet; we will release its _counts on rendering into XContent
@@ -90,7 +104,8 @@ public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<NullEntr
         releaseCache();
     }
 
-    private void releaseCache() {
+    @Override
+    protected void releaseCache() {
         CacheRecycler.pushLongObjectMap(_counts);
     }
 

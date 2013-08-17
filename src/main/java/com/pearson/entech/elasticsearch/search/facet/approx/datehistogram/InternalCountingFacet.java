@@ -2,6 +2,9 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.List;
 
@@ -14,7 +17,7 @@ import org.elasticsearch.search.facet.Facet;
 
 public class InternalCountingFacet extends TimeFacet<TimePeriod<NullEntry>> {
 
-    private final TLongIntHashMap _counts;
+    private TLongIntHashMap _counts;
 
     private long _total;
     private List<TimePeriod<NullEntry>> _periods;
@@ -51,6 +54,17 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<NullEntry>> {
     }
 
     @Override
+    protected void readData(final ObjectInputStream oIn) throws ClassNotFoundException, IOException {
+        _counts = CacheRecycler.popLongIntMap();
+        _counts.readExternal(oIn);
+    }
+
+    @Override
+    protected void writeData(final ObjectOutputStream oOut) throws IOException {
+        _counts.writeExternal(oOut);
+    }
+
+    @Override
     public Facet reduce(final List<Facet> facets) {
         if(facets.size() > 0) {
             // Reduce into the first facet; we will release its _counts on materializing
@@ -80,7 +94,8 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<NullEntry>> {
         releaseCache();
     }
 
-    private void releaseCache() {
+    @Override
+    protected void releaseCache() {
         CacheRecycler.pushLongIntMap(_counts);
     }
 
