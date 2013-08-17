@@ -1,6 +1,11 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
-public class DistinctTimePeriod<E> extends TimePeriod<E> {
+import java.io.IOException;
+
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+
+public class DistinctTimePeriod<E extends ToXContent> extends TimePeriod<E> {
 
     private final long _distinctCount;
 
@@ -12,6 +17,11 @@ public class DistinctTimePeriod<E> extends TimePeriod<E> {
 
     public long getDistinctCount() {
         return _distinctCount;
+    }
+
+    @Override
+    protected void injectHeaderXContent(final XContentBuilder builder) throws IOException {
+        builder.field(Constants.DISTINCT_COUNT, getDistinctCount());
     }
 
 }

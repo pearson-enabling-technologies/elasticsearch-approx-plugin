@@ -1,6 +1,11 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
-public class TimePeriod<E> {
+import java.io.IOException;
+
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+
+public class TimePeriod<E extends ToXContent> implements ToXContent {
 
     private final long _time;
     private final long _totalCount;
@@ -22,6 +27,21 @@ public class TimePeriod<E> {
 
     public E getEntry() {
         return _entry;
+    }
+
+    @Override
+    public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
+        builder.startObject();
+        builder.field(Constants.TIME, getTime());
+        builder.field(Constants.COUNT, getTotalCount());
+        injectHeaderXContent(builder);
+        getEntry().toXContent(builder, params);
+        builder.endObject();
+        return builder;
+    }
+
+    protected void injectHeaderXContent(final XContentBuilder builder) throws IOException {
+        // override to add extra top-level fields, before the entry proper
     }
 
 }

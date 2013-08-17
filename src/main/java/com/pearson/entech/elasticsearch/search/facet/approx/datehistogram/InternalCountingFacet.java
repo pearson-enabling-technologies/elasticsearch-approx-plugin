@@ -52,6 +52,7 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<NullEntry>> {
         return STREAM_TYPE;
     }
 
+    // TODO remove me
     @Override
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
         builder.startObject(getName());

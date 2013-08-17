@@ -18,4 +18,6 @@ public interface Constants {
 
     static final XContentBuilderString DISTINCT_COUNT = new XContentBuilderString("distinct_count");
 
+    static final XContentBuilderString TERM = new XContentBuilderString("term");
+
 }

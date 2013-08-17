@@ -2,7 +2,6 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -15,12 +14,11 @@ import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
 import org.elasticsearch.common.trove.procedure.TObjectObjectProcedure;
 import org.elasticsearch.common.trove.procedure.TObjectProcedure;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.Facet;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
-public class InternalSlicedDistinctFacet extends TimeFacet<DistinctTimePeriod<List<DistinctSlice<String>>>> implements HasDistinct {
+public class InternalSlicedDistinctFacet extends TimeFacet<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> implements HasDistinct {
 
     private final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> _counts;
 
@@ -64,12 +62,6 @@ public class InternalSlicedDistinctFacet extends TimeFacet<DistinctTimePeriod<Li
     @Override
     public BytesReference streamType() {
         return STREAM_TYPE;
-    }
-
-    @Override
-    public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
-        // TODO Auto-generated method stub
-        return null;
     }
 
     // TODO reduce and materialize logic is similar to InternalSlicedFacet -- factor out?
