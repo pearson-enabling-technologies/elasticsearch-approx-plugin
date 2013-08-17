@@ -20,7 +20,7 @@ public class DistinctTimePeriod<E extends ToXContent> extends TimePeriod<E> {
     }
 
     @Override
-    protected void injectHeaderXContent(final XContentBuilder builder) throws IOException {
+    protected void injectEntryHeaderXContent(final XContentBuilder builder) throws IOException {
         builder.field(Constants.DISTINCT_COUNT, getDistinctCount());
     }
 

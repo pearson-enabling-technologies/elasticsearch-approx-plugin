@@ -2,7 +2,6 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -11,7 +10,6 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
 import org.elasticsearch.common.trove.procedure.TLongIntProcedure;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.Facet;
 
 public class InternalCountingFacet extends TimeFacet<TimePeriod<NullEntry>> {
@@ -50,22 +48,6 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<NullEntry>> {
     @Override
     public BytesReference streamType() {
         return STREAM_TYPE;
-    }
-
-    // TODO remove me
-    @Override
-    public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
-        builder.startObject(getName());
-        builder.field(Constants._TYPE, TYPE);
-        builder.field(Constants.COUNT, getTotalCount());
-        builder.startArray(Constants.ENTRIES);
-        for(final TimePeriod<NullEntry> period : _periods) {
-            builder.field(Constants.TIME, period.getTime());
-            builder.field(Constants.COUNT, period.getEntry());
-        }
-        builder.endArray();
-        builder.endObject();
-        return builder;
     }
 
     @Override

@@ -34,14 +34,19 @@ public class TimePeriod<E extends ToXContent> implements ToXContent {
         builder.startObject();
         builder.field(Constants.TIME, getTime());
         builder.field(Constants.COUNT, getTotalCount());
-        injectHeaderXContent(builder);
+        injectEntryHeaderXContent(builder);
         getEntry().toXContent(builder, params);
+        injectEntryFooterXContent(builder);
         builder.endObject();
         return builder;
     }
 
-    protected void injectHeaderXContent(final XContentBuilder builder) throws IOException {
-        // override to add extra top-level fields, before the entry proper
+    protected void injectEntryHeaderXContent(final XContentBuilder builder) throws IOException {
+        // override to add extra content immediately before the entry for this period
+    }
+
+    protected void injectEntryFooterXContent(final XContentBuilder builder) throws IOException {
+        // override to add extra content immediately after the entry for this period
     }
 
 }

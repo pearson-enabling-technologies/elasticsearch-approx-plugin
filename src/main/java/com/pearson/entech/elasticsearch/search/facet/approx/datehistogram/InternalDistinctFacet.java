@@ -2,7 +2,6 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -11,7 +10,6 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.Facet;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
@@ -59,23 +57,6 @@ public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<NullEntr
     @Override
     public BytesReference streamType() {
         return STREAM_TYPE;
-    }
-
-    @Override
-    public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
-        builder.startObject(getName());
-        builder.field(Constants._TYPE, TYPE);
-        builder.field(Constants.COUNT, getTotalCount());
-        builder.field(Constants.DISTINCT_COUNT, getDistinctCount());
-        builder.startArray(Constants.ENTRIES);
-        for(final DistinctTimePeriod<NullEntry> period : _periods) {
-            builder.field(Constants.TIME, period.getTime());
-            builder.field(Constants.COUNT, period.getEntry());
-            builder.field(Constants.DISTINCT_COUNT, period.getDistinctCount());
-        }
-        builder.endArray();
-        builder.endObject();
-        return builder;
     }
 
     @Override

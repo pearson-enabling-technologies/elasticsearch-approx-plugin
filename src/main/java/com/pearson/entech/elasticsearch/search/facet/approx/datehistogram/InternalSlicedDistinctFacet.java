@@ -18,12 +18,14 @@ import org.elasticsearch.search.facet.Facet;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
-public class InternalSlicedDistinctFacet extends TimeFacet<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> implements HasDistinct {
+public class InternalSlicedDistinctFacet
+        extends TimeFacet<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>>
+        implements HasDistinct {
 
     private final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> _counts;
 
     private long _total;
-    private List<DistinctTimePeriod<List<DistinctSlice<String>>>> _periods;
+    private List<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> _periods;
     private long _distinctCount;
 
     private static final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> EMPTY = CacheRecycler.popLongObjectMap();
@@ -63,6 +65,8 @@ public class InternalSlicedDistinctFacet extends TimeFacet<DistinctTimePeriod<XC
     public BytesReference streamType() {
         return STREAM_TYPE;
     }
+    
+    inj
 
     // TODO reduce and materialize logic is similar to InternalSlicedFacet -- factor out?
 
