@@ -7,13 +7,13 @@ import java.util.List;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
+import org.elasticsearch.common.joda.time.Period;
 import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
 import org.elasticsearch.common.trove.procedure.TLongIntProcedure;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.Facet;
-import org.elasticsearch.search.facet.InternalFacet;
 
-public class InternalCountingFacet extends InternalFacet implements TimeFacet<TimePeriod<Long>> {
+public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
 
     private final String _name;
     private final TLongIntHashMap _counts;
@@ -29,28 +29,6 @@ public class InternalCountingFacet extends InternalFacet implements TimeFacet<Ti
         super(name);
         _name = name;
         _counts = counts;
-    }
-
-    private static class Period extends TimePeriod<Long> {
-
-        private final long _time;
-        private final long _count;
-
-        Period(final long time, final long count) {
-            _time = time;
-            _count = count;
-        }
-
-        @Override
-        public long getTime() {
-            return _time;
-        }
-
-        @Override
-        public Long getEntry() {
-            return _count;
-        }
-
     }
 
     @Override

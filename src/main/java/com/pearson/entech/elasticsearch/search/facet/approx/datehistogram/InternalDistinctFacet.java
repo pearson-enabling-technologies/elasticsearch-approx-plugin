@@ -5,41 +5,62 @@ import java.util.List;
 
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.Facet;
-import org.elasticsearch.search.facet.InternalFacet;
 
-
-public class InternalDistinctFacet extends InternalFacet {
+public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<Long>> implements HasDistinct {
 
     private final ExtTLongObjectHashMap<DistinctCountPayload> _counts;
-    private final ComparatorType _comparatorType;
+
+    private long _total;
+    private List<DistinctTimePeriod<Long>> _periods;
+
+    private long _distinctCount;
 
     private static final ExtTLongObjectHashMap<DistinctCountPayload> EMPTY = new ExtTLongObjectHashMap<DistinctCountPayload>();
+    private static final String TYPE = "DistinctDateHistogramFacet";
+    private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
-    public InternalDistinctFacet(final ExtTLongObjectHashMap<DistinctCountPayload> counts, final ComparatorType comparatorType) {
+    public InternalDistinctFacet(final String name, final ExtTLongObjectHashMap<DistinctCountPayload> counts) {
+        super(name);
         _counts = counts;
-        _comparatorType = comparatorType;
+    }
+
+    @Override
+    public long getDistinctCount() {
+        materialize();
+        return _distinctCount; // TODO
+    }
+
+    @Override
+    public long getTotal() {
+        materialize();
+        return _total;
+    }
+
+    @Override
+    public List<DistinctTimePeriod<Long>> getTimePeriods() {
+        materialize();
+        return _periods;
+    }
+
+    @Override
+    public BytesReference streamType() {
+        return STREAM_TYPE;
     }
 
     @Override
     public String getType() {
-        // TODO Auto-generated method stub
-        return null;
+        return TYPE;
     }
 
     @Override
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
         // TODO Auto-generated method stub
         releaseCache();
-    }
-
-    @Override
-    public BytesReference streamType() {
-        // TODO Auto-generated method stub
-        return null;
     }
 
     @Override
@@ -57,7 +78,7 @@ public class InternalDistinctFacet extends InternalFacet {
             }
             return target;
         } else {
-            return new InternalDistinctFacet(EMPTY, _comparatorType);
+            return new InternalDistinctFacet(getName(), EMPTY);
         }
     }
 

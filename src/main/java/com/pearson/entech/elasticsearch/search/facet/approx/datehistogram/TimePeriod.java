@@ -1,10 +1,22 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
-public abstract class TimePeriod<E> implements Comparable<TimePeriod<E>> {
+public class TimePeriod<E> implements Comparable<TimePeriod<E>> {
 
-    abstract long getTime();
+    private final long _time;
+    private final E _entry;
 
-    abstract E getEntry();
+    public TimePeriod(final long time, final E entry) {
+        _time = time;
+        _entry = entry;
+    }
+
+    public long getTime() {
+        return _time;
+    }
+
+    public E getEntry() {
+        return _entry;
+    }
 
     @Override
     public int compareTo(final TimePeriod<E> o) {

@@ -2,10 +2,16 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.util.List;
 
-public interface TimeFacet<P> {
+import org.elasticsearch.search.facet.InternalFacet;
 
-    long getTotal();
+public abstract class TimeFacet<P> extends InternalFacet {
 
-    List<P> getTimePeriods();
+    public TimeFacet(final String name) {
+        super(name);
+    }
+
+    public abstract long getTotal();
+
+    public abstract List<P> getTimePeriods();
 
 }

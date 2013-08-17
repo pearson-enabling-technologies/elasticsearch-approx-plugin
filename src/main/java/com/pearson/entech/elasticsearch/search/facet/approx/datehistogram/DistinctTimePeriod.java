@@ -1,7 +1,16 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
-public interface DistinctTimePeriod<E> extends TimePeriod<E> {
+public class DistinctTimePeriod<E> extends TimePeriod<E> {
 
-    long getDistinctCount();
+    private final long _distinctCount;
+
+    public DistinctTimePeriod(final long time, final E entry, final long distinctCount) {
+        super(time, entry);
+        _distinctCount = distinctCount;
+    }
+
+    public long getDistinctCount() {
+        return _distinctCount;
+    }
 
 }
