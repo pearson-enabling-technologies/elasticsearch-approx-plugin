@@ -11,11 +11,12 @@ import java.util.List;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
+import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
 import org.elasticsearch.common.trove.procedure.TLongIntProcedure;
 import org.elasticsearch.search.facet.Facet;
 
-public class InternalCountingFacet extends TimeFacet<TimePeriod<NullEntry>> {
+public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
 
     private TLongIntHashMap _counts;
 
@@ -25,6 +26,24 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<NullEntry>> {
     private static final TLongIntHashMap EMPTY = new TLongIntHashMap();
     private static final String TYPE = "counting_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
+
+    static Stream STREAM = new Stream() {
+        @Override
+        public Facet readFacet(final StreamInput in) throws IOException {
+            return readHistogramFacet(in);
+        }
+    };
+
+    public static InternalCountingFacet readHistogramFacet(final StreamInput in) throws IOException {
+        final InternalCountingFacet facet = new InternalCountingFacet();
+        facet.readFrom(in);
+        return facet;
+    }
+
+    // Only for deserialization
+    protected InternalCountingFacet() {
+        super("not set");
+    }
 
     public InternalCountingFacet(final String name, final TLongIntHashMap counts) {
         super(name);

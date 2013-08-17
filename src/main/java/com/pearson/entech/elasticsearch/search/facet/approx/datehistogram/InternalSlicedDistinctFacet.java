@@ -12,6 +12,7 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
+import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
@@ -22,7 +23,7 @@ import org.elasticsearch.search.facet.Facet;
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
 public class InternalSlicedDistinctFacet
-        extends TimeFacet<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>>
+        extends DateFacet<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>>
         implements HasDistinct {
 
     private ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> _counts;
@@ -34,6 +35,24 @@ public class InternalSlicedDistinctFacet
     private static final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> EMPTY = CacheRecycler.popLongObjectMap();
     private static final String TYPE = "sliced_distinct_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
+
+    static Stream STREAM = new Stream() {
+        @Override
+        public Facet readFacet(final StreamInput in) throws IOException {
+            return readHistogramFacet(in);
+        }
+    };
+
+    public static InternalSlicedDistinctFacet readHistogramFacet(final StreamInput in) throws IOException {
+        final InternalSlicedDistinctFacet facet = new InternalSlicedDistinctFacet();
+        facet.readFrom(in);
+        return facet;
+    }
+
+    // Only for deserialization
+    protected InternalSlicedDistinctFacet() {
+        super("not set");
+    }
 
     public InternalSlicedDistinctFacet(final String facetName,
             final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts) {

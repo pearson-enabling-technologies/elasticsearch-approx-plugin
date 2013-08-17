@@ -11,11 +11,11 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.InternalFacet;
 
-public abstract class TimeFacet<P extends ToXContent> extends InternalFacet {
+public abstract class DateFacet<P extends ToXContent> extends InternalFacet {
 
     private long _totalCount;
 
-    public TimeFacet(final String name) {
+    public DateFacet(final String name) {
         super(name);
     }
 

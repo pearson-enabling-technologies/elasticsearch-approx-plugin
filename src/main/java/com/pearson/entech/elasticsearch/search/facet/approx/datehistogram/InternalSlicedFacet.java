@@ -20,7 +20,7 @@ import org.elasticsearch.common.trove.procedure.TObjectIntProcedure;
 import org.elasticsearch.common.trove.procedure.TObjectProcedure;
 import org.elasticsearch.search.facet.Facet;
 
-public class InternalSlicedFacet extends TimeFacet<TimePeriod<XContentEnabledList<Slice<String>>>> {
+public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledList<Slice<String>>>> {
 
     private ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
 
@@ -37,10 +37,21 @@ public class InternalSlicedFacet extends TimeFacet<TimePeriod<XContentEnabledLis
 
     static Stream STREAM = new Stream() {
         @Override
-        public Facet readFacet(final String type, final StreamInput in) throws IOException {
+        public Facet readFacet(final StreamInput in) throws IOException {
             return readHistogramFacet(in);
         }
     };
+
+    public static InternalSlicedFacet readHistogramFacet(final StreamInput in) throws IOException {
+        final InternalSlicedFacet facet = new InternalSlicedFacet();
+        facet.readFrom(in);
+        return facet;
+    }
+
+    // Only for deserialization
+    private InternalSlicedFacet() {
+        super("not set");
+    }
 
     public InternalSlicedFacet(final String facetName, final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> counts) {
         super(facetName);

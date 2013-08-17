@@ -11,13 +11,14 @@ import java.util.List;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
+import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
 import org.elasticsearch.search.facet.Facet;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
-public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<NullEntry>> implements HasDistinct {
+public class InternalDistinctFacet extends DateFacet<DistinctTimePeriod<NullEntry>> implements HasDistinct {
 
     private ExtTLongObjectHashMap<DistinctCountPayload> _counts;
 
@@ -28,6 +29,24 @@ public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<NullEntr
     private static final ExtTLongObjectHashMap<DistinctCountPayload> EMPTY = new ExtTLongObjectHashMap<DistinctCountPayload>();
     private static final String TYPE = "distinct_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
+
+    static Stream STREAM = new Stream() {
+        @Override
+        public Facet readFacet(final StreamInput in) throws IOException {
+            return readHistogramFacet(in);
+        }
+    };
+
+    public static InternalDistinctFacet readHistogramFacet(final StreamInput in) throws IOException {
+        final InternalDistinctFacet facet = new InternalDistinctFacet();
+        facet.readFrom(in);
+        return facet;
+    }
+
+    // Only for deserialization
+    protected InternalDistinctFacet() {
+        super("not set");
+    }
 
     public InternalDistinctFacet(final String name, final ExtTLongObjectHashMap<DistinctCountPayload> counts) {
         super(name);
