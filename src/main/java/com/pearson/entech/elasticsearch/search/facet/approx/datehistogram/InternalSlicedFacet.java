@@ -7,8 +7,6 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
-import org.elasticsearch.common.trove.map.TLongObjectMap;
-import org.elasticsearch.common.trove.map.hash.TLongObjectHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
 import org.elasticsearch.common.trove.procedure.TObjectIntProcedure;
@@ -24,7 +22,7 @@ public class InternalSlicedFacet extends InternalFacet {
     private final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
     private final ComparatorType _comparatorType;
 
-    private static final TLongObjectMap<TObjectIntHashMap<BytesRef>> EMPTY = new TLongObjectHashMap<TObjectIntHashMap<BytesRef>>();
+    private static final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> EMPTY = new ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>>();
 
     public InternalSlicedFacet(final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> counts, final ComparatorType comparatorType) {
         _counts = counts;
@@ -63,6 +61,8 @@ public class InternalSlicedFacet extends InternalFacet {
                 source.releaseCache();
             }
             return target;
+        } else {
+            return new InternalSlicedFacet(EMPTY, _comparatorType);
         }
     }
 
@@ -86,17 +86,15 @@ public class InternalSlicedFacet extends InternalFacet {
         @Override
         public boolean execute(final long time, final TObjectIntHashMap<BytesRef> slices) {
             // Does this time period exist in the target facet?
-            final TObjectIntHashMap<BytesRef> targetPeriod = target._counts.get(time);
-            if(targetPeriod != null) {
-                // Add or update all slices
-                _mergeSlices.target = targetPeriod;
-                slices.forEachEntry(_mergeSlices);
-                _mergeSlices.target = null; // Avoid risk of garbage leaks
-            } else {
-                // Just copy the whole period wholesale
-                target._counts.put(time, new TObjectIntHashMap<BytesRef>(slices));
-                // Copy instead of reference, to isolate target from source cleanup
-            }
+            TObjectIntHashMap<BytesRef> targetPeriod = target._counts.get(time);
+            // If not, then pull one from the object cache to use
+            if(targetPeriod == null)
+                targetPeriod = target._counts.put(time, CacheRecycler.<BytesRef> popObjectIntMap());
+
+            // Add or update all slices
+            _mergeSlices.target = targetPeriod;
+            slices.forEachEntry(_mergeSlices);
+            _mergeSlices.target = null; // Avoid risk of garbage leaks
             return true;
         }
 

@@ -35,7 +35,6 @@ public class InternalCountingFacet extends InternalFacet {
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
         // TODO Auto-generated method stub
         releaseCache();
-        return null;
     }
 
     @Override

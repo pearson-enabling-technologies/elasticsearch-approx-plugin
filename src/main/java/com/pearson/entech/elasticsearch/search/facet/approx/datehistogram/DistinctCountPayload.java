@@ -3,6 +3,7 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 import java.io.IOException;
 
 import org.elasticsearch.ElasticSearchException;
+import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
@@ -67,6 +68,18 @@ public class DistinctCountPayload {
     }
 
     DistinctCountPayload mergeInto(final TLongObjectMap<DistinctCountPayload> map, final long key) {
+        if(map.containsKey(key))
+            try {
+                map.put(key, this.merge(map.get(key)));
+            } catch(final CardinalityMergeException e) {
+                throw new ElasticSearchException("Unable to merge two facet cardinality objects", e);
+            }
+        else
+            map.put(key, this);
+        return this;
+    }
+
+    <K> DistinctCountPayload mergeInto(final ExtTHashMap<K, DistinctCountPayload> map, final K key) {
         if(map.containsKey(key))
             try {
                 map.put(key, this.merge(map.get(key)));

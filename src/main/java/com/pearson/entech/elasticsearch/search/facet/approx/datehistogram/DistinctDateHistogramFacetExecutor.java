@@ -11,7 +11,6 @@ import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
 import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
-import org.elasticsearch.common.trove.procedure.TObjectProcedure;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.index.fielddata.LongValues.Iter;
@@ -64,6 +63,8 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     // TODO keep track of totals and missing values
     // TODO replace "new DistinctCountPayload()" with an object cache
     // TODO rename max_exact_per_shard to exact_threshold
+    // TODO make these collectors static classes, or break them out (to avoid ref. to executor)
+    // TODO memoize tz calculations
 
     private class CountingCollector extends BuildableCollector {
 
@@ -211,9 +212,6 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
             final InternalFacet facet = new InternalDistinctFacet(_counts, _comparatorType);
             _keyFieldValues = null;
             _distinctFieldValues = null;
-
-            // TODO move this logic to internal facet
-            CacheRecycler.pushLongObjectMap(_counts);
             return facet;
         }
 
@@ -283,16 +281,6 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
             _keyFieldValues = null;
             _distinctFieldValues = null;
             _sliceFieldValues = null;
-
-            // TODO move this logic to internal facet
-            _counts.forEachValue(new TObjectProcedure<ExtTHashMap<BytesRef, DistinctCountPayload>>() {
-                @Override
-                public boolean execute(final ExtTHashMap<BytesRef, DistinctCountPayload> subMap) {
-                    CacheRecycler.pushHashMap(subMap);
-                    return true;
-                }
-            });
-            CacheRecycler.pushLongObjectMap(_counts);
             return facet;
         }
 
