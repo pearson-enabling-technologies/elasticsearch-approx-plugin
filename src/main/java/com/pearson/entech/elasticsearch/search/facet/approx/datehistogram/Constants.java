@@ -22,4 +22,6 @@ public interface Constants {
 
     static final XContentBuilderString SLICE_FIELD = new XContentBuilderString("slice_field");
 
+    static final XContentBuilderString TERM = new XContentBuilderString("term");
+
 }

@@ -69,7 +69,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     // TODO support other slice labels apart from String?
     // TODO register streams
     // TODO replace NullEntry with a mixin for having an entry, maybe
-    // TODO surface the slice field name in the XContent for each time period?
+    // TODO surface the slice field and the distinct field name in the results
 
     private class CountingCollector extends BuildableCollector {
 

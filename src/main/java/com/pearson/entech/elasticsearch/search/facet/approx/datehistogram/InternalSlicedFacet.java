@@ -2,7 +2,6 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -15,15 +14,14 @@ import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
 import org.elasticsearch.common.trove.procedure.TObjectIntProcedure;
 import org.elasticsearch.common.trove.procedure.TObjectProcedure;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.Facet;
 
-public class InternalSlicedFacet extends TimeFacet<TimePeriod<List<Slice<String>>>> {
+public class InternalSlicedFacet extends TimeFacet<TimePeriod<XContentEnabledList<Slice<String>>>> {
 
     private final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
 
     private long _total;
-    private List<TimePeriod<List<Slice<String>>>> _periods;
+    private List<TimePeriod<XContentEnabledList<Slice<String>>>> _periods;
 
     private static final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> EMPTY = new ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>>();
     private static final String TYPE = "sliced_date_histogram";
@@ -41,7 +39,7 @@ public class InternalSlicedFacet extends TimeFacet<TimePeriod<List<Slice<String>
     }
 
     @Override
-    public List<TimePeriod<List<Slice<String>>>> getTimePeriods() {
+    public List<TimePeriod<XContentEnabledList<Slice<String>>>> getTimePeriods() {
         materialize();
         return _periods;
     }
@@ -54,12 +52,6 @@ public class InternalSlicedFacet extends TimeFacet<TimePeriod<List<Slice<String>
     @Override
     public BytesReference streamType() {
         return STREAM_TYPE;
-    }
-
-    @Override
-    public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
-        // TODO Auto-generated method stub
-        releaseCache();
     }
 
     @Override
@@ -148,11 +140,11 @@ public class InternalSlicedFacet extends TimeFacet<TimePeriod<List<Slice<String>
 
     private static final class PeriodMaterializer implements TLongObjectProcedure<TObjectIntHashMap<BytesRef>> {
 
-        private List<TimePeriod<List<Slice<String>>>> _target;
+        private List<TimePeriod<XContentEnabledList<Slice<String>>>> _target;
         private long[] _counter;
 
-        public void init(final List<TimePeriod<List<Slice<String>>>> target, final long[] counter) {
-            _target = target;
+        public void init(final List<TimePeriod<XContentEnabledList<Slice<String>>>> _periods, final long[] counter) {
+            _target = _periods;
             _counter = counter;
         }
 
@@ -160,12 +152,15 @@ public class InternalSlicedFacet extends TimeFacet<TimePeriod<List<Slice<String>
         @Override
         public boolean execute(final long time, final TObjectIntHashMap<BytesRef> period) {
             // First create output buffer for the slices from this period
-            final List<Slice<String>> buffer = newArrayListWithCapacity(period.size());
+            final XContentEnabledList<Slice<String>> buffer =
+                    new XContentEnabledList<Slice<String>>(period.size());
             // Then materialize the slices into it
             _materializeSlices.init(buffer, _counter);
             period.forEachEntry(_materializeSlices);
             // Finally save results
-            _target.add(new TimePeriod<List<Slice<String>>>(time, _counter[0], buffer));
+            _target.add(
+                    new TimePeriod<XContentEnabledList<Slice<String>>>(
+                            time, _counter[0], buffer));
             return true;
         }
 

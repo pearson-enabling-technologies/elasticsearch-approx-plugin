@@ -51,7 +51,7 @@ public class InternalSlicedDistinctFacet
     }
 
     @Override
-    public List<DistinctTimePeriod<List<DistinctSlice<String>>>> getTimePeriods() {
+    public List<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> getTimePeriods() {
         materialize();
         return _periods;
     }
@@ -65,8 +65,6 @@ public class InternalSlicedDistinctFacet
     public BytesReference streamType() {
         return STREAM_TYPE;
     }
-    
-    inj
 
     // TODO reduce and materialize logic is similar to InternalSlicedFacet -- factor out?
 
@@ -159,10 +157,10 @@ public class InternalSlicedDistinctFacet
 
     private static final class PeriodMaterializer implements TLongObjectProcedure<ExtTHashMap<BytesRef, DistinctCountPayload>> {
 
-        private List<DistinctTimePeriod<List<DistinctSlice<String>>>> _target;
+        private List<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> _target;
         private DistinctCountPayload _accumulator;
 
-        public void init(final List<DistinctTimePeriod<List<DistinctSlice<String>>>> _periods) {
+        public void init(final List<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> _periods) {
             _target = _periods;
             _accumulator = null;
         }
@@ -171,7 +169,8 @@ public class InternalSlicedDistinctFacet
         @Override
         public boolean execute(final long time, final ExtTHashMap<BytesRef, DistinctCountPayload> period) {
             // First create output buffer for the slices from this period
-            final List<DistinctSlice<String>> buffer = newArrayListWithCapacity(period.size());
+            final XContentEnabledList<DistinctSlice<String>> buffer =
+                    new XContentEnabledList<DistinctSlice<String>>(period.size());
             // Then materialize the slices into it, creating period-wise subtotals as we go along
             _materializeSlices.init(buffer);
             period.forEachEntry(_materializeSlices);
@@ -179,8 +178,9 @@ public class InternalSlicedDistinctFacet
             final DistinctCountPayload periodAccumulator = _materializeSlices.getAccumulator();
             final long count = periodAccumulator.getCount();
             final long cardinality = periodAccumulator.getCardinality().cardinality();
-            _target.add(new DistinctTimePeriod<List<DistinctSlice<String>>>(
-                    time, count, cardinality, buffer));
+            _target.add(
+                    new DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>(
+                            time, count, cardinality, buffer));
 
             // Save the first payload accumulator we receive, and merge the others into it
             if(_accumulator == null)
