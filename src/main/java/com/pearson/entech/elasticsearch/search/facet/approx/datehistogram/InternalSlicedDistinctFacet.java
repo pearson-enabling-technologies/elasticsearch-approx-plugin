@@ -125,6 +125,8 @@ public class InternalSlicedDistinctFacet
     }
 
     private synchronized void materialize() {
+        if(_periods != null)
+            return;
         _periods = newArrayListWithCapacity(_periods.size());
         final long[] counter = { 0 };
         _materializePeriods.init(_periods);

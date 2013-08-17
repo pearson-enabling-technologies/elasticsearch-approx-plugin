@@ -118,6 +118,8 @@ public class InternalDistinctFacet extends DateFacet<DistinctTimePeriod<NullEntr
     // TODO better checking for 0-length collections
 
     private synchronized void materialize() {
+        if(_periods != null)
+            return;
         _periods = newArrayListWithCapacity(_counts.size());
         _materializePeriod.init(_periods);
         _counts.forEachEntry(_materializePeriod);
