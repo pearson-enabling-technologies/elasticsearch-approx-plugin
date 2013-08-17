@@ -134,19 +134,19 @@ public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<Long>> i
     private static final class PeriodMaterializer implements TLongObjectProcedure<DistinctCountPayload> {
 
         private List<DistinctTimePeriod<Long>> _target;
-        private DistinctCountPayload _totalizer;
+        private DistinctCountPayload _accumulator;
 
         public void init(final List<DistinctTimePeriod<Long>> target) {
             _target = target;
-            _totalizer = null;
+            _accumulator = null;
         }
 
         public long getOverallTotal() {
-            return _totalizer.getCount();
+            return _accumulator.getCount();
         }
 
         public long getOverallDistinct() {
-            return _totalizer.getCardinality().cardinality();
+            return _accumulator.getCardinality().cardinality();
         }
 
         // Called once per period
@@ -156,11 +156,12 @@ public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<Long>> i
             final long cardinality = payload.getCardinality().cardinality();
             _target.add(new DistinctTimePeriod<Long>(time, count, cardinality));
 
-            if(_totalizer == null)
-                _totalizer = payload;
+            // Save the first payload we receive, and merge the others into it
+            if(_accumulator == null)
+                _accumulator = payload;
             else
                 try {
-                    _totalizer.merge(payload);
+                    _accumulator.merge(payload);
                 } catch(final CardinalityMergeException e) {
                     throw new IllegalStateException(e);
                 }

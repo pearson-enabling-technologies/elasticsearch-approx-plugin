@@ -18,6 +18,8 @@ import org.elasticsearch.common.trove.procedure.TObjectProcedure;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.Facet;
 
+import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
+
 public class InternalSlicedDistinctFacet extends TimeFacet<DistinctTimePeriod<List<DistinctSlice<String>>>> implements HasDistinct {
 
     private final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> _counts;
@@ -151,6 +153,62 @@ public class InternalSlicedDistinctFacet extends TimeFacet<DistinctTimePeriod<Li
             public boolean execute(final BytesRef sliceLabel, final DistinctCountPayload payload) {
                 payload.mergeInto(target, sliceLabel);
                 return true;
+            }
+
+        }
+
+    }
+
+    private final PeriodMaterializer _materializePeriods = new PeriodMaterializer();
+
+    private static final class PeriodMaterializer implements TLongObjectProcedure<ExtTHashMap<BytesRef, DistinctCountPayload>> {
+
+        private List<TimePeriod<List<Slice<String>>>> _target;
+        private List<DistinctCountPayload> _subtotals;
+        private DistinctCountPayload _accumulator;
+
+        public void init(final List<TimePeriod<List<Slice<String>>>> target, final List<DistinctCountPayload> subtotals) {
+            _target = target;
+            _subtotals = subtotals;
+        }
+
+        // Called once per time period
+        @Override
+        public boolean execute(final long time, final ExtTHashMap<BytesRef, DistinctCountPayload> period) {
+            // First create output buffer for the slices from this period
+            final List<Slice<String>> buffer = newArrayListWithCapacity(period.size());
+            // Then materialize the slices into it, creating period-wise subtotals as we go along
+            _materializeSlices.init(buffer);
+            period.forEachEntry(_materializeSlices);
+            // Save materialization results, and subtotals
+            _target.add(new TimePeriod<List<Slice<String>>>(time, buffer));
+            final DistinctCountPayload accumulator = _materializeSlices.getAccumulator();
+            _subtotals.add(accumulator);
+
+            // Save the first payload accumulator we receive, and merge the others into it
+            if(_accumulator == null)
+                _accumulator = accumulator;
+            else
+                try {
+                    _accumulator.merge(accumulator);
+                } catch(final CardinalityMergeException e) {
+                    throw new IllegalStateException(e);
+                }
+            return true;
+        }
+
+        private final SliceMaterializer _materializeSlices = new SliceMaterializer();
+
+        private static class SliceMaterializer implements TObjectObjectProcedure<BytesRef, DistinctCountPayload> {
+
+            public void init(final List<Slice<String>> buffer) {
+                // TODO Auto-generated method stub
+
+            }
+
+            public DistinctCountPayload getAccumulator() {
+                // TODO Auto-generated method stub
+                return null;
             }
 
         }
