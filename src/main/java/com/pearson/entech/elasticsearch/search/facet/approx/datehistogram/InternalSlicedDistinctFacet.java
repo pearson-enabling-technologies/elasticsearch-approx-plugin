@@ -29,7 +29,7 @@ public class InternalSlicedDistinctFacet extends TimeFacet<DistinctTimePeriod<Li
     private long _distinctCount;
 
     private static final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> EMPTY = CacheRecycler.popLongObjectMap();
-    private static final String TYPE = "SlicedDistinctDateHistogramFacet";
+    private static final String TYPE = "sliced_distinct_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
     public InternalSlicedDistinctFacet(final String facetName,
@@ -45,7 +45,7 @@ public class InternalSlicedDistinctFacet extends TimeFacet<DistinctTimePeriod<Li
     }
 
     @Override
-    public long getTotal() {
+    public long getTotalCount() {
         materialize();
         return _total;
     }
@@ -96,7 +96,7 @@ public class InternalSlicedDistinctFacet extends TimeFacet<DistinctTimePeriod<Li
     private synchronized void materialize() {
         _periods = newArrayListWithCapacity(_periods.size());
         final long[] counter = { 0 };
-        _materializePeriods.init(_periods, counter);
+        _materializePeriods.init(_periods);
         _counts.forEachEntry(_materializePeriods);
         Collections.sort(_periods, ChronologicalOrder.INSTANCE);
         _total = counter[0];
@@ -163,52 +163,76 @@ public class InternalSlicedDistinctFacet extends TimeFacet<DistinctTimePeriod<Li
 
     private static final class PeriodMaterializer implements TLongObjectProcedure<ExtTHashMap<BytesRef, DistinctCountPayload>> {
 
-        private List<TimePeriod<List<Slice<String>>>> _target;
-        private List<DistinctCountPayload> _subtotals;
+        private List<DistinctTimePeriod<List<DistinctSlice<String>>>> _target;
         private DistinctCountPayload _accumulator;
 
-        public void init(final List<TimePeriod<List<Slice<String>>>> target, final List<DistinctCountPayload> subtotals) {
-            _target = target;
-            _subtotals = subtotals;
+        public void init(final List<DistinctTimePeriod<List<DistinctSlice<String>>>> _periods) {
+            _target = _periods;
+            _accumulator = null;
         }
 
         // Called once per time period
         @Override
         public boolean execute(final long time, final ExtTHashMap<BytesRef, DistinctCountPayload> period) {
             // First create output buffer for the slices from this period
-            final List<Slice<String>> buffer = newArrayListWithCapacity(period.size());
+            final List<DistinctSlice<String>> buffer = newArrayListWithCapacity(period.size());
             // Then materialize the slices into it, creating period-wise subtotals as we go along
             _materializeSlices.init(buffer);
             period.forEachEntry(_materializeSlices);
-            // Save materialization results, and subtotals
-            _target.add(new TimePeriod<List<Slice<String>>>(time, buffer));
-            final DistinctCountPayload accumulator = _materializeSlices.getAccumulator();
-            _subtotals.add(accumulator);
+            // Save materialization results, and period-wise subtotals
+            final DistinctCountPayload periodAccumulator = _materializeSlices.getAccumulator();
+            final long count = periodAccumulator.getCount();
+            final long cardinality = periodAccumulator.getCardinality().cardinality();
+            _target.add(new DistinctTimePeriod<List<DistinctSlice<String>>>(
+                    time, count, cardinality, buffer));
 
             // Save the first payload accumulator we receive, and merge the others into it
             if(_accumulator == null)
-                _accumulator = accumulator;
+                _accumulator = periodAccumulator;
             else
                 try {
-                    _accumulator.merge(accumulator);
+                    _accumulator.merge(periodAccumulator);
                 } catch(final CardinalityMergeException e) {
                     throw new IllegalStateException(e);
                 }
             return true;
         }
 
+        // TODO we could add slice-wise totals and distincts too
+
         private final SliceMaterializer _materializeSlices = new SliceMaterializer();
 
         private static class SliceMaterializer implements TObjectObjectProcedure<BytesRef, DistinctCountPayload> {
 
-            public void init(final List<Slice<String>> buffer) {
-                // TODO Auto-generated method stub
+            private List<DistinctSlice<String>> _target;
+            private DistinctCountPayload _accumulator;
 
+            public void init(final List<DistinctSlice<String>> target) {
+                _target = target;
+                _accumulator = null;
             }
 
             public DistinctCountPayload getAccumulator() {
-                // TODO Auto-generated method stub
-                return null;
+                return _accumulator;
+            }
+
+            // Called once for each slice in a period
+            @Override
+            public boolean execute(final BytesRef key, final DistinctCountPayload payload) {
+                _target.add(new DistinctSlice<String>(key.utf8ToString(),
+                        payload.getCount(), payload.getCardinality().cardinality()));
+
+                // Save the first payload we receive, and merge the others into it
+                if(_accumulator == null)
+                    _accumulator = payload;
+                else
+                    try {
+                        _accumulator.merge(payload);
+                    } catch(final CardinalityMergeException e) {
+                        throw new IllegalStateException(e);
+                    }
+
+                return true;
             }
 
         }

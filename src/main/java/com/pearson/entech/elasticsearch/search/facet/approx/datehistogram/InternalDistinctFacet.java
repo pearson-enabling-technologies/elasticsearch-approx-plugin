@@ -16,16 +16,16 @@ import org.elasticsearch.search.facet.Facet;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
-public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<Long>> implements HasDistinct {
+public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<NullEntry>> implements HasDistinct {
 
     private final ExtTLongObjectHashMap<DistinctCountPayload> _counts;
 
     private long _total;
-    private List<DistinctTimePeriod<Long>> _periods;
+    private List<DistinctTimePeriod<NullEntry>> _periods;
     private long _distinctCount;
 
     private static final ExtTLongObjectHashMap<DistinctCountPayload> EMPTY = new ExtTLongObjectHashMap<DistinctCountPayload>();
-    private static final String TYPE = "DistinctDateHistogramFacet";
+    private static final String TYPE = "distinct_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
     public InternalDistinctFacet(final String name, final ExtTLongObjectHashMap<DistinctCountPayload> counts) {
@@ -40,13 +40,13 @@ public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<Long>> i
     }
 
     @Override
-    public long getTotal() {
+    public long getTotalCount() {
         materialize();
         return _total;
     }
 
     @Override
-    public List<DistinctTimePeriod<Long>> getTimePeriods() {
+    public List<DistinctTimePeriod<NullEntry>> getTimePeriods() {
         materialize();
         return _periods;
     }
@@ -65,10 +65,10 @@ public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<Long>> i
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
         builder.startObject(getName());
         builder.field(Constants._TYPE, TYPE);
-        builder.field(Constants.COUNT, getTotal());
+        builder.field(Constants.COUNT, getTotalCount());
         builder.field(Constants.DISTINCT_COUNT, getDistinctCount());
         builder.startArray(Constants.ENTRIES);
-        for(final DistinctTimePeriod<Long> period : _periods) {
+        for(final DistinctTimePeriod<NullEntry> period : _periods) {
             builder.field(Constants.TIME, period.getTime());
             builder.field(Constants.COUNT, period.getEntry());
             builder.field(Constants.DISTINCT_COUNT, period.getDistinctCount());
@@ -133,10 +133,10 @@ public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<Long>> i
 
     private static final class PeriodMaterializer implements TLongObjectProcedure<DistinctCountPayload> {
 
-        private List<DistinctTimePeriod<Long>> _target;
+        private List<DistinctTimePeriod<NullEntry>> _target;
         private DistinctCountPayload _accumulator;
 
-        public void init(final List<DistinctTimePeriod<Long>> target) {
+        public void init(final List<DistinctTimePeriod<NullEntry>> target) {
             _target = target;
             _accumulator = null;
         }
@@ -154,7 +154,8 @@ public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<Long>> i
         public boolean execute(final long time, final DistinctCountPayload payload) {
             final long count = payload.getCount();
             final long cardinality = payload.getCardinality().cardinality();
-            _target.add(new DistinctTimePeriod<Long>(time, count, cardinality));
+            _target.add(new DistinctTimePeriod<NullEntry>(
+                    time, count, cardinality, NullEntry.INSTANCE));
 
             // Save the first payload we receive, and merge the others into it
             if(_accumulator == null)

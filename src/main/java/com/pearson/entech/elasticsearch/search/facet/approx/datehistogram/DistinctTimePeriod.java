@@ -4,8 +4,9 @@ public class DistinctTimePeriod<E> extends TimePeriod<E> {
 
     private final long _distinctCount;
 
-    public DistinctTimePeriod(final long time, final E entry, final long distinctCount) {
-        super(time, entry);
+    public DistinctTimePeriod(final long time, final long totalCount,
+            final long distinctCount, final E entry) {
+        super(time, totalCount, entry);
         _distinctCount = distinctCount;
     }
 

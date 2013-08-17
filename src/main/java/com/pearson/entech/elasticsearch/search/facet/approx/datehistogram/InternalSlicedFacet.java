@@ -26,7 +26,7 @@ public class InternalSlicedFacet extends TimeFacet<TimePeriod<List<Slice<String>
     private List<TimePeriod<List<Slice<String>>>> _periods;
 
     private static final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> EMPTY = new ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>>();
-    private static final String TYPE = "SlicedDateHistogramFacet";
+    private static final String TYPE = "sliced_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
     public InternalSlicedFacet(final String facetName, final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> counts) {
@@ -35,7 +35,7 @@ public class InternalSlicedFacet extends TimeFacet<TimePeriod<List<Slice<String>
     }
 
     @Override
-    public long getTotal() {
+    public long getTotalCount() {
         materialize();
         return _total;
     }
@@ -165,7 +165,7 @@ public class InternalSlicedFacet extends TimeFacet<TimePeriod<List<Slice<String>
             _materializeSlices.init(buffer, _counter);
             period.forEachEntry(_materializeSlices);
             // Finally save results
-            _target.add(new TimePeriod<List<Slice<String>>>(time, buffer));
+            _target.add(new TimePeriod<List<Slice<String>>>(time, _counter[0], buffer));
             return true;
         }
 

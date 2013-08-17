@@ -3,19 +3,20 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 public class Slice<L> {
 
     private final L _label;
-    private final long _count;
+    private final long _totalCount;
 
-    public Slice(final L label, final long count) {
+    public Slice(final L label, final long totalCount) {
         _label = label;
-        _count = count;
+        _totalCount = totalCount;
     }
 
     public L getLabel() {
         return _label;
     }
 
-    long getCount() {
-        return _count;
+    // TODO rename to getTotalCount for consistency everywhere
+    public long getCount() {
+        return _totalCount;
     }
 
 }

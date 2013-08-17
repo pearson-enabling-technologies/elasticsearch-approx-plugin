@@ -14,15 +14,15 @@ import org.elasticsearch.common.trove.procedure.TLongIntProcedure;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.Facet;
 
-public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
+public class InternalCountingFacet extends TimeFacet<TimePeriod<NullEntry>> {
 
     private final TLongIntHashMap _counts;
 
     private long _total;
-    private List<TimePeriod<Long>> _periods;
+    private List<TimePeriod<NullEntry>> _periods;
 
     private static final TLongIntHashMap EMPTY = new TLongIntHashMap();
-    private static final String TYPE = "CountingDateHistogramFacet";
+    private static final String TYPE = "counting_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
     public InternalCountingFacet(final String name, final TLongIntHashMap counts) {
@@ -31,13 +31,13 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
     }
 
     @Override
-    public long getTotal() {
+    public long getTotalCount() {
         materialize();
         return _total;
     }
 
     @Override
-    public List<TimePeriod<Long>> getTimePeriods() {
+    public List<TimePeriod<NullEntry>> getTimePeriods() {
         materialize();
         return _periods;
     }
@@ -56,9 +56,9 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
         builder.startObject(getName());
         builder.field(Constants._TYPE, TYPE);
-        builder.field(Constants.COUNT, getTotal());
+        builder.field(Constants.COUNT, getTotalCount());
         builder.startArray(Constants.ENTRIES);
-        for(final TimePeriod<Long> period : _periods) {
+        for(final TimePeriod<NullEntry> period : _periods) {
             builder.field(Constants.TIME, period.getTime());
             builder.field(Constants.COUNT, period.getEntry());
         }
@@ -121,10 +121,10 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
 
     private static final class PeriodMaterializer implements TLongIntProcedure {
 
-        private List<TimePeriod<Long>> _target;
+        private List<TimePeriod<NullEntry>> _target;
         private long[] _counter;
 
-        public void init(final List<TimePeriod<Long>> periods, final long[] counter) {
+        public void init(final List<TimePeriod<NullEntry>> periods, final long[] counter) {
             _target = periods;
             _counter = counter;
         }
@@ -132,7 +132,7 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
         // Called once per period
         @Override
         public boolean execute(final long time, final int count) {
-            _target.add(new TimePeriod<Long>(time, (long) count));
+            _target.add(new TimePeriod<NullEntry>(time, count, NullEntry.INSTANCE));
             _counter[0] = _counter[0] + count;
             return true;
         }

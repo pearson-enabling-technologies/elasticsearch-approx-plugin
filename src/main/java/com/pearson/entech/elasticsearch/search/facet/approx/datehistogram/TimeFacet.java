@@ -6,11 +6,19 @@ import org.elasticsearch.search.facet.InternalFacet;
 
 public abstract class TimeFacet<P> extends InternalFacet {
 
+    private long _totalCount;
+
     public TimeFacet(final String name) {
         super(name);
     }
 
-    public abstract long getTotal();
+    public long getTotalCount() {
+        return _totalCount;
+    }
+
+    protected void setTotalCount(final long count) {
+        _totalCount = count;
+    }
 
     public abstract List<P> getTimePeriods();
 
