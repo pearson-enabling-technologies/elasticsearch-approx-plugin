@@ -57,10 +57,10 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     }
 
     // TODO sorting (sigh)
+    // TODO tests for other facets, not just distinct
     // TODO keep track of totals and missing values
     // TODO replace "new DistinctCountPayload()" with an object cache
     // TODO rename max_exact_per_shard to exact_threshold
-    // TODO make these collectors static classes, or break them out (to avoid ref. to executor)
     // TODO memoize tz calculations?
     // TODO limits on terms used in slicing (min freq/top N)
     // TODO make interval optional, so we can just have one bucket (custom TimeZoneRounding)
@@ -68,7 +68,9 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     // TODO support other slice labels apart from String?
     // TODO replace NullEntry with a mixin for having an entry, maybe
     // TODO surface the slice field and the distinct field name in the results
-    // TODO exclude deserialized objects from CacheRecycler?
+    // TODO exclude deserialized and other "foreign" objects from CacheRecycler
+    // TODO better Java API (don't use internal classes)
+    // TODO make these collectors static classes, or break them out (to avoid ref. to executor)
 
     private class CountingCollector extends BuildableCollector {
 
@@ -195,7 +197,9 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
                     // TODO we can reduce hash lookups by getting the outer map in the outer loop
                     final DistinctCountPayload count = getSafely(_counts, time);
                     while(distinctIter.hasNext()) {
-                        count.update(distinctIter.next());
+                        final BytesRef term = distinctIter.next();
+                        final BytesRef safe = _distinctFieldValues.makeSafe(term);
+                        count.update(safe);
                     }
                 }
             }

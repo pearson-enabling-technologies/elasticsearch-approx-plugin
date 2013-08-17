@@ -317,7 +317,7 @@ public class DistinctDateHistogramFacetTest {
         }
 
         // time zone causes the dates to shift by 2:00
-        DistinctDateHistogramFacet facet = searchResponse.getFacets().facet("stats1");
+        InternalDistinctFacet facet = searchResponse.getFacets().facet("stats1");
         assertThat(facet.getName(), equalTo("stats1"));
         assertThat(facet.getEntries().size(), equalTo(2));
         assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
