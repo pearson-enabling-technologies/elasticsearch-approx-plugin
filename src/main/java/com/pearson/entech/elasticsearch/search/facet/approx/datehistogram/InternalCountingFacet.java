@@ -1,13 +1,14 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
+import static com.google.common.collect.Lists.newArrayListWithCapacity;
+
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
-import org.elasticsearch.common.joda.time.Period;
 import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
 import org.elasticsearch.common.trove.procedure.TLongIntProcedure;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -15,7 +16,6 @@ import org.elasticsearch.search.facet.Facet;
 
 public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
 
-    private final String _name;
     private final TLongIntHashMap _counts;
 
     private long _total;
@@ -27,7 +27,6 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
 
     public InternalCountingFacet(final String name, final TLongIntHashMap counts) {
         super(name);
-        _name = name;
         _counts = counts;
     }
 
@@ -49,8 +48,13 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
     }
 
     @Override
+    public BytesReference streamType() {
+        return STREAM_TYPE;
+    }
+
+    @Override
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
-        builder.startObject(_name);
+        builder.startObject(getName());
         builder.field(Constants._TYPE, TYPE);
         builder.field(Constants.COUNT, getTotal());
         builder.startArray(Constants.ENTRIES);
@@ -64,11 +68,6 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
     }
 
     @Override
-    public BytesReference streamType() {
-        return STREAM_TYPE;
-    }
-
-    @Override
     public Facet reduce(final List<Facet> facets) {
         if(facets.size() > 0) {
             // Reduce into the first facet; we will release its _counts on materializing
@@ -76,23 +75,25 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
             for(int i = 1; i < facets.size(); i++) {
                 final InternalCountingFacet source = (InternalCountingFacet) facets.get(i);
                 // For each datetime period in the new facet...
-                _mergeTimePeriods.target = target;
-                source._counts.forEachEntry(_mergeTimePeriods);
-                _mergeTimePeriods.target = null;
+                _mergePeriods.target = target;
+                source._counts.forEachEntry(_mergePeriods);
+                _mergePeriods.target = null;
                 // Release contents of source facet; no longer needed
                 source.releaseCache();
             }
             return target;
         } else {
-            return new InternalCountingFacet(_name, EMPTY);
+            return new InternalCountingFacet(getName(), EMPTY);
         }
     }
 
     private synchronized void materialize() {
-        final Period[] periods = new Period[_counts.size()];
-        _materializePeriods.init(periods);
-        _counts.forEachEntry(_materializePeriods);
-        Arrays.sort(periods);
+        _periods = newArrayListWithCapacity(_counts.size());
+        final long[] counter = { 0 };
+        _materializePeriod.init(_periods, counter);
+        _counts.forEachEntry(_materializePeriod);
+        Collections.sort(_periods, ChronologicalOrder.INSTANCE);
+        _total = counter[0];
         releaseCache();
     }
 
@@ -100,12 +101,13 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
         CacheRecycler.pushLongIntMap(_counts);
     }
 
-    private final TimePeriodMerger _mergeTimePeriods = new TimePeriodMerger();
+    private final PeriodMerger _mergePeriods = new PeriodMerger();
 
-    private static final class TimePeriodMerger implements TLongIntProcedure {
+    private static final class PeriodMerger implements TLongIntProcedure {
 
         InternalCountingFacet target;
 
+        // Called once per period
         @Override
         public boolean execute(final long time, final int count) {
             // Increment the corresponding count in the target facet, or add if not there
@@ -115,22 +117,23 @@ public class InternalCountingFacet extends TimeFacet<TimePeriod<Long>> {
 
     }
 
-    private final PeriodMaterializer _materializePeriods = new PeriodMaterializer();
+    private final PeriodMaterializer _materializePeriod = new PeriodMaterializer();
 
     private static final class PeriodMaterializer implements TLongIntProcedure {
 
-        private Period[] _target;
-        private int _pointer;
+        private List<TimePeriod<Long>> _target;
+        private long[] _counter;
 
-        public void init(final Period[] target) {
-            _target = target;
-            _pointer = 0;
+        public void init(final List<TimePeriod<Long>> periods, final long[] counter) {
+            _target = periods;
+            _counter = counter;
         }
 
+        // Called once per period
         @Override
         public boolean execute(final long time, final int count) {
-            _target[_pointer] = new Period(time, count);
-            _pointer++;
+            _target.add(new TimePeriod<Long>(time, (long) count));
+            _counter[0] = _counter[0] + count;
             return true;
         }
 

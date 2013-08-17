@@ -1,9 +1,21 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
-public interface Slice<L> {
+public class Slice<L> {
 
-    L getLabel();
+    private final L _label;
+    private final long _count;
 
-    long getCount();
+    public Slice(final L label, final long count) {
+        _label = label;
+        _count = count;
+    }
+
+    public L getLabel() {
+        return _label;
+    }
+
+    long getCount() {
+        return _count;
+    }
 
 }

@@ -52,18 +52,7 @@ public class DistinctCountPayload {
 
     DistinctCountPayload merge(final DistinctCountPayload other) throws CardinalityMergeException {
         _count += other._count;
-        final int size = other._cardinality.sizeof();
         _cardinality = CountThenEstimate.mergeEstimators(this._cardinality, other._cardinality);
-        //        if(size == -1)
-        //            System.out.println(
-        //                    String.format(
-        //                            "Merging set with %d distinct elements (%d total), new set has %d distinct elements (%d total)",
-        //                            other._cardinality.cardinality(), other._count, _cardinality.cardinality(), _count));
-        //        else
-        //            System.out.println(
-        //                    String.format(
-        //                            "Merging estimator with %d distinct elements (%d total), new set has %d distinct elements (%d total)",
-        //                            other._cardinality.cardinality(), other._count, _cardinality.cardinality(), _count));
         return this;
     }
 

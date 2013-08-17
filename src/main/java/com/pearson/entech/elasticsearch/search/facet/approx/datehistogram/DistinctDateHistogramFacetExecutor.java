@@ -18,7 +18,6 @@ import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.InternalFacet;
 
-
 public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
 
     private final TypedFieldData _keyFieldData;
@@ -28,16 +27,14 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     private final BuildableCollector _collector;
 
     private final TimeZoneRounding _tzRounding;
-    private final ComparatorType _comparatorType;
     private final int _maxExactPerShard;
 
     public DistinctDateHistogramFacetExecutor(final TypedFieldData keyFieldData, final TypedFieldData distinctFieldData, final TypedFieldData sliceFieldData,
-            final TimeZoneRounding tzRounding, final ComparatorType comparatorType, final int maxExactPerShard) {
+            final TimeZoneRounding tzRounding, final int maxExactPerShard) {
         _keyFieldData = keyFieldData;
         _distinctFieldData = distinctFieldData;
         _sliceFieldData = sliceFieldData;
         _tzRounding = tzRounding;
-        _comparatorType = comparatorType;
         _maxExactPerShard = maxExactPerShard;
         if(_distinctFieldData == null && _sliceFieldData == null)
             _collector = new CountingCollector();
@@ -51,7 +48,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
 
     @Override
     public InternalFacet buildFacet(final String facetName) {
-        return _collector.build();
+        return _collector.build(facetName);
     }
 
     @Override
@@ -59,6 +56,8 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
         return _collector;
     }
 
+    // TODO SERIALIZATION!!!
+    // TODO sorting (sigh)
     // TODO keep track of totals and missing values
     // TODO replace "new DistinctCountPayload()" with an object cache
     // TODO rename max_exact_per_shard to exact_threshold
@@ -66,6 +65,8 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     // TODO memoize tz calculations?
     // TODO limits on terms used in slicing (min freq/top N)
     // TODO make interval optional, so we can just have one bucket (custom TimeZoneRounding)
+    // TODO stop using long arrays as wrappers for counters (materialize methods)
+    // TODO support other slice labels apart from String?
 
     private class CountingCollector extends BuildableCollector {
 
@@ -96,8 +97,8 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
         public void postCollection() {}
 
         @Override
-        public InternalFacet build() {
-            final InternalFacet facet = new InternalCountingFacet(_counts, _comparatorType);
+        public InternalFacet build(final String facetName) {
+            final InternalFacet facet = new InternalCountingFacet(facetName, _counts);
             _keyFieldValues = null;
             _counts = null;
             return facet;
@@ -142,8 +143,8 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
         public void postCollection() {}
 
         @Override
-        public InternalFacet build() {
-            final InternalFacet facet = new InternalSlicedFacet(_counts, _comparatorType);
+        public InternalFacet build(final String facetName) {
+            final InternalFacet facet = new InternalSlicedFacet(facetName, _counts);
             _keyFieldValues = null;
             _sliceFieldValues = null;
             _counts = null;
@@ -209,8 +210,8 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
         public void postCollection() {}
 
         @Override
-        public InternalFacet build() {
-            final InternalFacet facet = new InternalDistinctFacet(_counts, _comparatorType);
+        public InternalFacet build(final String facetName) {
+            final InternalFacet facet = new InternalDistinctFacet(facetName, _counts);
             _keyFieldValues = null;
             _distinctFieldValues = null;
             return facet;
@@ -277,8 +278,8 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
         }
 
         @Override
-        public InternalFacet build() {
-            final InternalFacet facet = new InternalSlicedDistinctFacet(_counts, _comparatorType);
+        public InternalFacet build(final String facetName) {
+            final InternalFacet facet = new InternalSlicedDistinctFacet(facetName, _counts);
             _keyFieldValues = null;
             _distinctFieldValues = null;
             _sliceFieldValues = null;
@@ -289,7 +290,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
 
     private abstract class BuildableCollector extends Collector {
 
-        abstract InternalFacet build();
+        abstract InternalFacet build(String facetName);
 
     }
 
