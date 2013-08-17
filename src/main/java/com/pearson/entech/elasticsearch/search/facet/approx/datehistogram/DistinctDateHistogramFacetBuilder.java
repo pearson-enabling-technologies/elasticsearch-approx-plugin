@@ -41,6 +41,7 @@ public class DistinctDateHistogramFacetBuilder extends FacetBuilder {
     private String preZone = null;
     private String postZone = null;
     private Boolean preZoneAdjustLargeInterval;
+    private int exactThreshold = -1;
     long preOffset = 0;
     long postOffset = 0;
     float factor = 1.0f;
@@ -174,6 +175,15 @@ public class DistinctDateHistogramFacetBuilder extends FacetBuilder {
         return this;
     }
 
+    /**
+     * How many distinct terms can we collect in each result bucket before
+     * flipping over to approximate counting? (Distinct mode only)
+     */
+    public DistinctDateHistogramFacetBuilder exactThreshold(final int threshold) {
+        this.exactThreshold = threshold;
+        return this;
+    }
+
     public DistinctDateHistogramFacetBuilder comparator(final DateHistogramFacet.ComparatorType comparatorType) {
         this.comparatorType = comparatorType;
         return this;
@@ -252,6 +262,9 @@ public class DistinctDateHistogramFacetBuilder extends FacetBuilder {
         }
         if(factor != 1.0f) {
             builder.field("factor", factor);
+        }
+        if(exactThreshold > 0) {
+            builder.field("exact_threshold", exactThreshold);
         }
         if(comparatorType != null) {
             builder.field("comparator", comparatorType.description());

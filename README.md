@@ -39,7 +39,7 @@ counting the distinct values of).
 
 * Script fields are not yet supported.
 
-* There is an additional `max_exact_per_shard` parameter (see below).
+* There is an additional `exact_threshold` parameter (see below).
 
 The output is similar to the date histogram, except each bucket has a `count`
 (number of hits) and a `distinct_count` (distinct terms). The facet also returns
@@ -147,7 +147,7 @@ Returns something like:
 The facet works initially by keeping a hashset of all terms encountered, but
 when this grows too large, it falls back to an approximate counting method.
 
-The `max_exact_per_shard` parameter controls how many distinct values will be
+The `exact_threshold` parameter controls how many distinct values will be
 gathered for a given bucket from a single shard, before migrating to the
 approximate count instead. This can be used to keep memory usage under control.
 It defaults to 1000.

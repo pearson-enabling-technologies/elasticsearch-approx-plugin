@@ -107,7 +107,7 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         final Chronology chronology = ISOChronology.getInstanceUTC();
         XContentParser.Token token;
         String fieldName = null;
-        int maxExactPerShard = 1000;
+        int exactThreshold = 1000;
 
         while((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if(token == XContentParser.Token.FIELD_NAME) {
@@ -148,8 +148,8 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
                     */
                     //                } else if("lang".equals(fieldName)) {
                     //                    scriptLang = parser.text();
-                } else if("max_exact_per_shard".equals(fieldName) || "maxExactPerShard".equals(fieldName)) {
-                    maxExactPerShard = parser.intValue();
+                } else if("exact_threshold".equals(fieldName) || "exactThreshold".equals(fieldName)) {
+                    exactThreshold = parser.intValue();
                 }
             }
         }
@@ -184,7 +184,7 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         final TypedFieldData sliceFieldData = getFieldData(sliceField, context);
 
         return new DistinctDateHistogramFacetExecutor(keyFieldData, distinctFieldData, sliceFieldData,
-                tzRounding, maxExactPerShard);
+                tzRounding, exactThreshold);
 
         // TODO implement scripts
         /*

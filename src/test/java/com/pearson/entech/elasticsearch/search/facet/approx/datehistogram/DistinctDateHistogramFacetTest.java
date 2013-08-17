@@ -83,16 +83,15 @@ public class DistinctDateHistogramFacetTest {
     private final Random _random = new Random(0);
 
     @BeforeClass
-    public static void setUpClass() {
+    public static void setUpClass() throws InterruptedException {
         final Settings settings = ImmutableSettings.settingsBuilder()
-                .put("node.http.enabled", false)
+                //.put("node.http.enabled", false)
                 .put("index.gateway.type", "none")
                 // Reluctantly removed this to reduce overall memory:
-                //.put("index.store.type", "memory")
+                .put("index.store.type", "memory")
                 .put("index.number_of_shards", 3)
                 .put("index.number_of_replicas", 0)
-                .put("index.cache.field.type", "soft")
-                .put("index.merge.policy.merge_factor", 30)
+                .put("index.merge.policy.merge_factor", 50)
                 .put("path.data", "target")
                 .put("refresh_interval", -1)
                 .build();
@@ -102,6 +101,7 @@ public class DistinctDateHistogramFacetTest {
                 .clusterName("DistinctDateHistogramFacetTest")
                 .node();
         __node.start();
+        //Thread.sleep(30000);
     }
 
     @AfterClass
@@ -190,10 +190,10 @@ public class DistinctDateHistogramFacetTest {
                 .addFacet(new DistinctDateHistogramFacetBuilder("stats7").keyField("date").valueField("num").interval("quarter").mode(mode))
                 .execute().actionGet();
 
-        //        if(searchResponse.getFailedShards() > 0) {
-        System.out.println(searchResponse); // TODO remove all printlns
-        //            fail(Joiner.on(", ").join(searchResponse.getShardFailures()));
-        //        }
+        if(searchResponse.getFailedShards() > 0) {
+            System.out.println(searchResponse); // TODO remove all printlns
+            fail(Joiner.on(", ").join(searchResponse.getShardFailures()));
+        }
 
         InternalDistinctFacet facet = searchResponse.getFacets().facet("stats1");
         assertThat(facet.getName(), equalTo("stats1"));
@@ -478,7 +478,7 @@ public class DistinctDateHistogramFacetTest {
         // TODO test other data types
 
         // Do this 20 times for different amounts of data
-        for(int t = 1; t <= 20; t++) {
+        for(int t = 20; t <= 20; t++) {
             setUp();
             final int minPerDay = (int) pow(2, t);
             System.out.println("Randomized testing: inserting minimum " + 7 * minPerDay + " items");
@@ -550,7 +550,7 @@ public class DistinctDateHistogramFacetTest {
         return getHistogram(start, end, interval, valueField, 0);
     }
 
-    private SearchResponse getHistogram(final long start, final long end, final String interval, final String valueField, final int maxExactPerShard) {
+    private SearchResponse getHistogram(final long start, final long end, final String interval, final String valueField, final int exactThreshold) {
         final FilterBuilder range =
                 FilterBuilders.numericRangeFilter(__tsField)
                         .from(start)
@@ -560,6 +560,7 @@ public class DistinctDateHistogramFacetTest {
                         .keyField(__tsField)
                         .valueField(valueField)
                         .facetFilter(range)
+                        .exactThreshold(exactThreshold)
                         .interval(interval);
         return client().prepareSearch(__index)
                 .setSearchType(SearchType.COUNT)

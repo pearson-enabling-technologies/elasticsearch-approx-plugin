@@ -23,19 +23,19 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
     private final TimeZoneRounding tzRounding;
     private final ComparatorType comparatorType;
     final ExtTLongObjectHashMap<DistinctCountPayload> counts;
-    private final int maxExactPerShard;
+    private final int exactThreshold;
 
     public LongDistinctDateHistogramFacetExecutor(final IndexNumericFieldData keyIndexFieldData,
             final IndexNumericFieldData distinctIndexFieldData,
             final TimeZoneRounding tzRounding,
             final ComparatorType comparatorType,
-            final int maxExactPerShard) {
+            final int exactThreshold) {
         this.comparatorType = comparatorType;
         this.keyIndexFieldData = keyIndexFieldData;
         this.distinctIndexFieldData = distinctIndexFieldData;
         this.counts = CacheRecycler.popLongObjectMap();
         this.tzRounding = tzRounding;
-        this.maxExactPerShard = maxExactPerShard;
+        this.exactThreshold = exactThreshold;
     }
 
     @Override
@@ -61,7 +61,7 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
         private final DateHistogramProc histoProc;
 
         public Collector() {
-            this.histoProc = new DateHistogramProc(counts, tzRounding, maxExactPerShard);
+            this.histoProc = new DateHistogramProc(counts, tzRounding, exactThreshold);
         }
 
         @Override
@@ -89,7 +89,7 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
     public static class DateHistogramProc extends LongFacetAggregatorBase {
 
         LongValues valueValues;
-        private final int maxExactPerShard;
+        private final int exactThreshold;
         private final TimeZoneRounding tzRounding;
         final ExtTLongObjectHashMap<DistinctCountPayload> counts;
 
@@ -97,10 +97,10 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
 
         public DateHistogramProc(final ExtTLongObjectHashMap<DistinctCountPayload> counts,
                 final TimeZoneRounding tzRounding,
-                final int maxExactPerShard) {
+                final int exactThreshold) {
             this.tzRounding = tzRounding;
             this.counts = counts;
-            this.maxExactPerShard = maxExactPerShard;
+            this.exactThreshold = exactThreshold;
         }
 
         @Override
@@ -108,7 +108,7 @@ public class LongDistinctDateHistogramFacetExecutor extends FacetExecutor {
             final long time = tzRounding.calc(value);
             DistinctCountPayload count = counts.get(time);
             if(count == null) {
-                count = new DistinctCountPayload(maxExactPerShard);
+                count = new DistinctCountPayload(exactThreshold);
                 counts.put(time, count);
             }
             valueAggregator.entry = count;

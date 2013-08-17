@@ -27,15 +27,15 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     private final BuildableCollector _collector;
 
     private final TimeZoneRounding _tzRounding;
-    private final int _maxExactPerShard;
+    private final int _exactThreshold;
 
     public DistinctDateHistogramFacetExecutor(final TypedFieldData keyFieldData, final TypedFieldData distinctFieldData, final TypedFieldData sliceFieldData,
-            final TimeZoneRounding tzRounding, final int maxExactPerShard) {
+            final TimeZoneRounding tzRounding, final int exactThreshold) {
         _keyFieldData = keyFieldData;
         _distinctFieldData = distinctFieldData;
         _sliceFieldData = sliceFieldData;
         _tzRounding = tzRounding;
-        _maxExactPerShard = maxExactPerShard;
+        _exactThreshold = exactThreshold;
         if(_distinctFieldData == null && _sliceFieldData == null)
             _collector = new CountingCollector();
         else if(_distinctFieldData == null)
@@ -56,11 +56,23 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
         return _collector;
     }
 
+    private byte[] copyBytes(final BytesRef term) {
+        final byte[] output = new byte[term.length];
+        System.arraycopy(term.bytes, term.offset, output, 0, term.length);
+        return output;
+    }
+
+    // TODO Huge potential performance boost for querying:
+    // Modify HyperLogLog & MurmurHash to work directly on
+    // BytesRef objects. Or just byte arrays.
+
+    // Also:
+    // Caching or otherwise speeding up TZ rounding
+
     // TODO sorting (sigh)
     // TODO tests for other facets, not just distinct
     // TODO keep track of totals and missing values
     // TODO replace "new DistinctCountPayload()" with an object cache
-    // TODO rename max_exact_per_shard to exact_threshold
     // TODO memoize tz calculations?
     // TODO limits on terms used in slicing (min freq/top N)
     // TODO make interval optional, so we can just have one bucket (custom TimeZoneRounding)
@@ -198,7 +210,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
                     final DistinctCountPayload count = getSafely(_counts, time);
                     while(distinctIter.hasNext()) {
                         final BytesRef term = distinctIter.next();
-                        final BytesRef safe = _distinctFieldValues.makeSafe(term);
+                        final byte[] safe = copyBytes(term);
                         count.update(safe);
                     }
                 }
@@ -208,7 +220,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
         private DistinctCountPayload getSafely(final TLongObjectMap<DistinctCountPayload> counts, final long key) {
             DistinctCountPayload payload = counts.get(key);
             if(payload == null) {
-                payload = new DistinctCountPayload(_maxExactPerShard);
+                payload = new DistinctCountPayload(_exactThreshold);
                 counts.put(key, payload);
             }
             return payload;
@@ -261,7 +273,9 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
                     // TODO we can reduce hash lookups by getting the outer map in the outer loop
                     final DistinctCountPayload count = getSafely(_counts, time, sliceIter.next());
                     while(distinctIter.hasNext()) {
-                        count.update(distinctIter.next());
+                        final BytesRef term = distinctIter.next();
+                        final byte[] safe = copyBytes(term);
+                        count.update(safe);
                     }
                 }
             }
@@ -280,7 +294,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
             }
             DistinctCountPayload payload = subMap.get(key2);
             if(payload == null) {
-                payload = counts.get(key1).put(key2, new DistinctCountPayload(_maxExactPerShard));
+                payload = counts.get(key1).put(key2, new DistinctCountPayload(_exactThreshold));
             }
             return payload;
         }
