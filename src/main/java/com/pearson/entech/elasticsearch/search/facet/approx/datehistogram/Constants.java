@@ -18,6 +18,8 @@ public interface Constants {
 
     static final XContentBuilderString DISTINCT_COUNT = new XContentBuilderString("distinct_count");
 
-    static final XContentBuilderString TERM = new XContentBuilderString("term");
+    static final XContentBuilderString DISTINCT_FIELD = new XContentBuilderString("distinct_field");
+
+    static final XContentBuilderString SLICE_FIELD = new XContentBuilderString("slice_field");
 
 }

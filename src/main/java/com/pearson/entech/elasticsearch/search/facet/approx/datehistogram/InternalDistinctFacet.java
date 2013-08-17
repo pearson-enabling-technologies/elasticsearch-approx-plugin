@@ -10,6 +10,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.Facet;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
@@ -57,6 +58,11 @@ public class InternalDistinctFacet extends TimeFacet<DistinctTimePeriod<NullEntr
     @Override
     public BytesReference streamType() {
         return STREAM_TYPE;
+    }
+
+    @Override
+    protected void injectHeaderXContent(final XContentBuilder builder) {
+        builder.field(Constants.DISTINCT_FIELD, _distinctField);
     }
 
     @Override
