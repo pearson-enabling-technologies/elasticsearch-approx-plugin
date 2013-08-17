@@ -18,7 +18,6 @@ import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.InternalFacet;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacet.ComparatorType;
 
 public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
 
@@ -64,7 +63,9 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     // TODO replace "new DistinctCountPayload()" with an object cache
     // TODO rename max_exact_per_shard to exact_threshold
     // TODO make these collectors static classes, or break them out (to avoid ref. to executor)
-    // TODO memoize tz calculations
+    // TODO memoize tz calculations?
+    // TODO limits on terms used in slicing (min freq/top N)
+    // TODO make interval optional, so we can just have one bucket (custom TimeZoneRounding)
 
     private class CountingCollector extends BuildableCollector {
 

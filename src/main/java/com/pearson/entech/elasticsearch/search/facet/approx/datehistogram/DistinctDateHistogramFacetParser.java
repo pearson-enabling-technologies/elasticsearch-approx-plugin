@@ -104,7 +104,7 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         long postOffset = 0;
         float factor = 1.0f;
         final Chronology chronology = ISOChronology.getInstanceUTC();
-        DistinctDateHistogramFacet.ComparatorType comparatorType = DistinctDateHistogramFacet.ComparatorType.TIME;
+        ComparatorType comparatorType = ComparatorType.TIME;
         XContentParser.Token token;
         String fieldName = null;
         int maxExactPerShard = 1000;
@@ -147,7 +147,7 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
                     valueScript = parser.text();
                     */
                 } else if("order".equals(fieldName) || "comparator".equals(fieldName)) {
-                    comparatorType = DistinctDateHistogramFacet.ComparatorType.fromString(parser.text());
+                    comparatorType = ComparatorType.fromString(parser.text());
                 } else if("lang".equals(fieldName)) {
                     scriptLang = parser.text();
                 } else if("max_exact_per_shard".equals(fieldName) || "maxExactPerShard".equals(fieldName)) {

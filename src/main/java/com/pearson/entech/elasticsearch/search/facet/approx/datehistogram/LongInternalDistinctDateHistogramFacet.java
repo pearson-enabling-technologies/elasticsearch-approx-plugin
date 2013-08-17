@@ -8,7 +8,6 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.search.facet.Facet;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacet.ComparatorType;
 
 public class LongInternalDistinctDateHistogramFacet extends InternalDistinctDateHistogramFacet {
 

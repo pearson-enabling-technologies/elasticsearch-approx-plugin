@@ -15,7 +15,6 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.InternalFacet;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacet.ComparatorType;
 
 public class InternalSlicedDistinctFacet extends InternalFacet {
 
@@ -80,10 +79,12 @@ public class InternalSlicedDistinctFacet extends InternalFacet {
         @Override
         public boolean execute(final long time, final ExtTHashMap<BytesRef, DistinctCountPayload> slices) {
             // Does this time period exist in the target facet?
-            final ExtTHashMap<BytesRef, DistinctCountPayload> targetPeriod = target._counts.get(time);
+            ExtTHashMap<BytesRef, DistinctCountPayload> targetPeriod = target._counts.get(time);
             // If not, then pull one from the object cache to use
-            if(targetPeriod == null)
-                target._counts.put(time, CacheRecycler.<BytesRef, DistinctCountPayload> popHashMap());
+            if(targetPeriod == null) {
+                targetPeriod = CacheRecycler.popHashMap();
+                target._counts.put(time, targetPeriod);
+            }
 
             // Add or update all slices
             _mergeSlices.target = targetPeriod;
