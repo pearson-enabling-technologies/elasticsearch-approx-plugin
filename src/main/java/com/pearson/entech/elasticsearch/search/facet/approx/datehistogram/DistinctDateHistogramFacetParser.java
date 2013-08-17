@@ -72,8 +72,10 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
     @Override
     public String[] types() {
         return new String[] {
-                StringInternalDistinctDateHistogramFacet.TYPE,
-                LongInternalDistinctDateHistogramFacet.TYPE
+                InternalCountingFacet.TYPE,
+                InternalDistinctFacet.TYPE,
+                InternalSlicedFacet.TYPE,
+                InternalSlicedDistinctFacet.TYPE
         };
     }
 

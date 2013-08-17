@@ -203,8 +203,10 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
 
         private DistinctCountPayload getSafely(final TLongObjectMap<DistinctCountPayload> counts, final long key) {
             DistinctCountPayload payload = counts.get(key);
-            if(payload == null)
-                payload = counts.put(key, new DistinctCountPayload(_maxExactPerShard));
+            if(payload == null) {
+                payload = new DistinctCountPayload(_maxExactPerShard);
+                counts.put(key, payload);
+            }
             return payload;
         }
 

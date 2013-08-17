@@ -29,6 +29,14 @@ public abstract class DateFacet<P extends ToXContent> extends InternalFacet {
 
     public abstract List<P> getTimePeriods();
 
+    public List<P> getEntries() {
+        return getTimePeriods();
+    }
+
+    public List<P> entries() {
+        return getTimePeriods();
+    }
+
     @Override
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
         builder.startObject(getName());

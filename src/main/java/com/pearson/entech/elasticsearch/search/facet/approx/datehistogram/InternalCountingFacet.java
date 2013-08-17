@@ -24,7 +24,7 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
     private List<TimePeriod<NullEntry>> _periods;
 
     private static final TLongIntHashMap EMPTY = new TLongIntHashMap();
-    private static final String TYPE = "counting_date_histogram";
+    static final String TYPE = "counting_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
     public static void registerStreams() {

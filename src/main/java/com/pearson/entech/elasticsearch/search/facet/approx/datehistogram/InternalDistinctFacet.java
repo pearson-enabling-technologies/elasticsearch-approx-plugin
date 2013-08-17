@@ -27,7 +27,7 @@ public class InternalDistinctFacet extends DateFacet<DistinctTimePeriod<NullEntr
     private long _distinctCount;
 
     private static final ExtTLongObjectHashMap<DistinctCountPayload> EMPTY = new ExtTLongObjectHashMap<DistinctCountPayload>();
-    private static final String TYPE = "distinct_date_histogram";
+    static final String TYPE = "distinct_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
     public static void registerStreams() {
@@ -161,11 +161,13 @@ public class InternalDistinctFacet extends DateFacet<DistinctTimePeriod<NullEntr
         }
 
         public long getOverallTotal() {
-            return _accumulator.getCount();
+            return _accumulator == null ?
+                    0 : _accumulator.getCount();
         }
 
         public long getOverallDistinct() {
-            return _accumulator.getCardinality().cardinality();
+            return _accumulator == null ?
+                    0 : _accumulator.getCardinality().cardinality();
         }
 
         // Called once per period

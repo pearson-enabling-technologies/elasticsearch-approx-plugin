@@ -28,7 +28,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
     private List<TimePeriod<XContentEnabledList<Slice<String>>>> _periods;
 
     private static final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> EMPTY = new ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>>();
-    private static final String TYPE = "sliced_date_histogram";
+    static final String TYPE = "sliced_date_histogram";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
     public static void registerStreams() {
