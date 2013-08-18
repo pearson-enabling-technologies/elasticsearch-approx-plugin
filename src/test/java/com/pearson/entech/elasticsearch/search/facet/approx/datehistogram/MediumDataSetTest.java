@@ -23,19 +23,19 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 
-public class MediumDataSetTest {
+public abstract class MediumDataSetTest {
 
-    private static Node __node;
+    protected static Node __node;
 
-    private final static String _dataDir = "src/test/resources/data";
+    protected final static String _dataDir = "src/test/resources/data";
 
-    private final String _index = "testtable_20130506";
+    protected final String _index = "testtable_20130506";
 
-    private final String _type = "*";
+    protected final String _type = "*";
 
-    private final Random _random = new Random(0);
+    protected final Random _random = new Random(0);
 
-    private final String _distinctExactDir = "src/test/resources/distinct_exact/";
+    protected final String _distinctExactDir = "src/test/resources/distinct_exact/";
 
     @BeforeClass
     public static void setUpClass() throws Exception {
@@ -85,37 +85,7 @@ public class MediumDataSetTest {
         Thread.sleep(10000000);
     }
 
-    @Test
-    public void testMinuteIntervalUnboundedStringExact() throws Exception {
-        compareHitsAndFacets(_distinctExactDir + "minute_interval_unbounded_string");
-    }
-
-    @Test
-    public void testHourIntervalUnboundedDoubleExact() throws Exception {
-        compareHitsAndFacets(_distinctExactDir + "hour_interval_unbounded_double");
-    }
-
-    @Test
-    public void testHourIntervalUnboundedDoubleListExact() throws Exception {
-        compareHitsAndFacets(_distinctExactDir + "hour_interval_unbounded_double_list");
-    }
-
-    @Test
-    public void testMinuteIntervalUnboundedLongExact() throws Exception {
-        compareHitsAndFacets(_distinctExactDir + "minute_interval_unbounded_long");
-    }
-
-    @Test
-    public void testDayIntervalLondonUnboundedExact() throws Exception {
-        compareHitsAndFacets(_distinctExactDir + "day_interval_london_unbounded_boolean");
-    }
-
-    @Test
-    public void testDayIntervalKolkataUnboundedExact() throws Exception {
-        compareHitsAndFacets(_distinctExactDir + "day_interval_kolkata_unbounded_boolean");
-    }
-
-    private void compareHitsAndFacets(final String fileStem) throws Exception {
+    protected void compareHitsAndFacets(final String fileStem) throws Exception {
         final String reqFileName = fileStem + "-REQUEST.json";
         final String respFileName = fileStem + "-RESPONSE.json";
         final JSONObject response = jsonRequest(_index, _type, reqFileName);
@@ -123,7 +93,7 @@ public class MediumDataSetTest {
         compare(expected, response, "hits", "facets");
     }
 
-    private void compare(final JSONObject expected, final JSONObject response, final String... fields) throws Exception {
+    protected void compare(final JSONObject expected, final JSONObject response, final String... fields) throws Exception {
         for(final String field : fields) {
             final JSONObject exp = expected.getJSONObject(field);
             final JSONObject resp = response.getJSONObject(field);
@@ -137,7 +107,7 @@ public class MediumDataSetTest {
         }
     }
 
-    private JSONObject jsonRequest(final String index, final String type, final String filename) throws Exception {
+    protected JSONObject jsonRequest(final String index, final String type, final String filename) throws Exception {
         final SearchResponse response = client().prepareSearch(index)
                 .setSource(getFile(filename))
                 .setSearchType(SearchType.COUNT)
@@ -146,15 +116,15 @@ public class MediumDataSetTest {
         return new JSONObject(response.toString());
     }
 
-    private Client client() {
+    protected Client client() {
         return __node.client();
     }
 
-    private String getFile(final String filename) throws FileNotFoundException {
+    protected String getFile(final String filename) throws FileNotFoundException {
         return new Scanner(new File(filename)).useDelimiter("\\Z").next();
     }
 
-    private JSONObject getJsonFile(final String filename) throws Exception {
+    protected JSONObject getJsonFile(final String filename) throws Exception {
         return new JSONObject(getFile(filename));
     }
 }
