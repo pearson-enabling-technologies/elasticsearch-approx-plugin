@@ -218,9 +218,10 @@ public class DateFacetExecutor extends FacetExecutor {
                 final DistinctCountPayload count = getSafely(_counts, time);
                 while(distinctIter.hasNext()) {
                     // NB this causes two conversions if the field's numeric
-                    final BytesRef term = distinctIter.next();
-                    final BytesRef safe = _distinctFieldValues.makeSafe(term);
-                    count.update(safe);
+                    final BytesRef unsafe = distinctIter.next();
+                    // Unsafe because this may change; the counter needs to make
+                    // it safe if it's going to keep hold of the bytes
+                    count.update(unsafe);
                 }
             }
         }

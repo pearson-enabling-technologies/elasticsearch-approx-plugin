@@ -32,9 +32,9 @@ public class DistinctCountPayload {
         _cardinality = new CountThenEstimateBytes(cardinality);
     }
 
-    DistinctCountPayload update(final BytesRef item) {
+    DistinctCountPayload update(final BytesRef unsafe) {
         _count++;
-        _cardinality.offerBytesRef(item);
+        _cardinality.offerBytesRef(unsafe);
         return this;
     }
 

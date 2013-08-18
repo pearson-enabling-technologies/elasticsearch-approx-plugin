@@ -144,16 +144,20 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         throw new UnsupportedOperationException();
     }
 
-    public boolean offerBytesRef(final BytesRef ref) {
+    public boolean offerBytesRef(final BytesRef unsafe) {
         boolean modified = false;
 
         if(tipped)
         {
-            modified = estimator.offer(copyBytes(ref));
+            // The estimator can use the original unsafe BytesRef as it
+            // immediately calculates a hash and throws away the contents
+            modified = estimator.offer(unsafe);
         }
         else
         {
-            if(counter.add(ref))
+            // The counter, however, must copy the bytes as they need to
+            // stay intact
+            if(counter.add(BytesRef.deepCopyOf(unsafe)))
             {
                 modified = true;
                 if(counter.size() > tippingPoint)
