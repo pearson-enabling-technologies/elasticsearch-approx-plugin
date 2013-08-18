@@ -70,6 +70,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     // TODO exclude deserialized and other "foreign" objects from CacheRecycler
     // TODO better Java API (don't use internal classes)
     // TODO make these collectors static classes, or break them out (to avoid ref. to executor)
+    // TODO separate collect methods for numeric fields as byte conversion is inefficient
 
     private class CountingCollector extends BuildableCollector {
 
@@ -196,6 +197,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
                     // TODO we can reduce hash lookups by getting the outer map in the outer loop
                     final DistinctCountPayload count = getSafely(_counts, time);
                     while(distinctIter.hasNext()) {
+                        // NB this causes two conversions if the field's numeric
                         final BytesRef term = distinctIter.next();
                         final BytesRef safe = _distinctFieldValues.makeSafe(term);
                         count.update(safe);

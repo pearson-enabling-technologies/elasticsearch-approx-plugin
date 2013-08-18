@@ -85,10 +85,10 @@ public class DistinctDateHistogramFacetTest {
     @BeforeClass
     public static void setUpClass() throws InterruptedException {
         final Settings settings = ImmutableSettings.settingsBuilder()
-                //.put("node.http.enabled", false)
+                .put("node.http.enabled", false)
                 .put("index.gateway.type", "none")
                 // Reluctantly removed this to reduce overall memory:
-                .put("index.store.type", "memory")
+                // .put("index.store.type", "memory")
                 .put("index.number_of_shards", 3)
                 .put("index.number_of_replicas", 0)
                 .put("index.merge.policy.merge_factor", 100)
@@ -101,7 +101,6 @@ public class DistinctDateHistogramFacetTest {
                 .clusterName("DistinctDateHistogramFacetTest")
                 .node();
         __node.start();
-        //Thread.sleep(30000);
     }
 
     @AfterClass
@@ -478,7 +477,7 @@ public class DistinctDateHistogramFacetTest {
         // TODO test other data types
 
         // Do this 20 times for different amounts of data
-        for(int t = 20; t <= 20; t++) {
+        for(int t = 1; t <= 20; t++) {
             setUp();
             final int minPerDay = (int) pow(2, t);
             System.out.println("Randomized testing: inserting minimum " + 7 * minPerDay + " items");
@@ -487,7 +486,7 @@ public class DistinctDateHistogramFacetTest {
             assertEquals(totalItems, countAll());
 
             System.out.println("Randomized testing: running facet");
-            final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, 10000000);
+            final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, 1000);
             final InternalDistinctFacet facet1 = response.getFacets().facet(__facetName);
             final List<DistinctTimePeriod<NullEntry>> facetList1 = facet1.entries();
             assertEquals(7, facetList1.size());
@@ -511,7 +510,7 @@ public class DistinctDateHistogramFacetTest {
                         abs(fuzzyUsers - exactUsers) <= tolerance);
             }
 
-            final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, 10000000);
+            final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, 1000);
             final InternalDistinctFacet facet2 = response2.getFacets().facet(__facetName);
             final List<DistinctTimePeriod<NullEntry>> facetList2 = facet2.entries();
             assertEquals(7, facetList2.size());
