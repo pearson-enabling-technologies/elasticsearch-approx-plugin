@@ -277,7 +277,10 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             counter = CacheRecycler.popHashSet();
             for(int i = 0; i < count; i++)
             {
-                counter.add((BytesRef) in.readObject());
+                final int length = in.readInt();
+                final byte[] bytes = new byte[length];
+                in.readFully(bytes);
+                counter.add(new BytesRef(bytes));
             }
         }
     }
@@ -322,9 +325,10 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             out.writeInt(tippingPoint);
             out.writeObject(builder);
             out.writeInt(counter.size());
-            for(final Object o : counter)
+            for(final BytesRef o : counter)
             {
-                out.writeObject(o);
+                out.writeInt(o.length);
+                out.write(o.bytes, o.offset, o.length);
             }
             CacheRecycler.pushHashSet(counter);
         }
