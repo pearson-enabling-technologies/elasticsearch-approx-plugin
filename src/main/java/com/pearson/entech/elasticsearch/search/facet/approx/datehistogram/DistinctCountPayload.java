@@ -2,39 +2,39 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.io.IOException;
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
-import com.clearspring.analytics.stream.cardinality.CountThenEstimate;
 import com.clearspring.analytics.stream.cardinality.HyperLogLog;
 
 public class DistinctCountPayload {
 
     private long _count;
 
-    private CountThenEstimate _cardinality;
+    private CountThenEstimateBytes _cardinality;
 
     public DistinctCountPayload(final int entryLimit) {
         _count = 0;
-        _cardinality = new CountThenEstimate(entryLimit,
+        _cardinality = new CountThenEstimateBytes(entryLimit,
                 new HyperLogLog.Builder(0.0025));
     }
 
-    DistinctCountPayload(final long count, final CountThenEstimate cardinality) {
+    DistinctCountPayload(final long count, final CountThenEstimateBytes cardinality) {
         _count = count;
         _cardinality = cardinality;
     }
 
     DistinctCountPayload(final long count, final byte[] cardinality) throws IOException, ClassNotFoundException {
         _count = count;
-        _cardinality = new CountThenEstimate(cardinality);
+        _cardinality = new CountThenEstimateBytes(cardinality);
     }
 
-    DistinctCountPayload update(final Object item) {
+    DistinctCountPayload update(final BytesRef item) {
         _count++;
-        _cardinality.offer(item);
+        _cardinality.offerBytesRef(item);
         return this;
     }
 
@@ -46,13 +46,13 @@ public class DistinctCountPayload {
         return _count;
     }
 
-    CountThenEstimate getCardinality() {
+    CountThenEstimateBytes getCardinality() {
         return _cardinality;
     }
 
     DistinctCountPayload merge(final DistinctCountPayload other) throws CardinalityMergeException {
         _count += other._count;
-        _cardinality = CountThenEstimate.mergeEstimators(this._cardinality, other._cardinality);
+        _cardinality = CountThenEstimateBytes.mergeEstimators(this._cardinality, other._cardinality);
         return this;
     }
 

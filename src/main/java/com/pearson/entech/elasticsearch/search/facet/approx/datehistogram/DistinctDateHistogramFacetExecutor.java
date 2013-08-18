@@ -56,19 +56,6 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
         return _collector;
     }
 
-    private byte[] copyBytes(final BytesRef term) {
-        final byte[] output = new byte[term.length];
-        System.arraycopy(term.bytes, term.offset, output, 0, term.length);
-        return output;
-    }
-
-    // TODO Huge potential performance boost for querying:
-    // Modify HyperLogLog & MurmurHash to work directly on
-    // BytesRef objects. Or just byte arrays.
-
-    // Also:
-    // Caching or otherwise speeding up TZ rounding
-
     // TODO sorting (sigh)
     // TODO tests for other facets, not just distinct
     // TODO keep track of totals and missing values
@@ -210,7 +197,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
                     final DistinctCountPayload count = getSafely(_counts, time);
                     while(distinctIter.hasNext()) {
                         final BytesRef term = distinctIter.next();
-                        final byte[] safe = copyBytes(term);
+                        final BytesRef safe = _distinctFieldValues.makeSafe(term);
                         count.update(safe);
                     }
                 }
@@ -274,7 +261,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
                     final DistinctCountPayload count = getSafely(_counts, time, sliceIter.next());
                     while(distinctIter.hasNext()) {
                         final BytesRef term = distinctIter.next();
-                        final byte[] safe = copyBytes(term);
+                        final BytesRef safe = _distinctFieldValues.makeSafe(term);
                         count.update(safe);
                     }
                 }

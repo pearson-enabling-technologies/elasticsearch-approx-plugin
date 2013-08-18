@@ -91,7 +91,7 @@ public class DistinctDateHistogramFacetTest {
                 .put("index.store.type", "memory")
                 .put("index.number_of_shards", 3)
                 .put("index.number_of_replicas", 0)
-                .put("index.merge.policy.merge_factor", 50)
+                .put("index.merge.policy.merge_factor", 100)
                 .put("path.data", "target")
                 .put("refresh_interval", -1)
                 .build();
@@ -487,7 +487,7 @@ public class DistinctDateHistogramFacetTest {
             assertEquals(totalItems, countAll());
 
             System.out.println("Randomized testing: running facet");
-            final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, 1000);
+            final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, 10000000);
             final InternalDistinctFacet facet1 = response.getFacets().facet(__facetName);
             final List<DistinctTimePeriod<NullEntry>> facetList1 = facet1.entries();
             assertEquals(7, facetList1.size());
@@ -511,7 +511,7 @@ public class DistinctDateHistogramFacetTest {
                         abs(fuzzyUsers - exactUsers) <= tolerance);
             }
 
-            final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, 1000);
+            final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, 10000000);
             final InternalDistinctFacet facet2 = response2.getFacets().facet(__facetName);
             final List<DistinctTimePeriod<NullEntry>> facetList2 = facet2.entries();
             assertEquals(7, facetList2.size());
