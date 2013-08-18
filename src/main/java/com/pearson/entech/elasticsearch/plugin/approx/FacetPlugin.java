@@ -8,7 +8,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.search.facet.FacetModule;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacetParser;
+import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DateFacetParser;
 import com.pearson.entech.elasticsearch.search.facet.approx.termlist.InternalTermListFacet;
 import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetParser;
 
@@ -36,7 +36,7 @@ public class FacetPlugin extends AbstractPlugin {
     @Override
     public void processModule(final Module module) {
         if(module instanceof FacetModule) {
-            ((FacetModule) module).addFacetProcessor(DistinctDateHistogramFacetParser.class);
+            ((FacetModule) module).addFacetProcessor(DateFacetParser.class);
 
             ((FacetModule) module).addFacetProcessor(TermListFacetParser.class);
             InternalTermListFacet.registerStreams();

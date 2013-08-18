@@ -176,17 +176,17 @@ public class DistinctDateHistogramFacetTest {
         final SearchResponse searchResponse = client()
                 .prepareSearch()
                 .setQuery(matchAllQuery())
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats1").keyField("date").valueField("num").interval("day").mode(mode))
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats2").keyField("date").valueField("num").interval("day").preZone("-02:00").mode(mode))
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats3").keyField("date").valueField("num").interval("day").preZone("-02:00").mode(mode))
+                .addFacet(new DateFacetBuilder("stats1").keyField("date").distinctField("num").interval("day").mode(mode))
+                .addFacet(new DateFacetBuilder("stats2").keyField("date").distinctField("num").interval("day").preZone("-02:00").mode(mode))
+                .addFacet(new DateFacetBuilder("stats3").keyField("date").distinctField("num").interval("day").preZone("-02:00").mode(mode))
                 //                .addFacet(
-                //                        new DistinctDateHistogramFacetBuilder("stats4").keyField("date").valueScript("doc['num'].value * 2").interval("day").preZone("-02:00")
+                //                        new DateFacetBuilder("stats4").keyField("date").distinctScript("doc['num'].distinct * 2").interval("day").preZone("-02:00")
                 //                                .mode(mode))
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats5").keyField("date").valueField("num").interval("24h").mode(mode))
+                .addFacet(new DateFacetBuilder("stats5").keyField("date").distinctField("num").interval("24h").mode(mode))
                 .addFacet(
-                        new DistinctDateHistogramFacetBuilder("stats6").keyField("date").valueField("num").interval("day").preZone("-02:00").postZone("-02:00")
+                        new DateFacetBuilder("stats6").keyField("date").distinctField("num").interval("day").preZone("-02:00").postZone("-02:00")
                                 .mode(mode))
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats7").keyField("date").valueField("num").interval("quarter").mode(mode))
+                .addFacet(new DateFacetBuilder("stats7").keyField("date").distinctField("num").interval("quarter").mode(mode))
                 .execute().actionGet();
 
         if(searchResponse.getFailedShards() > 0) {
@@ -306,8 +306,8 @@ public class DistinctDateHistogramFacetTest {
 
         final SearchResponse searchResponse = client().prepareSearch()
                 .setQuery(matchAllQuery())
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats1").keyField("date").valueField("num").interval("day").preZone("+02:00"))
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats2").keyField("date").valueField("num").interval("day").preZone("+01:30"))
+                .addFacet(new DateFacetBuilder("stats1").keyField("date").distinctField("num").interval("day").preZone("+02:00"))
+                .addFacet(new DateFacetBuilder("stats2").keyField("date").distinctField("num").interval("day").preZone("+01:30"))
                 .execute().actionGet();
 
         if(searchResponse.getFailedShards() > 0) {
@@ -545,19 +545,19 @@ public class DistinctDateHistogramFacetTest {
         return __counter.getAndIncrement();
     }
 
-    private SearchResponse getHistogram(final long start, final long end, final String interval, final String valueField) {
-        return getHistogram(start, end, interval, valueField, 0);
+    private SearchResponse getHistogram(final long start, final long end, final String interval, final String distinctField) {
+        return getHistogram(start, end, interval, distinctField, 0);
     }
 
-    private SearchResponse getHistogram(final long start, final long end, final String interval, final String valueField, final int exactThreshold) {
+    private SearchResponse getHistogram(final long start, final long end, final String interval, final String distinctField, final int exactThreshold) {
         final FilterBuilder range =
                 FilterBuilders.numericRangeFilter(__tsField)
                         .from(start)
                         .to(end);
-        final DistinctDateHistogramFacetBuilder facet =
-                new DistinctDateHistogramFacetBuilder(__facetName)
+        final DateFacetBuilder facet =
+                new DateFacetBuilder(__facetName)
                         .keyField(__tsField)
-                        .valueField(valueField)
+                        .distinctField(distinctField)
                         .facetFilter(range)
                         .exactThreshold(exactThreshold)
                         .interval(interval);

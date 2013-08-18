@@ -6,7 +6,7 @@
         "histo" : {
             "date_facet" : {
                 "key_field" : "datetime",
-                "value_field" : "aardvark",
+                "distinct_field" : "aardvark",
                 "interval": "minute",
                 "pre_zone": "Europe/London",
                 "pre_zone_adjust_large_interval": true,

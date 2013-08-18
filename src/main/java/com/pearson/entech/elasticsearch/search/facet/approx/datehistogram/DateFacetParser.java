@@ -32,13 +32,13 @@ import org.elasticsearch.search.internal.SearchContext;
  *
  * The {@link #parse} method does all the interesting work.
  */
-public class DistinctDateHistogramFacetParser extends AbstractComponent implements FacetParser {
+public class DateFacetParser extends AbstractComponent implements FacetParser {
 
     private final ImmutableMap<String, DateFieldParser> dateFieldParsers;
     private final TObjectIntHashMap<String> rounding = new TObjectIntHashMap<String>(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, -1);
 
     @Inject
-    public DistinctDateHistogramFacetParser(final Settings settings) {
+    public DateFacetParser(final Settings settings) {
         super(settings);
 
         dateFieldParsers = MapBuilder.<String, DateFieldParser> newMapBuilder()
@@ -72,10 +72,7 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
     @Override
     public String[] types() {
         return new String[] {
-                InternalCountingFacet.TYPE,
-                InternalDistinctFacet.TYPE,
-                InternalSlicedFacet.TYPE,
-                InternalSlicedDistinctFacet.TYPE
+                "date_facet"
         };
     }
 
@@ -93,6 +90,7 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
     public FacetExecutor parse(final String facetName, final XContentParser parser, final SearchContext context) throws IOException {
         String keyField = null;
         String distinctField = null;
+        String valueField = null;
         String sliceField = null;
         //        final String valueScript = null;
         //        String scriptLang = null;
@@ -121,8 +119,9 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
                     keyField = parser.text();
                 } else if("key_field".equals(fieldName) || "keyField".equals(fieldName)) {
                     keyField = parser.text();
-                } else if("value_field".equals(fieldName) || "valueField".equals(fieldName) ||
-                        "distinct_field".equals(fieldName) || "distinctField".equals(fieldName)) {
+                } else if("value_field".equals(fieldName) || "valueField".equals(fieldName)) {
+                    valueField = parser.text();
+                } else if("distinct_field".equals(fieldName) || "distinctField".equals(fieldName)) {
                     distinctField = parser.text();
                 } else if("slice_field".equals(fieldName) || "sliceField".equals(fieldName)) {
                     sliceField = parser.text();
@@ -154,6 +153,9 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
             }
         }
 
+        if(valueField != null && distinctField != null)
+            throw new FacetPhaseExecutionException(facetName, "[value_field] and [distinct_field] may not be used together");
+
         if(interval == null) {
             throw new FacetPhaseExecutionException(facetName, "[interval] is required to be set for histogram facet");
         }
@@ -180,10 +182,11 @@ public class DistinctDateHistogramFacetParser extends AbstractComponent implemen
         if(!"long".equals(keyFieldData.type.getType()))
             throw new FacetPhaseExecutionException(facetName, "key field [" + keyField + "] is not of type date");
 
+        final TypedFieldData valueFieldData = getFieldData(valueField, context);
         final TypedFieldData distinctFieldData = getFieldData(distinctField, context);
         final TypedFieldData sliceFieldData = getFieldData(sliceField, context);
 
-        return new DistinctDateHistogramFacetExecutor(keyFieldData, distinctFieldData, sliceFieldData,
+        return new DateFacetExecutor(keyFieldData, valueFieldData, distinctFieldData, sliceFieldData,
                 tzRounding, exactThreshold);
 
         // TODO implement scripts

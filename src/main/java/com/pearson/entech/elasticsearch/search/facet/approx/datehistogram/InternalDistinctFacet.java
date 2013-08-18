@@ -15,7 +15,6 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
 import org.elasticsearch.search.facet.Facet;
-import org.elasticsearch.search.facet.InternalFacet.Stream;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
@@ -28,7 +27,7 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
     private long _distinctCount;
 
     private static final ExtTLongObjectHashMap<DistinctCountPayload> EMPTY = new ExtTLongObjectHashMap<DistinctCountPayload>();
-    static final String TYPE = "distinct_date_histogram";
+    static final String TYPE = "distinct_date_facet";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
     public static void registerStreams() {

@@ -18,6 +18,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
 import org.json.JSONObject;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -32,6 +33,16 @@ public abstract class MediumDataSetTest {
     protected final String _index = "testtable_20130506";
 
     protected final String _type = "*";
+
+    protected final String _dtField = "datetime";
+
+    protected final long _dtMin = 1367938920000l;
+
+    protected final long _dtMax = 1367946060000l;
+
+    protected final String[] _intervals = {
+            "year", "quarter", "month", "week", "day", "hour", "minute", "second"
+    };
 
     protected final Random _random = new Random(0);
 
@@ -60,8 +71,8 @@ public abstract class MediumDataSetTest {
         __node.stop();
     }
 
-    @Test
-    public void testCorrectIndexAvailable() throws Exception {
+    @Before
+    public void ensureCorrectIndexAvailable() throws Exception {
         final int expectedSize = 489319;
         try {
             final long count = client()
@@ -126,5 +137,9 @@ public abstract class MediumDataSetTest {
 
     protected JSONObject getJsonFile(final String filename) throws Exception {
         return new JSONObject(getFile(filename));
+    }
+
+    protected <T> T randomPick(final T[] options) {
+        return options[_random.nextInt(options.length)];
     }
 }

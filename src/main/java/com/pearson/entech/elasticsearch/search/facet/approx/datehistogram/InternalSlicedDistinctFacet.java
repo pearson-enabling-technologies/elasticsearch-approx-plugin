@@ -33,7 +33,7 @@ public class InternalSlicedDistinctFacet
     private long _distinctCount;
 
     private static final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> EMPTY = CacheRecycler.popLongObjectMap();
-    static final String TYPE = "sliced_distinct_date_histogram";
+    static final String TYPE = "sliced_distinct_date_facet";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
     public static void registerStreams() {

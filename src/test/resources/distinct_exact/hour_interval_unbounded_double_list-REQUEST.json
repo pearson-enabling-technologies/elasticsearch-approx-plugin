@@ -6,7 +6,7 @@
         "histo" : {
             "date_facet" : {
                 "key_field" : "datetime",
-                "value_field" : "Ababdeh_list",
+                "distinct_field" : "Ababdeh_list",
                 "interval": "hour",
                 "pre_zone": "Europe/London",
                 "pre_zone_adjust_large_interval": true,

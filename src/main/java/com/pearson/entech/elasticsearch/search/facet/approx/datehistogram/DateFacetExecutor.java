@@ -18,9 +18,10 @@ import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.InternalFacet;
 
-public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
+public class DateFacetExecutor extends FacetExecutor {
 
     private final TypedFieldData _keyFieldData;
+    private final TypedFieldData _valueFieldData;
     private final TypedFieldData _distinctFieldData;
     private final TypedFieldData _sliceFieldData;
 
@@ -29,9 +30,11 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     private final TimeZoneRounding _tzRounding;
     private final int _exactThreshold;
 
-    public DistinctDateHistogramFacetExecutor(final TypedFieldData keyFieldData, final TypedFieldData distinctFieldData, final TypedFieldData sliceFieldData,
+    public DateFacetExecutor(final TypedFieldData keyFieldData, final TypedFieldData valueFieldData,
+            final TypedFieldData distinctFieldData, final TypedFieldData sliceFieldData,
             final TimeZoneRounding tzRounding, final int exactThreshold) {
         _keyFieldData = keyFieldData;
+        _valueFieldData = valueFieldData;
         _distinctFieldData = distinctFieldData;
         _sliceFieldData = sliceFieldData;
         _tzRounding = tzRounding;
@@ -60,7 +63,8 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     // TODO tests for other facets, not just distinct
     // TODO keep track of totals and missing values
     // TODO replace "new DistinctCountPayload()" with an object cache
-    // TODO memoize tz calculations?
+    // TODO global cache of the counts from each collector
+    // TODO cache tz calculations
     // TODO limits on terms used in slicing (min freq/top N)
     // TODO make interval optional, so we can just have one bucket (custom TimeZoneRounding)
     // TODO stop using long arrays as wrappers for counters (materialize methods)
@@ -75,6 +79,7 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
     private class CountingCollector extends BuildableCollector {
 
         private LongValues _keyFieldValues;
+        private BytesValues _valueFieldValues;
 
         private TLongIntHashMap _counts;
 
@@ -86,14 +91,31 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
         public void setNextReader(final AtomicReaderContext context) throws IOException {
             _keyFieldValues = ((LongArrayIndexFieldData) _keyFieldData.data)
                     .load(context).getLongValues();
+            if(_valueFieldData != null)
+                // TODO if these aren't strings, this isn't the most efficient way:
+                _valueFieldValues = _valueFieldData.data.load(context).getBytesValues();
         }
 
         @Override
         public void collect(final int doc) throws IOException {
             final Iter keyIter = _keyFieldValues.getIter(doc);
-            while(keyIter.hasNext()) {
-                final long time = _tzRounding.calc(keyIter.next());
+            if(!keyIter.hasNext())
+                return;
+
+            final long time = _tzRounding.calc(keyIter.next());
+
+            // TODO implement the following decision in SlicedCollector too
+            if(_valueFieldData == null) {
+                // We are only counting docs
                 _counts.adjustOrPutValue(time, 1, 1);
+            } else {
+                // We are counting each occurrence of valueField 
+                final org.elasticsearch.index.fielddata.BytesValues.Iter valIter =
+                        _valueFieldValues.getIter(doc);
+                while(valIter.hasNext()) {
+                    valIter.next();
+                    _counts.adjustOrPutValue(time, 1, 1);
+                }
             }
         }
 
@@ -193,15 +215,12 @@ public class DistinctDateHistogramFacetExecutor extends FacetExecutor {
                     _distinctFieldValues.getIter(doc);
             while(keyIter.hasNext()) {
                 final long time = _tzRounding.calc(keyIter.next());
+                final DistinctCountPayload count = getSafely(_counts, time);
                 while(distinctIter.hasNext()) {
-                    // TODO we can reduce hash lookups by getting the outer map in the outer loop
-                    final DistinctCountPayload count = getSafely(_counts, time);
-                    while(distinctIter.hasNext()) {
-                        // NB this causes two conversions if the field's numeric
-                        final BytesRef term = distinctIter.next();
-                        final BytesRef safe = _distinctFieldValues.makeSafe(term);
-                        count.update(safe);
-                    }
+                    // NB this causes two conversions if the field's numeric
+                    final BytesRef term = distinctIter.next();
+                    final BytesRef safe = _distinctFieldValues.makeSafe(term);
+                    count.update(safe);
                 }
             }
         }
