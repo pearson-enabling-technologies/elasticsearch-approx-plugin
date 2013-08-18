@@ -8,8 +8,9 @@
                 "key_field" : "datetime",
                 "value_field" : "aardwolf",
                 "interval": "day",
-                "pre_zone": "Europe/London",
-                "pre_zone_adjust_large_interval": true
+                "pre_zone": "Asia/Kolkata",
+                "pre_zone_adjust_large_interval": true,
+                "exact_threshold": 10000000
             }
         }
     }

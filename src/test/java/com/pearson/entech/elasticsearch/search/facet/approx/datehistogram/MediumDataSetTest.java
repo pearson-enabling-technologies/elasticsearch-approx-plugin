@@ -16,30 +16,25 @@ import org.elasticsearch.node.Node;
 import org.json.JSONObject;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 
-// NB This test class is disabled by default as it requires a data set
-// to be installed. I will re-enable it when I've worked out a good way
-// to distribute this.
-@Ignore
 public class MediumDataSetTest {
 
     private static Node __node;
 
-    private static String __table = "testtable_20130506";
+    private final String _table = "testtable_20130506";
 
-    private static String __type = "*";
+    private final String _type = "*";
 
     private final Random _random = new Random(0);
+
+    private final String _distinctExactDir = "src/test/resources/distinct_exact/";
 
     @BeforeClass
     public static void setUpClass() throws Exception {
         final Settings settings = ImmutableSettings.settingsBuilder()
                 .put("node.http.enabled", true)
-                // Reluctantly removed this to reduce overall memory:
-                // .put("index.store.type", "memory")
                 .put("index.number_of_replicas", 0)
                 .put("path.data", "/Users/andrcleg/ElasticSearch/elasticsearch-0.20.6/data")
                 .build();
@@ -59,28 +54,30 @@ public class MediumDataSetTest {
         __node.stop();
     }
 
-    // TODO check the overall distinct numbers are actually correct
-
     @Test
-    public void testMinuteIntervalUnbounded() throws Exception {
-        compareHitsAndFacets("src/test/resources/minute_interval_unbounded-REQUEST.json",
-                "src/test/resources/minute_interval_unbounded-RESPONSE.json");
+    public void testMinuteIntervalUnboundedStringExact() throws Exception {
+        compareHitsAndFacets(_distinctExactDir + "minute_interval_unbounded_string");
     }
 
     @Test
-    public void testDayIntervalLondonUnbounded() throws Exception {
-        compareHitsAndFacets("src/test/resources/day_interval_london_unbounded-REQUEST.json",
-                "src/test/resources/day_interval_london_unbounded-RESPONSE.json");
+    public void testMinuteIntervalUnboundedLongExact() throws Exception {
+        compareHitsAndFacets(_distinctExactDir + "minute_interval_unbounded_long");
     }
 
     @Test
-    public void testDayIntervalKolkataUnbounded() throws Exception {
-        compareHitsAndFacets("src/test/resources/day_interval_kolkata_unbounded-REQUEST.json",
-                "src/test/resources/day_interval_kolkata_unbounded-RESPONSE.json");
+    public void testDayIntervalLondonUnboundedExact() throws Exception {
+        compareHitsAndFacets(_distinctExactDir + "day_interval_london_unbounded_boolean");
     }
 
-    private void compareHitsAndFacets(final String reqFileName, final String respFileName) throws Exception {
-        final JSONObject response = jsonRequest(__table, __type, reqFileName);
+    @Test
+    public void testDayIntervalKolkataUnboundedExact() throws Exception {
+        compareHitsAndFacets(_distinctExactDir + "day_interval_kolkata_unbounded_boolean");
+    }
+
+    private void compareHitsAndFacets(final String fileStem) throws Exception {
+        final String reqFileName = fileStem + "-REQUEST.json";
+        final String respFileName = fileStem + "-RESPONSE.json";
+        final JSONObject response = jsonRequest(_table, _type, reqFileName);
         final JSONObject expected = getJsonFile(respFileName);
         compare(expected, response, "hits", "facets");
     }

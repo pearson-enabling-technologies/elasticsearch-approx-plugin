@@ -1,5 +1,5 @@
 {
-    "took": 655,
+    "took": 388,
     "timed_out": false,
     "_shards": {
         "total": 5,
@@ -14,112 +14,113 @@
     "facets": {
         "histo": {
             "_type": "distinct_date_histogram",
-            "count" : 122219,
+            "count": 121800,
+            "distinct_count": 36805,
             "entries": [
                 {
                     "time": 1367938920000,
-                    "count": 5638,
-                    "distinct_count": 359
+                    "count": 5579,
+                    "distinct_count": 5330
                 },
                 {
                     "time": 1367938980000,
-                    "count": 5644,
-                    "distinct_count": 359
+                    "count": 5722,
+                    "distinct_count": 5468
                 },
                 {
                     "time": 1367939040000,
-                    "count": 3842,
-                    "distinct_count": 359
+                    "count": 3878,
+                    "distinct_count": 3784
                 },
                 {
                     "time": 1367939280000,
-                    "count": 3865,
-                    "distinct_count": 359
+                    "count": 3821,
+                    "distinct_count": 3726
                 },
                 {
                     "time": 1367939340000,
-                    "count": 6804,
-                    "distinct_count": 359
+                    "count": 6872,
+                    "distinct_count": 6517
                 },
                 {
                     "time": 1367939400000,
-                    "count": 715,
-                    "distinct_count": 306
+                    "count": 704,
+                    "distinct_count": 703
                 },
                 {
                     "time": 1367944620000,
-                    "count": 5576,
-                    "distinct_count": 359
+                    "count": 5401,
+                    "distinct_count": 5164
                 },
                 {
                     "time": 1367945280000,
-                    "count": 2404,
-                    "distinct_count": 359
+                    "count": 2387,
+                    "distinct_count": 2342
                 },
                 {
                     "time": 1367945340000,
-                    "count": 4282,
-                    "distinct_count": 359
+                    "count": 4265,
+                    "distinct_count": 4123
                 },
                 {
                     "time": 1367945400000,
-                    "count": 6519,
-                    "distinct_count": 359
+                    "count": 6465,
+                    "distinct_count": 6142
                 },
                 {
                     "time": 1367945460000,
-                    "count": 6285,
-                    "distinct_count": 359
+                    "count": 6333,
+                    "distinct_count": 6020
                 },
                 {
                     "time": 1367945520000,
-                    "count": 6362,
-                    "distinct_count": 359
+                    "count": 6370,
+                    "distinct_count": 6090
                 },
                 {
                     "time": 1367945580000,
-                    "count": 6243,
-                    "distinct_count": 359
+                    "count": 6249,
+                    "distinct_count": 5966
                 },
                 {
                     "time": 1367945640000,
-                    "count": 6023,
-                    "distinct_count": 359
+                    "count": 5997,
+                    "distinct_count": 5711
                 },
                 {
                     "time": 1367945700000,
-                    "count": 6823,
-                    "distinct_count": 359
+                    "count": 6754,
+                    "distinct_count": 6404
                 },
                 {
                     "time": 1367945760000,
-                    "count": 6395,
-                    "distinct_count": 359
+                    "count": 6163,
+                    "distinct_count": 5842
                 },
                 {
                     "time": 1367945820000,
-                    "count": 3624,
-                    "distinct_count": 359
+                    "count": 3616,
+                    "distinct_count": 3522
                 },
                 {
                     "time": 1367945880000,
-                    "count": 5848,
-                    "distinct_count": 359
+                    "count": 5813,
+                    "distinct_count": 5546
                 },
                 {
                     "time": 1367945940000,
-                    "count": 10950,
-                    "distinct_count": 359
+                    "count": 10842,
+                    "distinct_count": 9994
                 },
                 {
                     "time": 1367946000000,
-                    "count": 11633,
-                    "distinct_count": 359
+                    "count": 11727,
+                    "distinct_count": 10802
                 },
                 {
                     "time": 1367946060000,
-                    "count": 6744,
-                    "distinct_count": 359
+                    "count": 6842,
+                    "distinct_count": 6492
                 }
             ]
         }

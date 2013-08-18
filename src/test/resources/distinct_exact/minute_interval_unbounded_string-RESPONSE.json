@@ -1,0 +1,129 @@
+{
+    "took": 655,
+    "timed_out": false,
+    "_shards": {
+        "total": 5,
+        "successful": 5,
+        "failed": 0
+    },
+    "hits": {
+        "total": 489319,
+        "max_score": 0,
+        "hits": []
+    },
+    "facets": {
+        "histo": {
+            "_type": "distinct_date_histogram",
+            "count" : 122219,
+            "distinct_count": 359,
+            "entries": [
+                {
+                    "time": 1367938920000,
+                    "count": 5638,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367938980000,
+                    "count": 5644,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367939040000,
+                    "count": 3842,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367939280000,
+                    "count": 3865,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367939340000,
+                    "count": 6804,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367939400000,
+                    "count": 715,
+                    "distinct_count": 306
+                },
+                {
+                    "time": 1367944620000,
+                    "count": 5576,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945280000,
+                    "count": 2404,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945340000,
+                    "count": 4282,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945400000,
+                    "count": 6519,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945460000,
+                    "count": 6285,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945520000,
+                    "count": 6362,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945580000,
+                    "count": 6243,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945640000,
+                    "count": 6023,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945700000,
+                    "count": 6823,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945760000,
+                    "count": 6395,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945820000,
+                    "count": 3624,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945880000,
+                    "count": 5848,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367945940000,
+                    "count": 10950,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367946000000,
+                    "count": 11633,
+                    "distinct_count": 359
+                },
+                {
+                    "time": 1367946060000,
+                    "count": 6744,
+                    "distinct_count": 359
+                }
+            ]
+        }
+    }
+}
+

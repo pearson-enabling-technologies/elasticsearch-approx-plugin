@@ -15,6 +15,7 @@
         "histo": {
             "_type": "distinct_date_histogram",
             "count": 122547,
+            "distinct_count": 2,
             "entries": [
                 {
                     "time": 1367865000000,
