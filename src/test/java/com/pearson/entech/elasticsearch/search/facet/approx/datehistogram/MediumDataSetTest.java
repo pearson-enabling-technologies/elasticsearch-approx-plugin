@@ -19,6 +19,7 @@ import org.elasticsearch.node.Node;
 import org.json.JSONObject;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 
@@ -61,28 +62,42 @@ public class MediumDataSetTest {
 
     @Test
     public void testCorrectIndexAvailable() throws Exception {
+        final int expectedSize = 489319;
         try {
             final long count = client()
                     .prepareCount(_index)
                     .execute()
                     .actionGet()
                     .getCount();
-            if(count != 489319)
+            if(count != expectedSize)
                 throw new AssertionFailedError(count + " records in index.");
         } catch(final Exception e) {
-            fail("Expected to find an index called "
-                    +
-                    _index
-                    +
-                    " with 489319 records. This was not found. You can download and install the test data for these tests from https://pearson.app.box.com/s/uvsz0gv8rhgex0aacc2u . Reason for failure: "
-                    +
-                    e.getLocalizedMessage());
+            fail(String.format("Not found: index %s with %d records\n"
+                    + "Download and install the test data for these tests from https://pearson.app.box.com/s/uvsz0gv8rhgex0aacc2u\n"
+                    + "Reason for failure: %s",
+                    _index, expectedSize, e.getMessage()));
         }
+    }
+
+    @Test
+    @Ignore
+    public void testBringUpServerForManualQuerying() throws Exception {
+        Thread.sleep(10000000);
     }
 
     @Test
     public void testMinuteIntervalUnboundedStringExact() throws Exception {
         compareHitsAndFacets(_distinctExactDir + "minute_interval_unbounded_string");
+    }
+
+    @Test
+    public void testHourIntervalUnboundedDoubleExact() throws Exception {
+        compareHitsAndFacets(_distinctExactDir + "hour_interval_unbounded_double");
+    }
+
+    @Test
+    public void testHourIntervalUnboundedDoubleListExact() throws Exception {
+        compareHitsAndFacets(_distinctExactDir + "hour_interval_unbounded_double_list");
     }
 
     @Test

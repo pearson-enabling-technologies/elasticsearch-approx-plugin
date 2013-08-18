@@ -1,0 +1,18 @@
+{
+    "query": {
+        "match_all" : {}
+    },
+    "facets": {
+        "histo" : {
+            "distinct_date_histogram" : {
+                "key_field" : "datetime",
+                "value_field" : "Ababdeh_list",
+                "interval": "hour",
+                "pre_zone": "Europe/London",
+                "pre_zone_adjust_large_interval": true,
+                "exact_threshold": 10000000
+            }
+        }
+    }
+}
+
