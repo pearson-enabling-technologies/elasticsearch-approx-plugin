@@ -20,8 +20,6 @@ import org.json.JSONObject;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 
 public abstract class MediumDataSetTest {
@@ -31,8 +29,6 @@ public abstract class MediumDataSetTest {
     protected final static String _dataDir = "src/test/resources/data";
 
     protected final String _index = "testtable_20130506";
-
-    protected final String _type = "*";
 
     protected final String _dtField = "datetime";
 
@@ -54,6 +50,7 @@ public abstract class MediumDataSetTest {
                 .put("node.http.enabled", true)
                 .put("index.number_of_replicas", 0)
                 .put("path.data", _dataDir)
+                .put("index.search.slowlog.threshold.query.info", "0s")
                 .build();
         __node = nodeBuilder()
                 .local(true)
@@ -90,16 +87,10 @@ public abstract class MediumDataSetTest {
         }
     }
 
-    @Test
-    @Ignore
-    public void testBringUpServerForManualQuerying() throws Exception {
-        Thread.sleep(10000000);
-    }
-
     protected void compareHitsAndFacets(final String fileStem) throws Exception {
         final String reqFileName = fileStem + "-REQUEST.json";
         final String respFileName = fileStem + "-RESPONSE.json";
-        final JSONObject response = jsonRequest(_index, _type, reqFileName);
+        final JSONObject response = jsonRequest(_index, reqFileName);
         final JSONObject expected = getJsonFile(respFileName);
         compare(expected, response, "hits", "facets");
     }
@@ -118,7 +109,7 @@ public abstract class MediumDataSetTest {
         }
     }
 
-    protected JSONObject jsonRequest(final String index, final String type, final String filename) throws Exception {
+    protected JSONObject jsonRequest(final String index, final String filename) throws Exception {
         final SearchResponse response = client().prepareSearch(index)
                 .setSource(getFile(filename))
                 .setSearchType(SearchType.COUNT)
