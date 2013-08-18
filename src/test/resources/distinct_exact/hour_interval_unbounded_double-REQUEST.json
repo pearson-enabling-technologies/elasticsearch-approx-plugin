@@ -4,7 +4,7 @@
     },
     "facets": {
         "histo" : {
-            "distinct_date_histogram" : {
+            "date_facet" : {
                 "key_field" : "datetime",
                 "value_field" : "aam",
                 "interval": "hour",

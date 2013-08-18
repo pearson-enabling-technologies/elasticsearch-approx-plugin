@@ -13,7 +13,7 @@
     },
     "facets": {
         "histo": {
-            "_type": "distinct_date_histogram",
+            "_type": "date_facet",
             "count" : 122219,
             "distinct_count": 359,
             "entries": [
