@@ -149,14 +149,16 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
 
         if(tipped)
         {
-            // The estimator can use the original unsafe BytesRef as it
-            // immediately calculates a hash and throws away the contents
-            modified = estimator.offer(unsafe);
+            // TODO fork stream-lib and modify it all to work on BytesRef objects
+
+            // Then the estimator could use the backing array of the original
+            // unsafe BytesRef as it immediately calculates a hash and throws
+            // away the contents; as it is we have to copy it out
+            modified = estimator.offer(copyBytes(unsafe));
         }
         else
         {
-            // The counter, however, must copy the bytes as they need to
-            // stay intact
+            // The counter must copy the bytes as they need to stay intact
             if(counter.add(BytesRef.deepCopyOf(unsafe)))
             {
                 modified = true;
