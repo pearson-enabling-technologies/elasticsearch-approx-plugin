@@ -228,7 +228,9 @@ public class DistinctDateHistogramFacetBuilder extends FacetBuilder {
         }
         builder.startObject(name);
 
-        builder.startObject(DistinctDateHistogramFacet.TYPE);
+        // FIXME this isn't right:
+        builder.startObject("date_facet");
+
         if(valueFieldName != null) {
             builder.field("key_field", keyFieldName);
             builder.field("value_field", valueFieldName);

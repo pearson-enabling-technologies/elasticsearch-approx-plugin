@@ -77,7 +77,7 @@ public abstract class DateFacet<P extends ToXContent> extends InternalFacet {
 
     protected abstract void readData(ObjectInputStream oIn) throws ClassNotFoundException, IOException;
 
-    protected void injectHeaderXContent(final XContentBuilder builder) {
+    protected void injectHeaderXContent(final XContentBuilder builder) throws IOException {
         // override to add extra top-level fields, before the entries list
     }
 

@@ -15,10 +15,11 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
 import org.elasticsearch.search.facet.Facet;
+import org.elasticsearch.search.facet.InternalFacet.Stream;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
-public class InternalDistinctFacet extends DateFacet<DistinctTimePeriod<NullEntry>> implements HasDistinct {
+public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<NullEntry>> implements HasDistinct {
 
     private ExtTLongObjectHashMap<DistinctCountPayload> _counts;
 

@@ -1,0 +1,17 @@
+{
+    "query": {
+        "match_all" : {}
+    },
+    "facets": {
+        "histo" : {
+            "distinct_date_histogram" : {
+                "key_field" : "datetime",
+                "value_field" : "abac",
+                "interval": "minute",
+                "pre_zone": "Europe/London",
+                "pre_zone_adjust_large_interval": true
+            }
+        }
+    }
+}
+

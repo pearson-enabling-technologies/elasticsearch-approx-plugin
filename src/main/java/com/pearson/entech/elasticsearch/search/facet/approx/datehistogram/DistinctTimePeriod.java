@@ -24,4 +24,7 @@ public class DistinctTimePeriod<E extends ToXContent> extends TimePeriod<E> {
         builder.field(Constants.DISTINCT_COUNT, getDistinctCount());
     }
 
+    @Override
+    protected void injectEntryFooterXContent(final XContentBuilder builder) throws IOException {}
+
 }
