@@ -1,11 +1,14 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Random;
 import java.util.Scanner;
+
+import junit.framework.AssertionFailedError;
 
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
@@ -23,7 +26,9 @@ public class MediumDataSetTest {
 
     private static Node __node;
 
-    private final String _table = "testtable_20130506";
+    private final static String _dataDir = "src/test/resources/data";
+
+    private final String _index = "testtable_20130506";
 
     private final String _type = "*";
 
@@ -36,7 +41,7 @@ public class MediumDataSetTest {
         final Settings settings = ImmutableSettings.settingsBuilder()
                 .put("node.http.enabled", true)
                 .put("index.number_of_replicas", 0)
-                .put("path.data", "/Users/andrcleg/ElasticSearch/elasticsearch-0.20.6/data")
+                .put("path.data", _dataDir)
                 .build();
         __node = nodeBuilder()
                 .local(true)
@@ -52,6 +57,27 @@ public class MediumDataSetTest {
     @AfterClass
     public static void tearDownClass() throws Exception {
         __node.stop();
+    }
+
+    @Test
+    public void testCorrectIndexAvailable() throws Exception {
+        try {
+            final long count = client()
+                    .prepareCount(_index)
+                    .execute()
+                    .actionGet()
+                    .getCount();
+            if(count != 489319)
+                throw new AssertionFailedError(count + " records in index.");
+        } catch(final Exception e) {
+            fail("Expected to find an index called "
+                    +
+                    _index
+                    +
+                    " with 489319 records. This was not found. You can download and install the test data for these tests from https://pearson.app.box.com/s/uvsz0gv8rhgex0aacc2u . Reason for failure: "
+                    +
+                    e.getLocalizedMessage());
+        }
     }
 
     @Test
@@ -77,7 +103,7 @@ public class MediumDataSetTest {
     private void compareHitsAndFacets(final String fileStem) throws Exception {
         final String reqFileName = fileStem + "-REQUEST.json";
         final String respFileName = fileStem + "-RESPONSE.json";
-        final JSONObject response = jsonRequest(_table, _type, reqFileName);
+        final JSONObject response = jsonRequest(_index, _type, reqFileName);
         final JSONObject expected = getJsonFile(respFileName);
         compare(expected, response, "hits", "facets");
     }
