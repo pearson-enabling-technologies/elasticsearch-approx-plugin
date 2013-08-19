@@ -15,14 +15,14 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.facet.FacetBuilders;
 import org.elasticsearch.search.facet.terms.TermsFacet;
 
-public class FacetQueryResultChecker {
+public class CountingQueryResultChecker {
 
     private final String _index;
     private final String _dtField;
     private final Client _client;
     private final List<BucketSpecifier> _specs;
 
-    public FacetQueryResultChecker(final String index, final String dtField,
+    public CountingQueryResultChecker(final String index, final String dtField,
             final Client client) {
         _index = index;
         _dtField = dtField;
@@ -49,6 +49,22 @@ public class FacetQueryResultChecker {
         assertEquals(expected, totalCount);
     }
 
+    protected String getIndex() {
+        return _index;
+    }
+
+    protected String getDtField() {
+        return _dtField;
+    }
+
+    protected Client getClient() {
+        return _client;
+    }
+
+    protected List<BucketSpecifier> getSpecs() {
+        return _specs;
+    }
+
     public class BucketSpecifier {
 
         private final String _field;
@@ -56,26 +72,55 @@ public class FacetQueryResultChecker {
         private final long _endTime;
         private final long _count;
 
-        protected boolean _allTerms = false;
+        private SearchResponse _response;
 
-        private BucketSpecifier(final String field, final long startTime, final long endTime, final long count) {
+        protected BucketSpecifier(final String field, final long startTime, final long endTime, final long count) {
             _field = field;
             _startTime = startTime;
             _endTime = endTime;
             _count = count;
         }
 
+        protected String getField() {
+            return _field;
+        }
+
+        protected long getStartTime() {
+            return _startTime;
+        }
+
+        protected long getEndTime() {
+            return _endTime;
+        }
+
+        protected long getCount() {
+            return _count;
+        }
+
+        protected SearchResponse getResponse() {
+            return _response;
+        }
+
+        protected int termLimit() {
+            return 0;
+        }
+
         public void validate() {
-            final SearchResponse response = toSearchRequest().execute().actionGet();
-            final TermsFacet facet = response.getFacets().facet("bucket_check");
+            _response = toSearchRequest().execute().actionGet();
+            final TermsFacet facet = _response.getFacets().facet("bucket_check");
             final long totalCount = facet.getTotalCount();
+            injectAdditionalChecks(facet);
             assertEquals("Mismatch between total counts for bucket on "
                     + _field, totalCount, _count);
         }
 
+        protected void injectAdditionalChecks(final TermsFacet facet) {
+            // no-op
+        }
+
         protected SearchRequestBuilder toSearchRequest() {
-            return _client
-                    .prepareSearch(_index)
+            return getClient()
+                    .prepareSearch(getIndex())
                     .setQuery(
                             QueryBuilders.filteredQuery(
                                     QueryBuilders.matchAllQuery(),
@@ -84,14 +129,12 @@ public class FacetQueryResultChecker {
                     .addFacet(
                             FacetBuilders.termsFacet("bucket_check")
                                     .field(_field)
-                                    .allTerms(_allTerms)
-                    )
-                    .setFilter(makeFilter());
+                                    .size(termLimit()));
         }
 
         protected FilterBuilder makeFilter() {
             return FilterBuilders.boolFilter()
-                    .must(FilterBuilders.rangeFilter(_dtField)
+                    .must(FilterBuilders.rangeFilter(getDtField())
                             .from(_startTime)
                             .to(_endTime)
                             .includeUpper(false));

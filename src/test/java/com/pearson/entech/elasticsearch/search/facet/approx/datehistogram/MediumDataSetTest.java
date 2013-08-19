@@ -32,6 +32,14 @@ public abstract class MediumDataSetTest {
 
     protected final String _dtField = "datetime";
 
+    // Would be nice to get automatically but this is a pain in Java API...
+    protected final String[] _fieldNames = {
+            "A", "A_list", "Aani", "Aani_list", "Aaron", "Aaron_list", "Aaronic", "Aaronic_list", "Aaronical", "Aaronical_list", "Aaronite", "Aaronite_list",
+            "Aaronitic", "Aaronitic_list", "Aaru", "Aaru_list", "Ab", "Ab_list", "Ababdeh", "Ababdeh_list", "Ababua", "Ababua_list", "a", "a_list", "aa",
+            "aa_list", "aal", "aal_list", "aalii", "aalii_list", "aam", "aam_list", "aardvark", "aardvark_list", "aardwolf", "aardwolf_list", "aba",
+            "aba_list", "abac", "abac_list"
+    };
+
     protected final long _dtMin = 1367938920000l;
 
     protected final long _dtMax = 1367946060000l;
@@ -50,7 +58,7 @@ public abstract class MediumDataSetTest {
                 .put("node.http.enabled", true)
                 .put("index.number_of_replicas", 0)
                 .put("path.data", _dataDir)
-                .put("index.search.slowlog.threshold.query.info", "5s")
+                .put("index.search.slowlog.threshold.query.info", "0s")
                 .put("index.search.slowlog.threshold.query.warn", "10s")
                 .build();
         __node = nodeBuilder()
@@ -134,4 +142,5 @@ public abstract class MediumDataSetTest {
     protected <T> T randomPick(final T[] options) {
         return options[_random.nextInt(options.length)];
     }
+
 }

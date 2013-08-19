@@ -9,7 +9,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.index.query.FilterBuilder;
@@ -31,9 +30,17 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
         System.gc();
     }
 
+    // TODO count facet in value_field mode as well
     @Test
     public void test1000CountFacets() throws Exception {
-        testSomeRandomDateFacets(1000);
+        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(10); // FIXME 1000
+        testSomeRandomFacets(randomFacets);
+    }
+
+    @Test
+    public void test1000ExactDistinctFacets() throws Exception {
+        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(10, randomField(), Integer.MAX_VALUE); // FIXME 1000
+        testSomeRandomFacets(randomFacets);
     }
 
     @Test
@@ -41,12 +48,11 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
         Thread.sleep(10000000);
     }
 
-    private void testSomeRandomDateFacets(final int n) throws Exception {
-        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(n, Integer.MAX_VALUE);
-        testSomeRandomFacets(randomFacets);
+    private String randomField() {
+        return randomPick(_fieldNames);
     }
 
-    private void testSomeRandomFacets(final List<? extends RandomDateFacetQuery> randomFacets) throws Exception {
+    private <T extends RandomDateFacetQuery> void testSomeRandomFacets(final List<T> randomFacets) throws Exception {
         final List<SearchResponse> responses = executeSerially(randomFacets);
         assertEquals(randomFacets.size(), responses.size());
         for(int i = 0; i < randomFacets.size(); i++) {
@@ -63,10 +69,18 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
         return results;
     }
 
-    private List<RandomDateFacetQuery> nRandomDateFacets(final int n, final int exactThreshold) {
+    private List<RandomDateFacetQuery> nRandomDateFacets(final int n) {
         final List<RandomDateFacetQuery> requests = newArrayList();
         for(int i = 0; i < n; i++) {
             requests.add(new RandomDateFacetQuery("RandomDateFacet" + i));
+        }
+        return requests;
+    }
+
+    private List<RandomDistinctDateFacetQuery> nRandomDistinctFacets(final int n, final String distinctField, final int exactThreshold) {
+        final List<RandomDistinctDateFacetQuery> requests = newArrayList();
+        for(int i = 0; i < n; i++) {
+            requests.add(new RandomDistinctDateFacetQuery("RandomDistinctDateFacet" + i, distinctField, exactThreshold));
         }
         return requests;
     }
@@ -89,7 +103,25 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
         @Override
         public String queryType() {
-            return "disinct_date_facet";
+            return "distinct_date_facet";
+        }
+
+        @Override
+        protected String totalsField() {
+            return _distinctField;
+        }
+
+        @Override
+        protected void checkHeaders(final Facet facet) {
+            super.checkHeaders(facet);
+            final DistinctQueryResultChecker checker = (DistinctQueryResultChecker) getChecker();
+            final HasDistinct castFacet = (HasDistinct) facet;
+            checker.checkTotalDistinctCount(castFacet.getDistinctCount());
+        }
+
+        @Override
+        public CountingQueryResultChecker buildChecker() {
+            return new DistinctQueryResultChecker(_index, _dtField, client());
         }
 
     }
@@ -99,25 +131,22 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
         // TODO add all the other parameters; add range filters too
         // TODO subclasses for the other facet types
 
-        protected FacetQueryResultChecker buildChecker() {
-            return new FacetQueryResultChecker(_index, _dtField, client());
-        }
-
-        private final SearchRequestBuilder _request;
         private final String _facetName;
-        private final FacetQueryResultChecker _checker;
+        private final CountingQueryResultChecker _checker;
 
         private RandomDateFacetQuery(final String facetName) {
             _facetName = facetName;
-            _request = client()
-                    .prepareSearch(_index)
-                    .setQuery(
-                            QueryBuilders.filteredQuery(
-                                    QueryBuilders.matchAllQuery(),
-                                    makeFilter()))
-                    .setSearchType(SearchType.COUNT)
-                    .addFacet(makeFacet(facetName));
             _checker = buildChecker();
+        }
+
+        public CountingQueryResultChecker buildChecker() {
+            return new CountingQueryResultChecker(_index, _dtField, client());
+        }
+
+        public CountingQueryResultChecker getChecker() {
+            if(_checker == null)
+                throw new IllegalStateException("Checker not yet configured, check test logic");
+            return _checker;
         }
 
         protected DateFacetBuilder makeFacet(final String name) {
@@ -138,9 +167,21 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
             return _facetName;
         }
 
+        protected String totalsField() {
+            return _dtField;
+        }
+
         @Override
         public SearchResponse call() throws Exception {
-            return _request.execute().actionGet();
+            return client()
+                    .prepareSearch(_index)
+                    .setQuery(
+                            QueryBuilders.filteredQuery(
+                                    QueryBuilders.matchAllQuery(),
+                                    makeFilter()))
+                    .setSearchType(SearchType.COUNT)
+                    .addFacet(makeFacet(_facetName))
+                    .execute().actionGet();
         }
 
         // Validation stuff
@@ -158,7 +199,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
             @SuppressWarnings("unchecked")
             final DateFacet<TimePeriod<NullEntry>> castFacet = (DateFacet<TimePeriod<NullEntry>>) facet;
             for(int i = 0; i < castFacet.getEntries().size(); i++) {
-                _checker.specifier(_dtField, castFacet, i).validate();
+                _checker.specifier(totalsField(), castFacet, i).validate();
             }
         }
 
