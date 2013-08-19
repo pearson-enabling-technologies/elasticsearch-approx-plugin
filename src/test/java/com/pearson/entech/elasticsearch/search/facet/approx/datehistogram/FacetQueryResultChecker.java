@@ -4,9 +4,6 @@ import static com.google.common.collect.Lists.newArrayList;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
@@ -18,68 +15,20 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.facet.FacetBuilders;
 import org.elasticsearch.search.facet.terms.TermsFacet;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.MediumDataSetPerformanceTest.RandomDateFacetQuery;
-
 public class FacetQueryResultChecker {
 
-    private final ExecutorService _singleThread = Executors.newSingleThreadExecutor();
+    private final String _index;
+    private final String _dtField;
+    private final Client _client;
+    private final List<BucketSpecifier> _specs;
 
-    private final List<Callable<Boolean>> _checkers;
-
-    public FacetQueryResultChecker(final RandomDateFacetQuery query, final SearchResponse response, final Client client) {
-        _checkers = buildEntryCheckers(query, response, client);
-        _checkers.add(buildHeaderChecker(query, response, client));
+    public FacetQueryResultChecker(final String index, final String dtField,
+            final Client client) {
+        _index = index;
+        _dtField = dtField;
+        _client = client;
+        _specs = newArrayList();
     }
-
-    public void check() throws Exception {
-        for(final Callable<Boolean> checker : _checkers) {
-            checker.call();
-        }
-    }
-
-    private List<Callable<Boolean>> buildEntryCheckers(final RandomDateFacetQuery query, final SearchResponse response, final Client client) {
-        final List<Callable<Boolean>> checkers = newArrayList();
-        final DateFacet<TimePeriod<NullEntry>> facet = response.getFacets().facet(query.facetName());
-        final List<? extends TimePeriod<?>> entries = facet.getEntries();
-        for(int i = 0; i < entries.size(); i++) {
-            final int idx = i;
-            checkers.add(new Callable<Boolean>() {
-                @Override
-                public State call() throws Exception {
-                    final long startTime = entries.get(idx).getTime();
-                    final long endTime = (idx + 1 < entries.size()) ?
-                            entries.get(idx + 1).getTime() : Long.MAX_VALUE;
-                    final long count = entries.get(idx).getTotalCount();
-                    new BucketSpecifier(field, startTime, endTime, count).validate();
-                    
-                    return null;
-                }
-            }
-        );
-
-        final long startTime = entries.get(idx).getTime();
-        final long endTime = (idx + 1 < entries.size()) ?
-                entries.get(idx + 1).getTime() : Long.MAX_VALUE;
-        final long count = entries.get(idx).getTotalCount();
-        return new BucketSpecifier(field, startTime, endTime, count);
-    }
-
-    private Callable<Boolean> buildHeaderChecker(final RandomDateFacetQuery query, final SearchResponse response, final Client client) {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    //    
-    //    
-    //    
-    //    
-    //    
-    //    
-    //    
-    //    
-    //    
-    //    
-    //    
 
     public BucketSpecifier specifier(final String field, final DateFacet<TimePeriod<NullEntry>> facet, final int idx) {
         final List<? extends TimePeriod<?>> entries = facet.getEntries();
@@ -87,7 +36,17 @@ public class FacetQueryResultChecker {
         final long endTime = (idx + 1 < entries.size()) ?
                 entries.get(idx + 1).getTime() : Long.MAX_VALUE;
         final long count = entries.get(idx).getTotalCount();
-        return new BucketSpecifier(field, startTime, endTime, count);
+        final BucketSpecifier spec = new BucketSpecifier(field, startTime, endTime, count);
+        _specs.add(spec);
+        return spec;
+    }
+
+    public void checkTotalCount(final long totalCount) {
+        long expected = 0;
+        for(final BucketSpecifier spec : _specs) {
+            expected += spec._count;
+        }
+        assertEquals(expected, totalCount);
     }
 
     public class BucketSpecifier {

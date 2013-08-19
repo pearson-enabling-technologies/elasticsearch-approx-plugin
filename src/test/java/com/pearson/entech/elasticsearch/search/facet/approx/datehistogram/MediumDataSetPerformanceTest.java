@@ -24,6 +24,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
     ExecutorService _singleThread = Executors.newSingleThreadExecutor();
 
+    // TODO add instrumentation for time and heap usage
     @Before
     public void setUp() throws Exception {
         client().admin().indices().prepareClearCache(_index).execute().actionGet();
@@ -98,8 +99,13 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
         // TODO add all the other parameters; add range filters too
         // TODO subclasses for the other facet types
 
+        protected FacetQueryResultChecker buildChecker() {
+            return new FacetQueryResultChecker(_index, _dtField, client());
+        }
+
         private final SearchRequestBuilder _request;
         private final String _facetName;
+        private final FacetQueryResultChecker _checker;
 
         private RandomDateFacetQuery(final String facetName) {
             _facetName = facetName;
@@ -111,6 +117,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
                                     makeFilter()))
                     .setSearchType(SearchType.COUNT)
                     .addFacet(makeFacet(facetName));
+            _checker = buildChecker();
         }
 
         protected DateFacetBuilder makeFacet(final String name) {
@@ -123,20 +130,20 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
             return FilterBuilders.matchAllFilter();
         }
 
+        protected String queryType() {
+            return "counting_date_facet";
+        }
+
+        protected String facetName() {
+            return _facetName;
+        }
+
         @Override
         public SearchResponse call() throws Exception {
             return _request.execute().actionGet();
         }
 
         // Validation stuff
-
-        public String queryType() {
-            return "counting_date_facet";
-        }
-
-        public String facetName() {
-            return _facetName;
-        }
 
         public void checkResults(final SearchResponse myResponse) {
             final Facets facets = myResponse.getFacets();
@@ -151,16 +158,18 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
             @SuppressWarnings("unchecked")
             final DateFacet<TimePeriod<NullEntry>> castFacet = (DateFacet<TimePeriod<NullEntry>>) facet;
             for(int i = 0; i < castFacet.getEntries().size(); i++) {
-                //                _checker.specifier(_dtField, castFacet, i).validate();
+                _checker.specifier(_dtField, castFacet, i).validate();
             }
         }
 
         protected void checkHeaders(final Facet facet) {
             @SuppressWarnings("unchecked")
             final DateFacet<TimePeriod<NullEntry>> castFacet = (DateFacet<TimePeriod<NullEntry>>) facet;
+            long totalCount = 0;
             for(int i = 0; i < castFacet.getEntries().size(); i++) {
-
+                totalCount += castFacet.getEntries().get(i).getTotalCount();
             }
+            _checker.checkTotalCount(totalCount);
         }
 
     }
