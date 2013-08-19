@@ -74,7 +74,7 @@ public abstract class MediumDataSetTest {
 
     @AfterClass
     public static void tearDownClass() throws Exception {
-        __node.stop();
+        __node.close();
     }
 
     @Before
