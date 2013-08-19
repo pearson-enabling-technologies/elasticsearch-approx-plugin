@@ -37,6 +37,7 @@ public class DateFacetBuilder extends FacetBuilder {
 
     private String keyFieldName;
     private String valueFieldName;
+    private String sliceFieldName;
     private String distinctFieldName;
     private String interval = null;
     private String preZone = null;
@@ -93,6 +94,14 @@ public class DateFacetBuilder extends FacetBuilder {
      */
     public DateFacetBuilder distinctField(final String distinctField) {
         this.distinctFieldName = distinctField;
+        return this;
+    }
+
+    /**
+     * The field name to slice the output by.
+     */
+    public DateFacetBuilder sliceField(final String sliceField) {
+        this.sliceFieldName = sliceField;
         return this;
     }
 

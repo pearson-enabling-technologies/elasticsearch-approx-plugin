@@ -2,6 +2,8 @@ src/test/resources/data/*
 !src/test/resources/data/note.txt
 src/test/resources/target
 
+test-output
+
 threadlog*
 
 *.pydevproject

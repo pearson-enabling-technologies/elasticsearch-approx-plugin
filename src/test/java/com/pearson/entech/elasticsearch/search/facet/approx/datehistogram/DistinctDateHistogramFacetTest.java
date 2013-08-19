@@ -476,8 +476,8 @@ public class DistinctDateHistogramFacetTest {
 
         // TODO test other data types
 
-        // Do this 20 times for different amounts of data
-        for(int t = 1; t <= 20; t++) {
+        // FIXME Do this 20 times for different amounts of data
+        for(int t = 1; t <= 1; t++) {
             setUp();
             final int minPerDay = (int) pow(2, t);
             System.out.println("Randomized testing: inserting minimum " + 7 * minPerDay + " items");

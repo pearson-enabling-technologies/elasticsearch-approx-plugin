@@ -17,6 +17,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.Facets;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class MediumDataSetPerformanceTest extends MediumDataSetTest {
@@ -33,17 +34,25 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     // TODO count facet in value_field mode as well
     @Test
     public void test1000CountFacets() throws Exception {
-        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(10); // FIXME 1000
+        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(10); // FIXME
         testSomeRandomFacets(randomFacets);
     }
 
+    // TODO tests for approx counting... will need a preset tolerance
     @Test
     public void test1000ExactDistinctFacets() throws Exception {
-        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(10, randomField(), Integer.MAX_VALUE); // FIXME 1000
+        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(10, randomField(), Integer.MAX_VALUE); // FIXME
         testSomeRandomFacets(randomFacets);
     }
 
     @Test
+    public void test1000SlicedFacets() throws Exception {
+        final List<RandomSlicedDateFacetQuery> randomFacets = nRandomSlicedFacets(10, randomField()); // FIXME
+        testSomeRandomFacets(randomFacets);
+    }
+
+    @Test
+    @Ignore
     public void testBringUpServerForManualQuerying() throws Exception {
         Thread.sleep(10000000);
     }
@@ -83,6 +92,36 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
             requests.add(new RandomDistinctDateFacetQuery("RandomDistinctDateFacet" + i, distinctField, exactThreshold));
         }
         return requests;
+    }
+
+    private List<RandomSlicedDateFacetQuery> nRandomSlicedFacets(final int n, final String sliceField) {
+        final List<RandomSlicedDateFacetQuery> requests = newArrayList();
+        for(int i = 0; i < n; i++) {
+            //            requests.add(new RandomSlicedDateFacetQuery("RandomSlicedDateFacet" + i, sliceField);
+            // TODO CARRY ON FROM HERE
+        }
+        return requests;
+    }
+
+    private class RandomSlicedDateFacetQuery extends RandomDateFacetQuery {
+
+        private final String _sliceField;
+
+        private RandomSlicedDateFacetQuery(final String facetName, final String sliceField, final int exactThreshold) {
+            super(facetName);
+            _sliceField = sliceField;
+        }
+
+        @Override
+        protected DateFacetBuilder makeFacet(final String name) {
+            return super.makeFacet(name).sliceField(_sliceField);
+        }
+
+        @Override
+        public String queryType() {
+            return "distinct_date_facet";
+        }
+
     }
 
     private class RandomDistinctDateFacetQuery extends RandomDateFacetQuery {

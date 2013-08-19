@@ -74,7 +74,7 @@ public class DateFacetExecutor extends FacetExecutor {
     // TODO exclude deserialized and other "foreign" objects from CacheRecycler
     // TODO better Java API (don't use internal classes)
     // TODO make these collectors static classes, or break them out (to avoid ref. to executor)
-    // TODO separate collect methods for numeric fields as byte conversion is inefficient
+    // TODO wrappers around iterators so we can get bytes for numeric fields without converting to strings first
 
     private class CountingCollector extends BuildableCollector {
 
@@ -99,22 +99,26 @@ public class DateFacetExecutor extends FacetExecutor {
         @Override
         public void collect(final int doc) throws IOException {
             final Iter keyIter = _keyFieldValues.getIter(doc);
-            if(!keyIter.hasNext())
-                return;
 
-            final long time = _tzRounding.calc(keyIter.next());
-
-            // TODO implement the following decision in SlicedCollector too
             if(_valueFieldData == null) {
                 // We are only counting docs
-                _counts.adjustOrPutValue(time, 1, 1);
-            } else {
-                // We are counting each occurrence of valueField 
-                final org.elasticsearch.index.fielddata.BytesValues.Iter valIter =
-                        _valueFieldValues.getIter(doc);
-                while(valIter.hasNext()) {
-                    valIter.next();
+                while(keyIter.hasNext()) {
+                    final long time = _tzRounding.calc(keyIter.next());
                     _counts.adjustOrPutValue(time, 1, 1);
+                }
+            } else {
+                while(keyIter.hasNext()) {
+                    // We are counting each occurrence of valueField (regardless of its contents)
+                    final org.elasticsearch.index.fielddata.BytesValues.Iter valIter =
+                            _valueFieldValues.getIter(doc);
+                    if(!valIter.hasNext())
+                        return;
+
+                    final long time = _tzRounding.calc(keyIter.next());
+                    while(valIter.hasNext()) {
+                        valIter.next();
+                        _counts.adjustOrPutValue(time, 1, 1);
+                    }
                 }
             }
         }
@@ -136,6 +140,7 @@ public class DateFacetExecutor extends FacetExecutor {
 
         private LongValues _keyFieldValues;
         private BytesValues _sliceFieldValues;
+        private BytesValues _valueFieldValues;
 
         private ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
 
@@ -149,20 +154,54 @@ public class DateFacetExecutor extends FacetExecutor {
                     .load(context).getLongValues();
             // TODO if these aren't strings, this isn't the most efficient way:
             _sliceFieldValues = _sliceFieldData.data.load(context).getBytesValues();
+            if(_valueFieldData != null)
+                // TODO if these aren't strings, this isn't the most efficient way:
+                _valueFieldValues = _valueFieldData.data.load(context).getBytesValues();
         }
 
         @Override
         public void collect(final int doc) throws IOException {
+            // Exit as early as possible in order to avoid unnecessary lookups
+
             final Iter keyIter = _keyFieldValues.getIter(doc);
-            final org.elasticsearch.index.fielddata.BytesValues.Iter sliceIter =
-                    _sliceFieldValues.getIter(doc);
-            while(keyIter.hasNext()) {
-                final long time = _tzRounding.calc(keyIter.next());
-                while(sliceIter.hasNext()) {
-                    // TODO we can reduce hash lookups by getting the outer map in the outer loop
-                    incrementSafely(_counts, time, sliceIter.next());
+            if(!keyIter.hasNext())
+                return;
+
+            if(_valueFieldData == null) {
+                // We are only counting docs for each slice
+                while(keyIter.hasNext()) {
+                    final org.elasticsearch.index.fielddata.BytesValues.Iter sliceIter =
+                            _sliceFieldValues.getIter(doc);
+                    if(!sliceIter.hasNext())
+                        return;
+
+                    final long time = _tzRounding.calc(keyIter.next());
+
+                    while(sliceIter.hasNext()) {
+                        // TODO we can reduce hash lookups by getting the outer map in the outer loop
+                        incrementSafely(_counts, time, sliceIter.next());
+                    }
+                }
+            } else {
+                // We are counting each occurrence of value_field in each slice (regardless of its contents)
+                while(keyIter.hasNext()) {
+                    final org.elasticsearch.index.fielddata.BytesValues.Iter sliceIter =
+                            _sliceFieldValues.getIter(doc);
+                    if(!sliceIter.hasNext())
+                        return;
+
+                    final long time = _tzRounding.calc(keyIter.next());
+
+                    while(sliceIter.hasNext()) {
+                        final org.elasticsearch.index.fielddata.BytesValues.Iter valIter =
+                                _valueFieldValues.getIter(doc);
+                        while(valIter.hasNext())
+                            // TODO we can reduce hash lookups by getting the outer map in the outer loop
+                            incrementSafely(_counts, time, sliceIter.next());
+                    }
                 }
             }
+
         }
 
         @Override
@@ -210,9 +249,17 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         public void collect(final int doc) throws IOException {
+            // Exit as early as possible in order to avoid unnecessary lookups
+
             final Iter keyIter = _keyFieldValues.getIter(doc);
+            if(!keyIter.hasNext())
+                return;
+
             final org.elasticsearch.index.fielddata.BytesValues.Iter distinctIter =
                     _distinctFieldValues.getIter(doc);
+            if(!distinctIter.hasNext())
+                return;
+
             while(keyIter.hasNext()) {
                 final long time = _tzRounding.calc(keyIter.next());
                 final DistinctCountPayload count = getSafely(_counts, time);
