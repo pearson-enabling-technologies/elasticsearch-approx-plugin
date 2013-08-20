@@ -36,9 +36,13 @@ public class CountingQueryResultChecker {
         final long endTime = (idx + 1 < entries.size()) ?
                 entries.get(idx + 1).getTime() : Long.MAX_VALUE;
         final long count = entries.get(idx).getTotalCount();
-        final BucketSpecifier spec = new BucketSpecifier(field, startTime, endTime, count);
+        final BucketSpecifier spec = buildBucketSpecifier(field, startTime, endTime, count);
         _specs.add(spec);
         return spec;
+    }
+
+    protected BucketSpecifier buildBucketSpecifier(final String field, final long startTime, final long endTime, final long count) {
+        return new BucketSpecifier(field, startTime, endTime, count);
     }
 
     public void checkTotalCount(final long totalCount) {
@@ -108,10 +112,14 @@ public class CountingQueryResultChecker {
         public void validate() {
             _response = toSearchRequest().execute().actionGet();
             final TermsFacet facet = _response.getFacets().facet("bucket_check");
-            final long totalCount = facet.getTotalCount();
+            final long totalCount = getTotalCount(facet);
             injectAdditionalChecks(facet);
             assertEquals("Mismatch between total counts for bucket on "
-                    + _field, totalCount, _count);
+                    + getField(), totalCount, _count);
+        }
+
+        protected long getTotalCount(final TermsFacet facet) {
+            return facet.getTotalCount();
         }
 
         protected void injectAdditionalChecks(final TermsFacet facet) {
@@ -128,15 +136,15 @@ public class CountingQueryResultChecker {
                     .setSearchType(SearchType.COUNT)
                     .addFacet(
                             FacetBuilders.termsFacet("bucket_check")
-                                    .field(_field)
+                                    .field(getField())
                                     .size(termLimit()));
         }
 
         protected FilterBuilder makeFilter() {
             return FilterBuilders.boolFilter()
                     .must(FilterBuilders.rangeFilter(getDtField())
-                            .from(_startTime)
-                            .to(_endTime)
+                            .from(getStartTime())
+                            .to(getEndTime())
                             .includeUpper(false));
         }
 

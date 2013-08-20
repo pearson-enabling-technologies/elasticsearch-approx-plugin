@@ -41,12 +41,15 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     // TODO tests for approx counting... will need a preset tolerance
     @Test
     public void test1000ExactDistinctFacets() throws Exception {
+        // FIXME decide random field for each query
         final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(10, randomField(), Integer.MAX_VALUE); // FIXME
         testSomeRandomFacets(randomFacets);
     }
 
+    // TODO sliced facet in value_field mode as well
     @Test
     public void test1000SlicedFacets() throws Exception {
+        // FIXME decide random field for each query
         final List<RandomSlicedDateFacetQuery> randomFacets = nRandomSlicedFacets(10, randomField()); // FIXME
         testSomeRandomFacets(randomFacets);
     }
@@ -97,8 +100,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     private List<RandomSlicedDateFacetQuery> nRandomSlicedFacets(final int n, final String sliceField) {
         final List<RandomSlicedDateFacetQuery> requests = newArrayList();
         for(int i = 0; i < n; i++) {
-            //            requests.add(new RandomSlicedDateFacetQuery("RandomSlicedDateFacet" + i, sliceField);
-            // TODO CARRY ON FROM HERE
+            requests.add(new RandomSlicedDateFacetQuery("RandomSlicedDateFacet" + i, sliceField));
         }
         return requests;
     }
@@ -107,7 +109,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
         private final String _sliceField;
 
-        private RandomSlicedDateFacetQuery(final String facetName, final String sliceField, final int exactThreshold) {
+        private RandomSlicedDateFacetQuery(final String facetName, final String sliceField) {
             super(facetName);
             _sliceField = sliceField;
         }
@@ -119,8 +121,20 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
         @Override
         public String queryType() {
-            return "distinct_date_facet";
+            return "sliced_date_facet";
         }
+
+        @Override
+        protected String facetField() {
+            return _sliceField;
+        }
+
+        @Override
+        public CountingQueryResultChecker buildChecker() {
+            return new SlicedQueryResultChecker(_index, _dtField, _sliceField, client());
+        }
+
+        // TODO do we need checkHeaders or are they the same as in counting query?
 
     }
 
@@ -146,8 +160,13 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
         }
 
         @Override
-        protected String totalsField() {
+        protected String facetField() {
             return _distinctField;
+        }
+
+        @Override
+        public CountingQueryResultChecker buildChecker() {
+            return new DistinctQueryResultChecker(_index, _dtField, client());
         }
 
         @Override
@@ -156,11 +175,6 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
             final DistinctQueryResultChecker checker = (DistinctQueryResultChecker) getChecker();
             final HasDistinct castFacet = (HasDistinct) facet;
             checker.checkTotalDistinctCount(castFacet.getDistinctCount());
-        }
-
-        @Override
-        public CountingQueryResultChecker buildChecker() {
-            return new DistinctQueryResultChecker(_index, _dtField, client());
         }
 
     }
@@ -206,7 +220,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
             return _facetName;
         }
 
-        protected String totalsField() {
+        protected String facetField() {
             return _dtField;
         }
 
@@ -238,7 +252,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
             @SuppressWarnings("unchecked")
             final DateFacet<TimePeriod<NullEntry>> castFacet = (DateFacet<TimePeriod<NullEntry>>) facet;
             for(int i = 0; i < castFacet.getEntries().size(); i++) {
-                _checker.specifier(totalsField(), castFacet, i).validate();
+                _checker.specifier(facetField(), castFacet, i).validate();
             }
         }
 

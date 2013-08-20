@@ -127,7 +127,13 @@ public class InternalSlicedDistinctFacet
     private synchronized void materialize() {
         if(_periods != null)
             return;
-        _periods = newArrayListWithCapacity(_periods.size());
+        if(_counts == null || _counts.size() == 0) {
+            _total = 0;
+            _distinctCount = 0;
+            _periods = newArrayListWithCapacity(0);
+            return;
+        }
+        _periods = newArrayListWithCapacity(_counts.size());
         final long[] counter = { 0 };
         _materializePeriods.init(_periods);
         _counts.forEachEntry(_materializePeriods);
@@ -210,7 +216,7 @@ public class InternalSlicedDistinctFacet
         public boolean execute(final long time, final ExtTHashMap<BytesRef, DistinctCountPayload> period) {
             // First create output buffer for the slices from this period
             final XContentEnabledList<DistinctSlice<String>> buffer =
-                    new XContentEnabledList<DistinctSlice<String>>(period.size());
+                    new XContentEnabledList<DistinctSlice<String>>(period.size(), Constants.SLICES);
             // Then materialize the slices into it, creating period-wise subtotals as we go along
             _materializeSlices.init(buffer);
             period.forEachEntry(_materializeSlices);

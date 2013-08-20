@@ -110,6 +110,11 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
     private synchronized void materialize() {
         if(_periods != null)
             return;
+        if(_counts == null || _counts.size() == 0) {
+            _total = 0;
+            _periods = newArrayListWithCapacity(0);
+            return;
+        }
         _periods = newArrayListWithCapacity(_counts.size());
         final long[] counter = { 0 };
         _materializePeriod.init(_periods, counter);

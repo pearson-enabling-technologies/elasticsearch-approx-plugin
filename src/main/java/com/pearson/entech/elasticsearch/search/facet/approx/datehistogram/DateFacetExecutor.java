@@ -59,7 +59,8 @@ public class DateFacetExecutor extends FacetExecutor {
         return _collector;
     }
 
-    // TODO sorting (sigh)
+    // TODO better checking for 0-length collections and other trip-ups
+    // TODO sorting of data within facets
     // TODO tests for other facets, not just distinct
     // TODO keep track of totals and missing values
     // TODO replace "new DistinctCountPayload()" with an object cache
@@ -195,9 +196,11 @@ public class DateFacetExecutor extends FacetExecutor {
                     while(sliceIter.hasNext()) {
                         final org.elasticsearch.index.fielddata.BytesValues.Iter valIter =
                                 _valueFieldValues.getIter(doc);
-                        while(valIter.hasNext())
+                        while(valIter.hasNext()) {
                             // TODO we can reduce hash lookups by getting the outer map in the outer loop
-                            incrementSafely(_counts, time, sliceIter.next());
+                            final BytesRef unsafe = sliceIter.next();
+                            incrementSafely(_counts, time, unsafe);
+                        }
                     }
                 }
             }
@@ -217,13 +220,14 @@ public class DateFacetExecutor extends FacetExecutor {
         }
 
         private void incrementSafely(final TLongObjectMap<TObjectIntHashMap<BytesRef>> counts,
-                final long key1, final BytesRef key2) {
-            TObjectIntHashMap<BytesRef> subMap = counts.get(key1);
+                final long key, final BytesRef unsafe) {
+            TObjectIntHashMap<BytesRef> subMap = counts.get(key);
             if(subMap == null) {
                 subMap = CacheRecycler.popObjectIntMap();
-                counts.put(key1, subMap);
+                counts.put(key, subMap);
             }
-            subMap.adjustOrPutValue(key2, 1, 1);
+            final BytesRef safe = BytesRef.deepCopyOf(unsafe);
+            subMap.adjustOrPutValue(safe, 1, 1);
         }
 
     }
@@ -327,11 +331,13 @@ public class DateFacetExecutor extends FacetExecutor {
                 final long time = _tzRounding.calc(keyIter.next());
                 while(sliceIter.hasNext()) {
                     // TODO we can reduce hash lookups by getting the outer map in the outer loop
-                    final DistinctCountPayload count = getSafely(_counts, time, sliceIter.next());
+                    final BytesRef unsafeSlice = sliceIter.next();
+                    final DistinctCountPayload count = getSafely(_counts, time, unsafeSlice);
                     while(distinctIter.hasNext()) {
-                        final BytesRef term = distinctIter.next();
-                        final BytesRef safe = _distinctFieldValues.makeSafe(term);
-                        count.update(safe);
+                        final BytesRef unsafeTerm = distinctIter.next();
+                        // Unsafe because this may change; the counter needs to make
+                        // it safe if it's going to keep hold of the bytes
+                        count.update(unsafeTerm);
                     }
                 }
             }
@@ -342,15 +348,16 @@ public class DateFacetExecutor extends FacetExecutor {
 
         private DistinctCountPayload getSafely(
                 final TLongObjectMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts,
-                final long key1, final BytesRef key2) {
-            ExtTHashMap<BytesRef, DistinctCountPayload> subMap = counts.get(key1);
+                final long key, final BytesRef unsafe) {
+            ExtTHashMap<BytesRef, DistinctCountPayload> subMap = counts.get(key);
             if(subMap == null) {
                 subMap = CacheRecycler.popHashMap();
-                counts.put(key1, subMap);
+                counts.put(key, subMap);
             }
-            DistinctCountPayload payload = subMap.get(key2);
+            final BytesRef safe = BytesRef.deepCopyOf(unsafe);
+            DistinctCountPayload payload = subMap.get(safe);
             if(payload == null) {
-                payload = counts.get(key1).put(key2, new DistinctCountPayload(_exactThreshold));
+                payload = counts.get(key).put(safe, new DistinctCountPayload(_exactThreshold));
             }
             return payload;
         }

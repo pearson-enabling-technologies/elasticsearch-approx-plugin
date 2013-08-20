@@ -250,6 +250,9 @@ public class DateFacetBuilder extends FacetBuilder {
         if(distinctFieldName != null)
             builder.field("distinct_field", distinctFieldName);
 
+        if(sliceFieldName != null)
+            builder.field("slice_field", sliceFieldName);
+
         if(valueScript != null) {
             builder.field("value_script", valueScript);
             if(lang != null) {

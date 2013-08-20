@@ -113,7 +113,12 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
     private synchronized void materialize() {
         if(_periods != null)
             return;
-        _periods = newArrayListWithCapacity(_periods.size());
+        if(_counts == null || _counts.size() == 0) {
+            _total = 0;
+            _periods = newArrayListWithCapacity(0);
+            return;
+        }
+        _periods = newArrayListWithCapacity(_counts.size());
         final long[] counter = { 0 };
         _materializePeriods.init(_periods, counter);
         _counts.forEachEntry(_materializePeriods);
@@ -193,7 +198,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
         public boolean execute(final long time, final TObjectIntHashMap<BytesRef> period) {
             // First create output buffer for the slices from this period
             final XContentEnabledList<Slice<String>> buffer =
-                    new XContentEnabledList<Slice<String>>(period.size());
+                    new XContentEnabledList<Slice<String>>(period.size(), Constants.SLICES);
             // Then materialize the slices into it
             _materializeSlices.init(buffer, _counter);
             period.forEachEntry(_materializeSlices);
