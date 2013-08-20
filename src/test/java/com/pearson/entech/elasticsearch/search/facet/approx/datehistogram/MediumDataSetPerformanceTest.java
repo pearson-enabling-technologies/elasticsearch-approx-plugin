@@ -17,7 +17,6 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.Facets;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class MediumDataSetPerformanceTest extends MediumDataSetTest {
@@ -34,7 +33,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     // TODO count facet in value_field mode as well
     @Test
     public void test1000CountFacets() throws Exception {
-        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(10); // FIXME
+        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(10); // FIXME n=1000
         testSomeRandomFacets(randomFacets);
     }
 
@@ -42,7 +41,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     @Test
     public void test1000ExactDistinctFacets() throws Exception {
         // FIXME decide random field for each query
-        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(10, randomField(), Integer.MAX_VALUE); // FIXME
+        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(10, randomField(), Integer.MAX_VALUE); // FIXME n=1000
         testSomeRandomFacets(randomFacets);
     }
 
@@ -50,12 +49,12 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     @Test
     public void test1000SlicedFacets() throws Exception {
         // FIXME decide random field for each query
-        final List<RandomSlicedDateFacetQuery> randomFacets = nRandomSlicedFacets(10, randomField()); // FIXME
+        final List<RandomSlicedDateFacetQuery> randomFacets = nRandomSlicedFacets(1, randomField()); // FIXME n=1000
         testSomeRandomFacets(randomFacets);
     }
 
     @Test
-    @Ignore
+    //    @Ignore
     public void testBringUpServerForManualQuerying() throws Exception {
         Thread.sleep(10000000);
     }

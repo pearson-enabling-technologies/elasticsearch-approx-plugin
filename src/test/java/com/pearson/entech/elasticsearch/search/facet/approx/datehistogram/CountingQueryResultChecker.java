@@ -9,7 +9,7 @@ import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.index.query.FilterBuilder;
+import org.elasticsearch.index.query.BoolFilterBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.facet.FacetBuilders;
@@ -140,7 +140,7 @@ public class CountingQueryResultChecker {
                                     .size(termLimit()));
         }
 
-        protected FilterBuilder makeFilter() {
+        protected BoolFilterBuilder makeFilter() {
             return FilterBuilders.boolFilter()
                     .must(FilterBuilders.rangeFilter(getDtField())
                             .from(getStartTime())

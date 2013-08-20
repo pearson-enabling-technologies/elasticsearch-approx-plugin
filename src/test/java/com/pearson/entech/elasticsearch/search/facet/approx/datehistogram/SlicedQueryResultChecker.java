@@ -1,13 +1,8 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
-import static com.google.common.collect.Maps.newHashMap;
-
-import java.util.List;
-import java.util.Map;
-
 import org.elasticsearch.client.Client;
-import org.elasticsearch.search.facet.terms.TermsFacet;
-import org.elasticsearch.search.facet.terms.TermsFacet.Entry;
+import org.elasticsearch.index.query.BoolFilterBuilder;
+import org.elasticsearch.index.query.FilterBuilders;
 
 public class SlicedQueryResultChecker extends CountingQueryResultChecker {
 
@@ -25,9 +20,15 @@ public class SlicedQueryResultChecker extends CountingQueryResultChecker {
 
     public class BucketSpecifier extends CountingQueryResultChecker.BucketSpecifier {
 
+        // Additional validation rules:
+        // Length of "slices" list in original facet entry should equal length of length of "terms" list in validation
+        // Count of each term in original facet should equal count of each term in "terms" list
+
         protected BucketSpecifier(final String field, final long startTime, final long endTime, final long count) {
             super(field, startTime, endTime, count);
         }
+
+        // TODO add "exists" filter to query
 
         @Override
         protected int termLimit() {
@@ -35,23 +36,21 @@ public class SlicedQueryResultChecker extends CountingQueryResultChecker {
         }
 
         @Override
-        protected long getTotalCount(final TermsFacet facet) {
-            long count = 0;
-            for(final Entry entry : facet.getEntries()) {
-                count += entry.getCount();
-            }
-            return count;
+        protected BoolFilterBuilder makeFilter() {
+            return super.makeFilter()
+                    .must(FilterBuilders.existsFilter(getField()));
         }
 
-        @Override
-        protected void injectAdditionalChecks(final TermsFacet facet) {
-            final List<? extends Entry> entries = facet.getEntries();
-            final Map<String, Integer> entryCounts = newHashMap();
-            for(final Entry entry : entries) {
-                entryCounts.put(entry.getTerm().string(), entry.getCount());
-            }
-            // TODO carry on here
-        }
+        //        @Override
+        //        protected void injectAdditionalChecks(final TermsFacet facet) {
+        //            final List<? extends Entry> entries = facet.getEntries();
+        //            final Map<String, Integer> entryCounts = newHashMap();
+        //            for(final Entry entry : entries) {
+        //                entryCounts.put(entry.getTerm().string(), entry.getCount());
+        //            }
+        //            // TODO carry on here
+        //        }
+
     }
 
 }

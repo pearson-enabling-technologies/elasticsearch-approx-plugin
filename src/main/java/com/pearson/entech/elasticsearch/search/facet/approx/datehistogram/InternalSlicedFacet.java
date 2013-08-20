@@ -186,11 +186,13 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
     private static final class PeriodMaterializer implements TLongObjectProcedure<TObjectIntHashMap<BytesRef>> {
 
         private List<TimePeriod<XContentEnabledList<Slice<String>>>> _target;
-        private long[] _counter;
+        private long[] _totalCounter;
+        private long[] _periodCounter;
 
-        public void init(final List<TimePeriod<XContentEnabledList<Slice<String>>>> _periods, final long[] counter) {
-            _target = _periods;
-            _counter = counter;
+        public void init(final List<TimePeriod<XContentEnabledList<Slice<String>>>> periods, final long[] totalCounter) {
+            _target = periods;
+            _totalCounter = totalCounter;
+            _periodCounter = new long[1];
         }
 
         // Called once per time period
@@ -199,13 +201,17 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
             // First create output buffer for the slices from this period
             final XContentEnabledList<Slice<String>> buffer =
                     new XContentEnabledList<Slice<String>>(period.size(), Constants.SLICES);
+            // Reset period counter
+            _periodCounter[0] = 0;
             // Then materialize the slices into it
-            _materializeSlices.init(buffer, _counter);
+            _materializeSlices.init(buffer, _periodCounter);
             period.forEachEntry(_materializeSlices);
+            // Add period counter to total counter
+            _totalCounter[0] += _periodCounter[0];
             // Finally save results
             _target.add(
                     new TimePeriod<XContentEnabledList<Slice<String>>>(
-                            time, _counter[0], buffer));
+                            time, _periodCounter[0], buffer));
             return true;
         }
 
@@ -225,7 +231,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
             @Override
             public boolean execute(final BytesRef key, final int count) {
                 _target.add(new Slice<String>(key.utf8ToString(), count));
-                _counter[0] = _counter[0] + count;
+                _counter[0] += count;
                 return true;
             }
 
