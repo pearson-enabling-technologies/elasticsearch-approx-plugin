@@ -1,16 +1,29 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
+import static com.google.common.collect.Maps.newHashMap;
+import static org.junit.Assert.assertEquals;
+
+import java.util.List;
+import java.util.Map;
+
 import org.elasticsearch.client.Client;
 import org.elasticsearch.index.query.BoolFilterBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
+import org.elasticsearch.search.facet.terms.TermsFacet;
+import org.elasticsearch.search.facet.terms.TermsFacet.Entry;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.MediumDataSetPerformanceTest.RandomSlicedDateFacetQuery;
 
 public class SlicedQueryResultChecker extends CountingQueryResultChecker {
 
     private final String _sliceField;
+    private final RandomSlicedDateFacetQuery _query;
 
-    public SlicedQueryResultChecker(final String index, final String dtField, final String sliceField, final Client client) {
+    public SlicedQueryResultChecker(final String index, final String dtField, final String sliceField, final Client client,
+            final RandomSlicedDateFacetQuery query) {
         super(index, dtField, client);
         _sliceField = sliceField;
+        _query = query;
     }
 
     @Override
@@ -20,15 +33,9 @@ public class SlicedQueryResultChecker extends CountingQueryResultChecker {
 
     public class BucketSpecifier extends CountingQueryResultChecker.BucketSpecifier {
 
-        // Additional validation rules:
-        // Length of "slices" list in original facet entry should equal length of length of "terms" list in validation
-        // Count of each term in original facet should equal count of each term in "terms" list
-
         protected BucketSpecifier(final String field, final long startTime, final long endTime, final long count) {
             super(field, startTime, endTime, count);
         }
-
-        // TODO add "exists" filter to query
 
         @Override
         protected int termLimit() {
@@ -41,16 +48,38 @@ public class SlicedQueryResultChecker extends CountingQueryResultChecker {
                     .must(FilterBuilders.existsFilter(getField()));
         }
 
-        //        @Override
-        //        protected void injectAdditionalChecks(final TermsFacet facet) {
-        //            final List<? extends Entry> entries = facet.getEntries();
-        //            final Map<String, Integer> entryCounts = newHashMap();
-        //            for(final Entry entry : entries) {
-        //                entryCounts.put(entry.getTerm().string(), entry.getCount());
-        //            }
-        //            // TODO carry on here
-        //        }
+        @Override
+        protected void injectAdditionalChecks(final TermsFacet facet) {
+            final DateFacet<TimePeriod<XContentEnabledList<Slice<String>>>> original =
+                    _query.getSearchResponse().getFacets().facet("sliced_date_facet");
+            final List<Slice<String>> period = findPeriod(original, getStartTime());
 
+            assertEquals("Number of terms in facet does not match what we'd expect",
+                    facet.getEntries().size(), period.size());
+
+            // Get terms from terms list in validation query for this bucket
+            final List<? extends Entry> entries = facet.getEntries();
+            final Map<String, Integer> entryCounts = newHashMap();
+            for(final Entry entry : entries) {
+                entryCounts.put(entry.getTerm().string(), entry.getCount());
+            }
+            // Compare to terms in this period from original facet that we're checking
+            for(final Slice<String> slice : period) {
+                final String term = slice.getLabel();
+                final long expectedCount = entryCounts.get(term).longValue();
+                final long actualCount = slice.getTotalCount();
+                assertEquals("Counts for term " + term + " don't match what we'd expect",
+                        expectedCount, actualCount);
+            }
+        }
+
+        private List<Slice<String>> findPeriod(final DateFacet<TimePeriod<XContentEnabledList<Slice<String>>>> original, final long startTime) {
+            for(final TimePeriod<XContentEnabledList<Slice<String>>> period : original.entries()) {
+                if(period.getTime() == startTime)
+                    return period.getEntry();
+            }
+            throw new IllegalArgumentException("Couldn't locate time period starting at " + startTime + " in facet provided");
+        }
     }
 
 }

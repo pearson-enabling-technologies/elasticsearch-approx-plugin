@@ -1,9 +1,12 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static com.google.common.collect.Lists.newArrayListWithExpectedSize;
+import static com.google.common.collect.Maps.newHashMap;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,63 +19,78 @@ import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.facet.Facet;
 import org.elasticsearch.search.facet.Facets;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
+    private static final Map<String, Long> __executionStartTimes = newHashMap();
+
+    private static final Map<String, Long> __executionEndTimes = newHashMap();
+
     ExecutorService _singleThread = Executors.newSingleThreadExecutor();
 
-    // TODO add instrumentation for time and heap usage
-    @Before
-    public void setUp() throws Exception {
+    // TODO add instrumentation for heap usage
+    private void clearMemory() throws Exception {
         client().admin().indices().prepareClearCache(_index).execute().actionGet();
         System.gc();
+        Thread.sleep(2000);
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+        System.out.println("Completed tests:");
+        for(final String name : __executionEndTimes.keySet()) {
+            final long duration = __executionEndTimes.get(name) - __executionStartTimes.get(name);
+            System.out.println(name + " completed in " + duration + " ms");
+        }
     }
 
     // TODO count facet in value_field mode as well
     @Test
-    public void test1000CountFacets() throws Exception {
-        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(10); // FIXME n=1000
-        testSomeRandomFacets(randomFacets);
+    public void test100CountFacets() throws Exception {
+        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(100);
+        testSomeRandomFacets(randomFacets, "test100CountFacets");
     }
 
     // TODO tests for approx counting... will need a preset tolerance
     @Test
-    public void test1000ExactDistinctFacets() throws Exception {
-        // FIXME decide random field for each query
-        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(10, randomField(), Integer.MAX_VALUE); // FIXME n=1000
-        testSomeRandomFacets(randomFacets);
+    public void test100ExactDistinctFacets() throws Exception {
+        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(100, Integer.MAX_VALUE);
+        testSomeRandomFacets(randomFacets, "test100ExactDistinctFacets");
     }
 
     // TODO sliced facet in value_field mode as well
     @Test
-    public void test1000SlicedFacets() throws Exception {
-        // FIXME decide random field for each query
-        final List<RandomSlicedDateFacetQuery> randomFacets = nRandomSlicedFacets(1, randomField()); // FIXME n=1000
-        testSomeRandomFacets(randomFacets);
+    public void test100SlicedFacets() throws Exception {
+        final List<RandomSlicedDateFacetQuery> randomFacets = nRandomSlicedFacets(100);
+        testSomeRandomFacets(randomFacets, "test100SlicedFacets");
     }
 
     @Test
-    //    @Ignore
+    @Ignore
     public void testBringUpServerForManualQuerying() throws Exception {
-        Thread.sleep(10000000);
+        Thread.sleep(1000000);
     }
 
     private String randomField() {
         return randomPick(_fieldNames);
     }
 
-    private <T extends RandomDateFacetQuery> void testSomeRandomFacets(final List<T> randomFacets) throws Exception {
-        final List<SearchResponse> responses = executeSerially(randomFacets);
+    private <T extends RandomDateFacetQuery> void testSomeRandomFacets(final List<T> randomFacets, final String testName) throws Exception {
+        final List<SearchResponse> responses = executeSerially(randomFacets, testName);
         assertEquals(randomFacets.size(), responses.size());
         for(int i = 0; i < randomFacets.size(); i++) {
             randomFacets.get(i).checkResults(responses.get(i));
         }
     }
 
-    private <T> List<T> executeSerially(final List<? extends Callable<T>> tasks) throws Exception {
+    private <T> List<T> executeSerially(final List<? extends Callable<T>> tasks, final String testName) throws Exception {
+        clearMemory();
+        logExecutionStart(testName);
         final List<Future<T>> futures = _singleThread.invokeAll(tasks);
+        logExecutionEnd(testName);
         final List<T> results = newArrayList();
         for(final Future<T> future : futures) {
             results.add(future.get());
@@ -81,30 +99,40 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     }
 
     private List<RandomDateFacetQuery> nRandomDateFacets(final int n) {
-        final List<RandomDateFacetQuery> requests = newArrayList();
+        final List<RandomDateFacetQuery> requests = newArrayListWithExpectedSize(n);
         for(int i = 0; i < n; i++) {
             requests.add(new RandomDateFacetQuery("RandomDateFacet" + i));
         }
         return requests;
     }
 
-    private List<RandomDistinctDateFacetQuery> nRandomDistinctFacets(final int n, final String distinctField, final int exactThreshold) {
-        final List<RandomDistinctDateFacetQuery> requests = newArrayList();
+    private List<RandomDistinctDateFacetQuery> nRandomDistinctFacets(final int n, final int exactThreshold) {
+        final String distinctField = randomField();
+        final List<RandomDistinctDateFacetQuery> requests = newArrayListWithExpectedSize(n);
         for(int i = 0; i < n; i++) {
             requests.add(new RandomDistinctDateFacetQuery("RandomDistinctDateFacet" + i, distinctField, exactThreshold));
         }
         return requests;
     }
 
-    private List<RandomSlicedDateFacetQuery> nRandomSlicedFacets(final int n, final String sliceField) {
-        final List<RandomSlicedDateFacetQuery> requests = newArrayList();
+    private List<RandomSlicedDateFacetQuery> nRandomSlicedFacets(final int n) {
+        final String sliceField = randomField();
+        final List<RandomSlicedDateFacetQuery> requests = newArrayListWithExpectedSize(n);
         for(int i = 0; i < n; i++) {
             requests.add(new RandomSlicedDateFacetQuery("RandomSlicedDateFacet" + i, sliceField));
         }
         return requests;
     }
 
-    private class RandomSlicedDateFacetQuery extends RandomDateFacetQuery {
+    protected void logExecutionStart(final String testName) {
+        __executionStartTimes.put(testName, System.currentTimeMillis());
+    }
+
+    protected void logExecutionEnd(final String testName) {
+        __executionEndTimes.put(testName, System.currentTimeMillis());
+    }
+
+    public class RandomSlicedDateFacetQuery extends RandomDateFacetQuery {
 
         private final String _sliceField;
 
@@ -130,14 +158,12 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
         @Override
         public CountingQueryResultChecker buildChecker() {
-            return new SlicedQueryResultChecker(_index, _dtField, _sliceField, client());
+            return new SlicedQueryResultChecker(_index, _dtField, _sliceField, client(), this);
         }
-
-        // TODO do we need checkHeaders or are they the same as in counting query?
 
     }
 
-    private class RandomDistinctDateFacetQuery extends RandomDateFacetQuery {
+    public class RandomDistinctDateFacetQuery extends RandomDateFacetQuery {
 
         private final String _distinctField;
         private final int _exactThreshold;
@@ -180,11 +206,9 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
     public class RandomDateFacetQuery implements Callable<SearchResponse> {
 
-        // TODO add all the other parameters; add range filters too
-        // TODO subclasses for the other facet types
-
         private final String _facetName;
         private final CountingQueryResultChecker _checker;
+        private SearchResponse _response;
 
         private RandomDateFacetQuery(final String facetName) {
             _facetName = facetName;
@@ -223,6 +247,10 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
             return _dtField;
         }
 
+        public SearchResponse getSearchResponse() {
+            return _response;
+        }
+
         @Override
         public SearchResponse call() throws Exception {
             return client()
@@ -239,6 +267,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
         // Validation stuff
 
         public void checkResults(final SearchResponse myResponse) {
+            _response = myResponse;
             final Facets facets = myResponse.getFacets();
             assertEquals("Found " + facets.facets().size() + " facets instead of 1", 1, facets.facets().size());
             final Facet facet = facets.facet(_facetName);

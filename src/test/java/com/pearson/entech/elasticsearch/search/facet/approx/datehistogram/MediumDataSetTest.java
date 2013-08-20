@@ -55,10 +55,10 @@ public abstract class MediumDataSetTest {
     @BeforeClass
     public static void setUpClass() throws Exception {
         final Settings settings = ImmutableSettings.settingsBuilder()
-                .put("node.http.enabled", true)
+                .put("node.http.enabled", false)
                 .put("index.number_of_replicas", 0)
                 .put("path.data", _dataDir)
-                .put("index.search.slowlog.threshold.query.info", "0s")
+                .put("index.search.slowlog.threshold.query.info", "5s")
                 .put("index.search.slowlog.threshold.query.warn", "10s")
                 .build();
         __node = nodeBuilder()
