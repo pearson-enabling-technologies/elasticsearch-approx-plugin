@@ -154,7 +154,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             // Then the estimator could use the backing array of the original
             // unsafe BytesRef as it immediately calculates a hash and throws
             // away the contents; as it is we have to copy it out
-            modified = estimator.offer(copyBytes(unsafe));
+            modified = estimator.offer(BytesRef.deepCopyOf(unsafe));
         }
         else
         {
@@ -184,7 +184,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
 
         if(tipped)
         {
-            modified = estimator.offer(copyBytes(ref));
+            modified = estimator.offer(ref);
         }
         else
         {

@@ -59,6 +59,8 @@ public class DateFacetExecutor extends FacetExecutor {
         return _collector;
     }
 
+    // TODO remove all printlns
+    // TODO calculate for-loop boundary values before starting loops (not each time)
     // TODO better checking for 0-length collections and other trip-ups
     // TODO sorting of data within facets
     // TODO tests for other facets, not just distinct
