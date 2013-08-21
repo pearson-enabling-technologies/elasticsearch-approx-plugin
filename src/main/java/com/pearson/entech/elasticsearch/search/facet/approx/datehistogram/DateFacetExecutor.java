@@ -201,9 +201,14 @@ public class DateFacetExecutor extends FacetExecutor {
         }
 
         @Override
+        public void postCollection() {
+            super.postCollection();
+            _sliceFieldValues = null;
+        }
+
+        @Override
         public InternalFacet build(final String facetName) {
             final InternalFacet facet = new InternalSlicedFacet(facetName, _counts);
-            _sliceFieldValues = null;
             _counts = null;
             return facet;
         }
@@ -263,6 +268,18 @@ public class DateFacetExecutor extends FacetExecutor {
             }
         }
 
+        @Override
+        public void postCollection() {
+            super.postCollection();
+            _distinctFieldValues = null;
+        }
+
+        @Override
+        public InternalFacet build(final String facetName) {
+            final InternalFacet facet = new InternalDistinctFacet(facetName, _counts);
+            return facet;
+        }
+
         private DistinctCountPayload getSafely(final TLongObjectMap<DistinctCountPayload> counts, final long key) {
             DistinctCountPayload payload = counts.get(key);
             if(payload == null) {
@@ -270,13 +287,6 @@ public class DateFacetExecutor extends FacetExecutor {
                 counts.put(key, payload);
             }
             return payload;
-        }
-
-        @Override
-        public InternalFacet build(final String facetName) {
-            final InternalFacet facet = new InternalDistinctFacet(facetName, _counts);
-            _distinctFieldValues = null;
-            return facet;
         }
 
     }
@@ -328,6 +338,19 @@ public class DateFacetExecutor extends FacetExecutor {
             }
         }
 
+        @Override
+        public void postCollection() {
+            super.postCollection();
+            _distinctFieldValues = null;
+            _sliceFieldValues = null;
+        }
+
+        @Override
+        public InternalFacet build(final String facetName) {
+            final InternalFacet facet = new InternalSlicedDistinctFacet(facetName, _counts);
+            return facet;
+        }
+
         private DistinctCountPayload getSafely(
                 final TLongObjectMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts,
                 final long key, final BytesRef unsafe) {
@@ -342,14 +365,6 @@ public class DateFacetExecutor extends FacetExecutor {
                 payload = counts.get(key).put(safe, new DistinctCountPayload(_exactThreshold));
             }
             return payload;
-        }
-
-        @Override
-        public InternalFacet build(final String facetName) {
-            final InternalFacet facet = new InternalSlicedDistinctFacet(facetName, _counts);
-            _distinctFieldValues = null;
-            _sliceFieldValues = null;
-            return facet;
         }
 
     }
