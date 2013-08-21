@@ -28,6 +28,7 @@ public class DateFacetExecutor extends FacetExecutor {
     private final BuildableCollector _collector;
 
     private final TimeZoneRounding _tzRounding;
+
     private final int _exactThreshold;
 
     public DateFacetExecutor(final TypedFieldData keyFieldData, final TypedFieldData valueFieldData,
@@ -63,8 +64,8 @@ public class DateFacetExecutor extends FacetExecutor {
     // TODO calculate for-loop boundary values before starting loops (not each time)
     // TODO better checking for 0-length collections and other trip-ups
     // TODO sorting of data within facets
-    // TODO tests for other facets, not just distinct
-    // TODO keep track of totals and missing values
+    // TODO complete tests (see notes in files)
+    // TODO keep track of missing values
     // TODO replace "new DistinctCountPayload()" with an object cache
     // TODO global cache of the counts from each collector
     // TODO cache tz calculations
