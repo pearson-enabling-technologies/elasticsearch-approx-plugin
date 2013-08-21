@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.lucene.codecs.bloom.MurmurHash2;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.trove.set.hash.THashSet;
@@ -94,6 +95,8 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         this(1000, AdaptiveCounting.Builder.obyCount(1000000000));
     }
 
+    private static final MurmurHash2 __luceneMurmurHash = MurmurHash2.INSTANCE;
+
     /**
      * @param tippingPoint Cardinality at which exact counting gives way to estimation
      * @param builder      Factory for instantiating estimator after the tipping point is reached
@@ -149,16 +152,12 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
 
         if(tipped)
         {
-            // TODO fork stream-lib and modify it all to work on BytesRef objects
-
-            // Then the estimator could use the backing array of the original
-            // unsafe BytesRef as it immediately calculates a hash and throws
-            // away the contents; as it is we have to copy it out
-            modified = estimator.offer(BytesRef.deepCopyOf(unsafe));
+            // The estimator just needs the hash of the current bytes of the BytesRef
+            modified = estimator.offerHashed(__luceneMurmurHash.hash(unsafe));
         }
         else
         {
-            // The counter must copy the bytes as they need to stay intact
+            // The counter must copy the BytesRef as it needs to stay intact
             if(counter.add(BytesRef.deepCopyOf(unsafe)))
             {
                 modified = true;
@@ -184,7 +183,8 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
 
         if(tipped)
         {
-            modified = estimator.offer(ref);
+            // The estimator just needs the hash of the current bytes of the BytesRef
+            modified = estimator.offerHashed(__luceneMurmurHash.hash(ref));
         }
         else
         {
@@ -220,7 +220,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
 
         for(final Object o : counter)
         {
-            estimator.offer(o);
+            estimator.offerHashed(__luceneMurmurHash.hash((BytesRef) o));
         }
 
         CacheRecycler.pushHashSet(counter);
@@ -390,7 +390,8 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
                 {
                     for(final Object o : cte.counter)
                     {
-                        merged.offer(o);
+                        //merged.offerHashed(__luceneMurmurHash.hash((BytesRef) o));
+                        merged.offerBytesRef((BytesRef) o);
                     }
                 }
             }
@@ -412,12 +413,6 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
 
         }
         return merged;
-    }
-
-    private byte[] copyBytes(final BytesRef term) {
-        final byte[] output = new byte[term.length];
-        System.arraycopy(term.bytes, term.offset, output, 0, term.length);
-        return output;
     }
 
     @SuppressWarnings("serial")

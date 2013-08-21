@@ -12,8 +12,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.elasticsearch.action.ListenableActionFuture;
+import org.elasticsearch.action.admin.cluster.node.hotthreads.NodeHotThreads;
+import org.elasticsearch.action.admin.cluster.node.hotthreads.NodesHotThreadsRequestBuilder;
+import org.elasticsearch.action.admin.cluster.node.hotthreads.NodesHotThreadsResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -30,6 +35,8 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     private static final Map<String, Long> __executionEndTimes = newHashMap();
 
     ExecutorService _singleThread = Executors.newSingleThreadExecutor();
+
+    private final boolean _hotThreads = false;
 
     // TODO add instrumentation for heap usage
     private void clearMemory() throws Exception {
@@ -99,14 +106,29 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
     private <T> List<T> executeSerially(final List<? extends Callable<T>> tasks, final String testName) throws Exception {
         clearMemory();
+        final ListenableActionFuture<NodesHotThreadsResponse> threads = _hotThreads ?
+                new NodesHotThreadsRequestBuilder(client().admin().cluster())
+                        .setInterval(TimeValue.timeValueSeconds(2))
+                        .setThreads(5).execute()
+                : null;
         logExecutionStart(testName);
         final List<Future<T>> futures = _singleThread.invokeAll(tasks);
         logExecutionEnd(testName);
+        if(_hotThreads) {
+            final NodeHotThreads[] nodes = threads.actionGet().getNodes();
+            dumpHotThreads(nodes);
+        }
         final List<T> results = newArrayList();
         for(final Future<T> future : futures) {
             results.add(future.get());
         }
         return results;
+    }
+
+    private void dumpHotThreads(final NodeHotThreads[] nodes) {
+        for(final NodeHotThreads node : nodes) {
+            System.out.println(node.getHotThreads());
+        }
     }
 
     private List<RandomDateFacetQuery> nRandomDateFacets(final int n) {
