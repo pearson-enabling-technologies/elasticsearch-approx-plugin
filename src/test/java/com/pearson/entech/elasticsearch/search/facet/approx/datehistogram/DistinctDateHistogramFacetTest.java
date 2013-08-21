@@ -350,7 +350,6 @@ public class DistinctDateHistogramFacetTest {
         putSync(newID(), 1, __days[6]);
         assertEquals(4, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
-        System.out.println(response);
         assertEquals(4, response.getHits().getTotalHits());
         final InternalDistinctFacet facet = response.getFacets().facet(__facetName);
         final List<DistinctTimePeriod<NullEntry>> facetList = facet.entries();
@@ -477,7 +476,7 @@ public class DistinctDateHistogramFacetTest {
         // TODO test other data types
 
         // FIXME Do this 20 times for different amounts of data
-        for(int t = 1; t <= 1; t++) {
+        for(int t = 1; t <= 20; t++) {
             setUp();
             final int minPerDay = (int) pow(2, t);
             System.out.println("Randomized testing: inserting minimum " + 7 * minPerDay + " items");

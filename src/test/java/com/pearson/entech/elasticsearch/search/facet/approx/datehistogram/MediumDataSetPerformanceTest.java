@@ -62,7 +62,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
     @Test
     public void test100ApproxDistinctFacets() throws Exception {
-        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(100, 0, 0.1);
+        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(100, 0, 0.01);
         testSomeRandomFacets(randomFacets, "test100ApproxDistinctFacets");
     }
 
