@@ -36,7 +36,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
     ExecutorService _singleThread = Executors.newSingleThreadExecutor();
 
-    private final boolean _hotThreads = false;
+    private final boolean _hotThreads = true;
 
     // TODO add instrumentation for heap usage
     private void clearMemory() throws Exception {
@@ -116,6 +116,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
         logExecutionEnd(testName);
         if(_hotThreads) {
             final NodeHotThreads[] nodes = threads.actionGet().getNodes();
+            System.out.println("Hot threads for " + testName);
             dumpHotThreads(nodes);
         }
         final List<T> results = newArrayList();

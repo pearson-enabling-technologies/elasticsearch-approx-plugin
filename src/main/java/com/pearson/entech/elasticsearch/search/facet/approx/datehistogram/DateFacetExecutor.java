@@ -68,7 +68,6 @@ public class DateFacetExecutor extends FacetExecutor {
     // TODO keep track of missing values
     // TODO replace "new DistinctCountPayload()" with an object cache
     // TODO global cache of the counts from each collector
-    // TODO cache tz calculations
     // TODO limits on terms used in slicing (min freq/top N)
     // TODO make interval optional, so we can just have one bucket (custom TimeZoneRounding)
     // TODO stop using long arrays as wrappers for counters (materialize methods)
@@ -82,7 +81,6 @@ public class DateFacetExecutor extends FacetExecutor {
 
     private class CountingCollector extends BuildableCollector {
 
-        private LongValues _keyFieldValues;
         private BytesValues _valueFieldValues;
 
         private TLongIntHashMap _counts;
@@ -93,8 +91,7 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
-            _keyFieldValues = ((LongArrayIndexFieldData) _keyFieldData.data)
-                    .load(context).getLongValues();
+            super.setNextReader(context);
             if(_valueFieldData != null)
                 // TODO if these aren't strings, this isn't the most efficient way:
                 _valueFieldValues = _valueFieldData.data.load(context).getBytesValues();
@@ -102,23 +99,23 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         public void collect(final int doc) throws IOException {
-            final Iter keyIter = _keyFieldValues.getIter(doc);
+            super.collect(doc);
 
             if(_valueFieldData == null) {
                 // We are only counting docs
-                while(keyIter.hasNext()) {
-                    final long time = _tzRounding.calc(keyIter.next());
+                while(hasNextTimestamp()) {
+                    final long time = nextTimestamp();
                     _counts.adjustOrPutValue(time, 1, 1);
                 }
             } else {
-                while(keyIter.hasNext()) {
+                while(hasNextTimestamp()) {
                     // We are counting each occurrence of valueField (regardless of its contents)
                     final org.elasticsearch.index.fielddata.BytesValues.Iter valIter =
                             _valueFieldValues.getIter(doc);
                     if(!valIter.hasNext())
                         return;
 
-                    final long time = _tzRounding.calc(keyIter.next());
+                    final long time = nextTimestamp();
                     while(valIter.hasNext()) {
                         valIter.next();
                         _counts.adjustOrPutValue(time, 1, 1);
@@ -128,12 +125,8 @@ public class DateFacetExecutor extends FacetExecutor {
         }
 
         @Override
-        public void postCollection() {}
-
-        @Override
         public InternalFacet build(final String facetName) {
             final InternalFacet facet = new InternalCountingFacet(facetName, _counts);
-            _keyFieldValues = null;
             _counts = null;
             return facet;
         }
@@ -142,7 +135,6 @@ public class DateFacetExecutor extends FacetExecutor {
 
     private class SlicedCollector extends BuildableCollector {
 
-        private LongValues _keyFieldValues;
         private BytesValues _sliceFieldValues;
         private BytesValues _valueFieldValues;
 
@@ -154,8 +146,7 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
-            _keyFieldValues = ((LongArrayIndexFieldData) _keyFieldData.data)
-                    .load(context).getLongValues();
+            super.setNextReader(context);
             // TODO if these aren't strings, this isn't the most efficient way:
             _sliceFieldValues = _sliceFieldData.data.load(context).getBytesValues();
             if(_valueFieldData != null)
@@ -166,20 +157,19 @@ public class DateFacetExecutor extends FacetExecutor {
         @Override
         public void collect(final int doc) throws IOException {
             // Exit as early as possible in order to avoid unnecessary lookups
-
-            final Iter keyIter = _keyFieldValues.getIter(doc);
-            if(!keyIter.hasNext())
+            super.collect(doc);
+            if(!hasNextTimestamp())
                 return;
 
             if(_valueFieldData == null) {
                 // We are only counting docs for each slice
-                while(keyIter.hasNext()) {
+                while(hasNextTimestamp()) {
                     final org.elasticsearch.index.fielddata.BytesValues.Iter sliceIter =
                             _sliceFieldValues.getIter(doc);
                     if(!sliceIter.hasNext())
                         return;
 
-                    final long time = _tzRounding.calc(keyIter.next());
+                    final long time = nextTimestamp();
 
                     while(sliceIter.hasNext()) {
                         // TODO we can reduce hash lookups by getting the outer map in the outer loop
@@ -188,13 +178,13 @@ public class DateFacetExecutor extends FacetExecutor {
                 }
             } else {
                 // We are counting each occurrence of value_field in each slice (regardless of its contents)
-                while(keyIter.hasNext()) {
+                while(hasNextTimestamp()) {
                     final org.elasticsearch.index.fielddata.BytesValues.Iter sliceIter =
                             _sliceFieldValues.getIter(doc);
                     if(!sliceIter.hasNext())
                         return;
 
-                    final long time = _tzRounding.calc(keyIter.next());
+                    final long time = nextTimestamp();
 
                     while(sliceIter.hasNext()) {
                         final org.elasticsearch.index.fielddata.BytesValues.Iter valIter =
@@ -211,12 +201,8 @@ public class DateFacetExecutor extends FacetExecutor {
         }
 
         @Override
-        public void postCollection() {}
-
-        @Override
         public InternalFacet build(final String facetName) {
             final InternalFacet facet = new InternalSlicedFacet(facetName, _counts);
-            _keyFieldValues = null;
             _sliceFieldValues = null;
             _counts = null;
             return facet;
@@ -237,7 +223,6 @@ public class DateFacetExecutor extends FacetExecutor {
 
     private class DistinctCollector extends BuildableCollector {
 
-        private LongValues _keyFieldValues;
         private BytesValues _distinctFieldValues;
 
         private final ExtTLongObjectHashMap<DistinctCountPayload> _counts;
@@ -248,8 +233,7 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
-            _keyFieldValues = ((LongArrayIndexFieldData) _keyFieldData.data)
-                    .load(context).getLongValues();
+            super.setNextReader(context);
             // TODO if these aren't strings, this isn't the most efficient way:
             _distinctFieldValues = _distinctFieldData.data.load(context).getBytesValues();
         }
@@ -257,9 +241,8 @@ public class DateFacetExecutor extends FacetExecutor {
         @Override
         public void collect(final int doc) throws IOException {
             // Exit as early as possible in order to avoid unnecessary lookups
-
-            final Iter keyIter = _keyFieldValues.getIter(doc);
-            if(!keyIter.hasNext())
+            super.collect(doc);
+            if(!hasNextTimestamp())
                 return;
 
             final org.elasticsearch.index.fielddata.BytesValues.Iter distinctIter =
@@ -267,8 +250,8 @@ public class DateFacetExecutor extends FacetExecutor {
             if(!distinctIter.hasNext())
                 return;
 
-            while(keyIter.hasNext()) {
-                final long time = _tzRounding.calc(keyIter.next());
+            while(hasNextTimestamp()) {
+                final long time = nextTimestamp();
                 final DistinctCountPayload count = getSafely(_counts, time);
                 while(distinctIter.hasNext()) {
                     // NB this causes two conversions if the field's numeric
@@ -290,12 +273,8 @@ public class DateFacetExecutor extends FacetExecutor {
         }
 
         @Override
-        public void postCollection() {}
-
-        @Override
         public InternalFacet build(final String facetName) {
             final InternalFacet facet = new InternalDistinctFacet(facetName, _counts);
-            _keyFieldValues = null;
             _distinctFieldValues = null;
             return facet;
         }
@@ -304,7 +283,6 @@ public class DateFacetExecutor extends FacetExecutor {
 
     private class SlicedDistinctCollector extends BuildableCollector {
 
-        private LongValues _keyFieldValues;
         private BytesValues _distinctFieldValues;
         private BytesValues _sliceFieldValues;
 
@@ -316,8 +294,7 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
-            _keyFieldValues = ((LongArrayIndexFieldData) _keyFieldData.data)
-                    .load(context).getLongValues();
+            super.setNextReader(context);
             // TODO if these aren't strings, this isn't the most efficient way:
             _distinctFieldValues = _distinctFieldData.data.load(context).getBytesValues();
             _sliceFieldValues = _sliceFieldData.data.load(context).getBytesValues();
@@ -325,13 +302,18 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         public void collect(final int doc) throws IOException {
-            final Iter keyIter = _keyFieldValues.getIter(doc);
+            // Exit as early as possible in order to avoid unnecessary lookups
+            super.collect(doc);
+            if(!hasNextTimestamp())
+                return;
+
             final org.elasticsearch.index.fielddata.BytesValues.Iter distinctIter =
                     _distinctFieldValues.getIter(doc);
             final org.elasticsearch.index.fielddata.BytesValues.Iter sliceIter =
                     _sliceFieldValues.getIter(doc);
-            while(keyIter.hasNext()) {
-                final long time = _tzRounding.calc(keyIter.next());
+
+            while(hasNextTimestamp()) {
+                final long time = nextTimestamp();
                 while(sliceIter.hasNext()) {
                     // TODO we can reduce hash lookups by getting the outer map in the outer loop
                     final BytesRef unsafeSlice = sliceIter.next();
@@ -345,9 +327,6 @@ public class DateFacetExecutor extends FacetExecutor {
                 }
             }
         }
-
-        @Override
-        public void postCollection() {}
 
         private DistinctCountPayload getSafely(
                 final TLongObjectMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts,
@@ -368,7 +347,6 @@ public class DateFacetExecutor extends FacetExecutor {
         @Override
         public InternalFacet build(final String facetName) {
             final InternalFacet facet = new InternalSlicedDistinctFacet(facetName, _counts);
-            _keyFieldValues = null;
             _distinctFieldValues = null;
             _sliceFieldValues = null;
             return facet;
@@ -378,7 +356,41 @@ public class DateFacetExecutor extends FacetExecutor {
 
     private abstract class BuildableCollector extends Collector {
 
+        private LongValues _keyFieldValues;
+        private Iter _keyIter;
+        private long _prevTimestamp = -1;
+        private long _cachedRoundedTimestamp = -1;
+
+        protected long nextTimestamp() {
+            final long next = _keyIter.next();
+            if(next != _prevTimestamp) {
+                _prevTimestamp = next;
+                _cachedRoundedTimestamp = _tzRounding.calc(next);
+            }
+            return _cachedRoundedTimestamp;
+        }
+
+        protected boolean hasNextTimestamp() {
+            return _keyIter.hasNext();
+        }
+
+        @Override
+        public void collect(final int doc) throws IOException {
+            _keyIter = _keyFieldValues.getIter(doc);
+        }
+
         abstract InternalFacet build(String facetName);
+
+        @Override
+        public void setNextReader(final AtomicReaderContext context) throws IOException {
+            _keyFieldValues = ((LongArrayIndexFieldData) _keyFieldData.data)
+                    .load(context).getLongValues();
+        }
+
+        @Override
+        public void postCollection() {
+            _keyFieldValues = null;
+        }
 
     }
 
