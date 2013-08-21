@@ -55,15 +55,21 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     }
 
     @Test
-    public void test100ExactDistinctFacets() throws Exception {
-        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(100, Integer.MAX_VALUE, 0);
-        testSomeRandomFacets(randomFacets, "test100ExactDistinctFacets");
-    }
-
-    @Test
     public void test100ApproxDistinctFacets() throws Exception {
         final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(100, 0, 0.01);
         testSomeRandomFacets(randomFacets, "test100ApproxDistinctFacets");
+    }
+
+    @Test
+    public void test100MixedDistinctFacets() throws Exception {
+        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(100, 5000, 0.01);
+        testSomeRandomFacets(randomFacets, "test100MixedDistinctFacets");
+    }
+
+    @Test
+    public void test100ExactDistinctFacets() throws Exception {
+        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(100, Integer.MAX_VALUE, 0);
+        testSomeRandomFacets(randomFacets, "test100ExactDistinctFacets");
     }
 
     // TODO sliced facet in value_field mode as well
