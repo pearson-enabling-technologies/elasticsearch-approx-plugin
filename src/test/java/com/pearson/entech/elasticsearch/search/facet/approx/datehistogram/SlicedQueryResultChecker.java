@@ -28,13 +28,16 @@ public class SlicedQueryResultChecker extends CountingQueryResultChecker {
 
     @Override
     protected BucketSpecifier buildBucketSpecifier(final String field, final long startTime, final long endTime, final long count) {
-        return new BucketSpecifier(field, startTime, endTime, count);
+        return new BucketSpecifier(field, startTime, endTime, count, _query.facetName());
     }
 
     public class BucketSpecifier extends CountingQueryResultChecker.BucketSpecifier {
 
-        protected BucketSpecifier(final String field, final long startTime, final long endTime, final long count) {
+        private final String _origFacetName;
+
+        protected BucketSpecifier(final String field, final long startTime, final long endTime, final long count, final String origFacetName) {
             super(field, startTime, endTime, count);
+            _origFacetName = origFacetName;
         }
 
         @Override
@@ -51,7 +54,7 @@ public class SlicedQueryResultChecker extends CountingQueryResultChecker {
         @Override
         protected void injectAdditionalChecks(final TermsFacet facet) {
             final DateFacet<TimePeriod<XContentEnabledList<Slice<String>>>> original =
-                    _query.getSearchResponse().getFacets().facet("sliced_date_facet");
+                    _query.getSearchResponse().getFacets().facet(_origFacetName);
             final List<Slice<String>> period = findPeriod(original, getStartTime());
 
             assertEquals("Number of terms in facet does not match what we'd expect",

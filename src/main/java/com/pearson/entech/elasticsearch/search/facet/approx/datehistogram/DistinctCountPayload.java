@@ -8,7 +8,7 @@ import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
-import com.clearspring.analytics.stream.cardinality.HyperLogLog;
+import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
 
 public class DistinctCountPayload {
 
@@ -18,8 +18,11 @@ public class DistinctCountPayload {
 
     public DistinctCountPayload(final int entryLimit) {
         _count = 0;
-        _cardinality = new CountThenEstimateBytes(entryLimit,
-                new HyperLogLog.Builder(0.0025));
+        //        _cardinality = new CountThenEstimateBytes(entryLimit,
+        //                new HyperLogLog.Builder(0.0025));
+        //        _cardinality = new CountThenEstimateBytes(entryLimit, AdaptiveCounting.Builder.obyCount(1000000000));
+        //        _cardinality = new CountThenEstimateBytes(entryLimit, new HyperLogLog.Builder(0.0005));
+        _cardinality = new CountThenEstimateBytes(entryLimit, new HyperLogLogPlus.Builder(14, 25));
     }
 
     DistinctCountPayload(final long count, final CountThenEstimateBytes cardinality) {

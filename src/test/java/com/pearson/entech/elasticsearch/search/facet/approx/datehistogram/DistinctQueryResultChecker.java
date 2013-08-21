@@ -12,15 +12,18 @@ import org.elasticsearch.search.facet.terms.TermsFacet.Entry;
 
 public class DistinctQueryResultChecker extends CountingQueryResultChecker {
 
-    public DistinctQueryResultChecker(final String index, final String dtField, final Client client) {
+    private final double _tolerance;
+
+    public DistinctQueryResultChecker(final String index, final String dtField, final Client client, final double tolerance) {
         super(index, dtField, client);
+        _tolerance = tolerance;
     }
 
     @Override
     public BucketSpecifier specifier(final String field,
             final DateFacet<TimePeriod<NullEntry>> facet, final int idx) {
         final List<? extends TimePeriod<?>> entries = facet.getEntries();
-        final DistinctTimePeriod<?> entry = (DistinctTimePeriod<?>) entries.get(idx); // This smells wrong
+        final DistinctTimePeriod<?> entry = (DistinctTimePeriod<?>) entries.get(idx);
         final long startTime = entry.getTime();
         final long endTime = (idx + 1 < entries.size()) ?
                 entries.get(idx + 1).getTime() : Long.MAX_VALUE;
@@ -39,7 +42,9 @@ public class DistinctQueryResultChecker extends CountingQueryResultChecker {
             for(final Entry entry : facet.getEntries())
                 terms.add(entry.getTerm().string());
         }
-        assertEquals(terms.size(), totalDistinctCount);
+        final double expectedSize = terms.size();
+        final double tolerance = expectedSize * _tolerance;
+        assertEquals(terms.size(), totalDistinctCount, tolerance);
     }
 
     public class BucketSpecifier extends CountingQueryResultChecker.BucketSpecifier {
@@ -54,8 +59,9 @@ public class DistinctQueryResultChecker extends CountingQueryResultChecker {
         @Override
         protected void injectAdditionalChecks(final TermsFacet facet) {
             final int facetSize = facet.getEntries().size();
+            final double tolerance = facetSize * _tolerance;
             assertEquals("Distinct count not equal to number of terms received by terms facet on field " + getField(),
-                    facetSize, _distinctCount);
+                    facetSize, _distinctCount, tolerance);
         }
 
         @Override
