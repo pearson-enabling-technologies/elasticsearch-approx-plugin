@@ -109,7 +109,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
         final ListenableActionFuture<NodesHotThreadsResponse> threads = _hotThreads ?
                 new NodesHotThreadsRequestBuilder(client().admin().cluster())
                         .setInterval(TimeValue.timeValueSeconds(2))
-                        .setThreads(5).execute()
+                        .setType("cpu").setThreads(4).execute()
                 : null;
         logExecutionStart(testName);
         final List<Future<T>> futures = _singleThread.invokeAll(tasks);
