@@ -3,8 +3,6 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.List;
 
@@ -12,6 +10,7 @@ import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
 import org.elasticsearch.search.facet.Facet;
@@ -85,15 +84,39 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
         return STREAM_TYPE;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    protected void readData(final ObjectInputStream oIn) throws ClassNotFoundException, IOException {
-        _counts = CacheRecycler.popLongObjectMap();
-        _counts.readExternal(oIn);
+    ExtTLongObjectHashMap<DistinctCountPayload> peekCounts() {
+        return _counts;
     }
 
     @Override
-    protected void writeData(final ObjectOutputStream oOut) throws IOException {
-        _counts.writeExternal(oOut);
+    protected void readData(final StreamInput in) throws IOException {
+        _counts = CacheRecycler.popLongObjectMap();
+        final int size = in.readVInt();
+        for(int i = 0; i < size; i++) {
+            final long key = in.readVLong();
+            final long payloadCount = in.readVLong();
+            final int payloadSize = in.readVInt();
+            final byte[] payloadBytes = new byte[payloadSize];
+            in.readBytes(payloadBytes, 0, payloadSize);
+            try {
+                _counts.put(key, new DistinctCountPayload(payloadCount, payloadBytes));
+            } catch(final ClassNotFoundException e) {
+                throw new IOException(e);
+            }
+        }
+    }
+
+    @Override
+    protected void writeData(final StreamOutput out) throws IOException {
+        if(_counts == null) {
+            out.writeVInt(0);
+            return;
+        }
+        final int size = _counts.size();
+        _serialize.init(out, size);
+        _counts.forEachEntry(_serialize);
     }
 
     @Override
@@ -194,6 +217,32 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
                     throw new IllegalStateException(e);
                 }
 
+            return true;
+        }
+
+    }
+
+    private final Serializer _serialize = new Serializer();
+
+    private static final class Serializer implements TLongObjectProcedure<DistinctCountPayload> {
+
+        private StreamOutput _output;
+
+        public void init(final StreamOutput output, final int size) throws IOException {
+            _output = output;
+            output.writeVInt(size);
+        }
+
+        @Override
+        public boolean execute(final long key, final DistinctCountPayload payload) {
+            try {
+                _output.writeVLong(key);
+                _output.writeVLong(payload.getCount());
+                _output.writeVInt(payload.getCardinality().sizeof());
+                _output.writeBytes(payload.cardinalityBytes());
+            } catch(final IOException e) {
+                throw new IllegalStateException(e);
+            }
             return true;
         }
 
