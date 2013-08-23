@@ -4,6 +4,8 @@ import java.io.IOException;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticSearchException;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
 
@@ -22,6 +24,18 @@ public class DistinctCountPayload {
         //                new HyperLogLog.Builder(0.0025));
         //        _cardinality = new CountThenEstimateBytes(entryLimit, AdaptiveCounting.Builder.obyCount(1000000000));
         _cardinality = new CountThenEstimateBytes(entryLimit, new HyperLogLog.Builder(0.0025));
+    }
+
+    DistinctCountPayload(final StreamInput in) throws IOException {
+        _count = in.readVLong();
+        final int payloadSize = in.readVInt();
+        final byte[] payloadBytes = new byte[payloadSize];
+        in.readBytes(payloadBytes, 0, payloadSize);
+        try {
+            _cardinality = new CountThenEstimateBytes(payloadBytes);
+        } catch(final ClassNotFoundException e) {
+            throw new IOException(e);
+        }
     }
 
     DistinctCountPayload(final long count, final CountThenEstimateBytes cardinality) {
@@ -89,6 +103,13 @@ public class DistinctCountPayload {
         return String.format(
                 "%s of %d distinct elements (%d total elements)",
                 descr, _cardinality.cardinality(), _count);
+    }
+
+    public void writeTo(final StreamOutput output) throws IOException {
+        output.writeVLong(_count);
+        final byte[] bytes = _cardinality.getBytes();
+        output.writeVInt(bytes.length);
+        output.writeBytes(bytes);
     }
 
 }

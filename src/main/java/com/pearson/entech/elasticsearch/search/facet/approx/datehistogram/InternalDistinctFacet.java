@@ -96,15 +96,7 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
         final int size = in.readVInt();
         for(int i = 0; i < size; i++) {
             final long key = in.readVLong();
-            final long payloadCount = in.readVLong();
-            final int payloadSize = in.readVInt();
-            final byte[] payloadBytes = new byte[payloadSize];
-            in.readBytes(payloadBytes, 0, payloadSize);
-            try {
-                _counts.put(key, new DistinctCountPayload(payloadCount, payloadBytes));
-            } catch(final ClassNotFoundException e) {
-                throw new IOException(e);
-            }
+            _counts.put(key, new DistinctCountPayload(in));
         }
     }
 
@@ -233,13 +225,12 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
             output.writeVInt(size);
         }
 
+        // Called once per period
         @Override
         public boolean execute(final long key, final DistinctCountPayload payload) {
             try {
                 _output.writeVLong(key);
-                _output.writeVLong(payload.getCount());
-                _output.writeVInt(payload.getCardinality().sizeof());
-                _output.writeBytes(payload.cardinalityBytes());
+                payload.writeTo(_output);
             } catch(final IOException e) {
                 throw new IllegalStateException(e);
             }

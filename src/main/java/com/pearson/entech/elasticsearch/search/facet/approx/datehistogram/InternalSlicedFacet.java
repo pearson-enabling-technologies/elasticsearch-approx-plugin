@@ -3,8 +3,6 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.List;
 
@@ -13,6 +11,7 @@ import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
@@ -49,7 +48,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
     }
 
     // Only for deserialization
-    private InternalSlicedFacet() {
+    protected InternalSlicedFacet() {
         super("not set");
     }
 
@@ -80,15 +79,37 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
         return STREAM_TYPE;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    protected void readData(final ObjectInputStream oIn) throws ClassNotFoundException, IOException {
-        _counts = CacheRecycler.popLongObjectMap();
-        _counts.readExternal(oIn);
+    ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> peekCounts() {
+        return _counts;
     }
 
     @Override
-    protected void writeData(final ObjectOutputStream oOut) throws IOException {
-        _counts.writeExternal(oOut);
+    protected void readData(final StreamInput in) throws IOException {
+        _counts = CacheRecycler.popLongObjectMap();
+        final int size = in.readVInt();
+        for(int i = 0; i < size; i++) {
+            final long key = in.readVLong();
+            final int sliceCount = in.readVInt();
+            final TObjectIntHashMap<BytesRef> slice = CacheRecycler.popObjectIntMap();
+            for(int j = 0; j < sliceCount; j++) {
+                final BytesRef sliceLabel = in.readBytesRef();
+                slice.put(sliceLabel, in.readVInt());
+            }
+            _counts.put(key, slice);
+        }
+    }
+
+    @Override
+    protected void writeData(final StreamOutput out) throws IOException {
+        if(_counts == null) {
+            out.writeVInt(0);
+            return;
+        }
+        final int size = _counts.size();
+        _serializePeriods.init(out, size);
+        _counts.forEachEntry(_serializePeriods);
     }
 
     @Override
@@ -232,6 +253,57 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
             public boolean execute(final BytesRef key, final int count) {
                 _target.add(new Slice<String>(key.utf8ToString(), count));
                 _counter[0] += count;
+                return true;
+            }
+
+        }
+
+    }
+
+    private final PeriodSerializer _serializePeriods = new PeriodSerializer();
+
+    private static final class PeriodSerializer implements TLongObjectProcedure<TObjectIntHashMap<BytesRef>> {
+
+        private StreamOutput _output;
+
+        public void init(final StreamOutput output, final int size) throws IOException {
+            _output = output;
+            output.writeVInt(size);
+        }
+
+        // Called once per time period
+        @Override
+        public boolean execute(final long key, final TObjectIntHashMap<BytesRef> period) {
+            try {
+                _output.writeVLong(key);
+                _serializeSlices.init(_output, period.size());
+            } catch(final IOException e) {
+                throw new IllegalStateException(e);
+            }
+            period.forEachEntry(_serializeSlices);
+            return true;
+        }
+
+        private final SliceSerializer _serializeSlices = new SliceSerializer();
+
+        private static final class SliceSerializer implements TObjectIntProcedure<BytesRef> {
+
+            private StreamOutput _output;
+
+            public void init(final StreamOutput output, final int size) throws IOException {
+                _output = output;
+                output.writeVInt(size);
+            }
+
+            // Called once for each slice in a period
+            @Override
+            public boolean execute(final BytesRef sliceLabel, final int count) {
+                try {
+                    _output.writeBytesRef(sliceLabel);
+                    _output.writeVInt(count);
+                } catch(final IOException e) {
+                    throw new IllegalStateException(e);
+                }
                 return true;
             }
 

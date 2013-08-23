@@ -3,8 +3,6 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.List;
 
@@ -13,6 +11,7 @@ import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
@@ -21,6 +20,8 @@ import org.elasticsearch.common.trove.procedure.TObjectProcedure;
 import org.elasticsearch.search.facet.Facet;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
+
+// TODO we could add slice-wise totals and distincts too
 
 public class InternalSlicedDistinctFacet
         extends DateFacet<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>>
@@ -92,15 +93,38 @@ public class InternalSlicedDistinctFacet
         return STREAM_TYPE;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    protected void readData(final ObjectInputStream oIn) throws ClassNotFoundException, IOException {
-        _counts = CacheRecycler.popLongObjectMap();
-        _counts.readExternal(oIn);
+    ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> peekCounts() {
+        return _counts;
     }
 
     @Override
-    protected void writeData(final ObjectOutputStream oOut) throws IOException {
-        _counts.writeExternal(oOut);
+    protected void readData(final StreamInput in) throws IOException {
+        _counts = CacheRecycler.popLongObjectMap();
+        final int size = in.readVInt();
+        for(int i = 0; i < size; i++) {
+            final long key = in.readVLong();
+            final int sliceCount = in.readVInt();
+            final ExtTHashMap<BytesRef, DistinctCountPayload> slice = CacheRecycler.popHashMap();
+            for(int j = 0; j < sliceCount; j++) {
+                final BytesRef sliceLabel = in.readBytesRef();
+                final DistinctCountPayload payload = new DistinctCountPayload(in);
+                slice.put(sliceLabel, payload);
+            }
+            _counts.put(key, slice);
+        }
+    }
+
+    @Override
+    protected void writeData(final StreamOutput out) throws IOException {
+        if(_counts == null) {
+            out.writeVInt(0);
+            return;
+        }
+        final int size = _counts.size();
+        _serializePeriods.init(out, size);
+        _counts.forEachEntry(_serializePeriods);
     }
 
     // TODO reduce and materialize logic is similar to InternalSlicedFacet -- factor out?
@@ -240,8 +264,6 @@ public class InternalSlicedDistinctFacet
             return true;
         }
 
-        // TODO we could add slice-wise totals and distincts too
-
         private final SliceMaterializer _materializeSlices = new SliceMaterializer();
 
         private static class SliceMaterializer implements TObjectObjectProcedure<BytesRef, DistinctCountPayload> {
@@ -274,6 +296,57 @@ public class InternalSlicedDistinctFacet
                         throw new IllegalStateException(e);
                     }
 
+                return true;
+            }
+
+        }
+
+    }
+
+    private final PeriodSerializer _serializePeriods = new PeriodSerializer();
+
+    private static final class PeriodSerializer implements TLongObjectProcedure<ExtTHashMap<BytesRef, DistinctCountPayload>> {
+
+        private StreamOutput _output;
+
+        public void init(final StreamOutput output, final int size) throws IOException {
+            _output = output;
+            output.writeVInt(size);
+        }
+
+        // Called once per time period
+        @Override
+        public boolean execute(final long key, final ExtTHashMap<BytesRef, DistinctCountPayload> period) {
+            try {
+                _output.writeVLong(key);
+                _serializeSlices.init(_output, period.size());
+            } catch(final IOException e) {
+                throw new IllegalStateException(e);
+            }
+            period.forEachEntry(_serializeSlices);
+            return true;
+        }
+
+        private final SliceSerializer _serializeSlices = new SliceSerializer();
+
+        private static final class SliceSerializer implements TObjectObjectProcedure<BytesRef, DistinctCountPayload> {
+
+            private StreamOutput _output;
+
+            public void init(final StreamOutput output, final int size) throws IOException {
+                _output = output;
+                output.writeVInt(size);
+            }
+
+            // Called once for each slice in a period
+            @Override
+            public boolean execute(final BytesRef sliceLabel, final DistinctCountPayload payload) {
+                try {
+                    _output.writeBytesRef(sliceLabel);
+                    payload.writeTo(_output);
+                } catch(final IOException e) {
+                    throw new IllegalStateException(e);
+                }
                 return true;
             }
 
