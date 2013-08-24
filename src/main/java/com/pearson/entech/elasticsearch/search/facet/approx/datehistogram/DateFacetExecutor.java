@@ -362,7 +362,8 @@ public class DateFacetExecutor extends FacetExecutor {
             final BytesRef safe = BytesRef.deepCopyOf(unsafe);
             DistinctCountPayload payload = subMap.get(safe);
             if(payload == null) {
-                payload = counts.get(key).put(safe, new DistinctCountPayload(_exactThreshold));
+                payload = new DistinctCountPayload(_exactThreshold);
+                subMap.put(safe, payload);
             }
             return payload;
         }
