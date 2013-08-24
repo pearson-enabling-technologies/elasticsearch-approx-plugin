@@ -38,6 +38,8 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
     private final boolean _hotThreads = true;
 
+    // TODO we don't have unit tests for sliced distinct facets yet
+
     // TODO add instrumentation for heap usage
     private void clearMemory() throws Exception {
         client().admin().indices().prepareClearCache(_index).execute().actionGet();
