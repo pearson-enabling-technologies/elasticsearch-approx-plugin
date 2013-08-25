@@ -116,7 +116,6 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
                 _mergePeriods.target = null;
                 // Release contents of source facet; no longer needed
                 source.releaseCache();
-                System.out.println("Reduce phase: accumulator looks like this: " + target._counts);
             }
             return target;
         } else {

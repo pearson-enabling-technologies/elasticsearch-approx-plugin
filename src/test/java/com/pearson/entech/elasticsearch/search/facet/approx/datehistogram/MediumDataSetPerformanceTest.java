@@ -59,7 +59,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     // TODO count facet in value_field mode as well
     @Test
     public void test100CountFacets() throws Exception {
-        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(1); // FIXME
+        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(100); // FIXME
         testSomeRandomFacets(randomFacets, "test100CountFacets");
     }
 
@@ -125,7 +125,6 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
         for(final Future<T> future : futures) {
             results.add(future.get());
         }
-        System.out.println("Saw " + DateFacetExecutor.debug + " docs");
         return results;
     }
 

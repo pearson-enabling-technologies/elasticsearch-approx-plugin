@@ -1,7 +1,6 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.util.BytesRef;
@@ -29,8 +28,6 @@ import org.elasticsearch.search.facet.InternalFacet;
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
 public class DateFacetExecutor extends FacetExecutor {
-
-    public static final AtomicInteger debug = new AtomicInteger();
 
     private final TypedFieldData _keyFieldData;
     private final TypedFieldData _valueFieldData;
@@ -115,7 +112,6 @@ public class DateFacetExecutor extends FacetExecutor {
         @Override
         public void collect(final int doc) throws IOException {
             super.collect(doc);
-            debug.incrementAndGet();
 
             if(_valueFieldData == null) {
                 // We are only counting docs
@@ -140,26 +136,22 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         protected void postReader() {
-            System.out.println(Thread.currentThread() + " Merging reader result post-collection");
-            System.out.println(Thread.currentThread() + " Current state of _counts: " + _counts);
-            System.out.println(Thread.currentThread() + " Current state of _countsByOrdinal: " + _countsByOrdinal);
             _valueFieldValues = null;
-            // Count from 1 as 0 = missing
+
             final int uniqueOrds = ordinalCount();
-            for(int i = 1; i < uniqueOrds; i++) {
+            for(int i = 0; i < uniqueOrds; i++) { // 1 or 0?!?
                 if(_countsByOrdinal.containsKey(i)) {
                     final int count = _countsByOrdinal.get(i);
                     _counts.adjustOrPutValue(getRoundedTimestamp(i), count, count);
                 }
             }
+
             _countsByOrdinal.clear();
-            System.out.println(Thread.currentThread() + " New state of _counts: " + _counts);
         }
 
         @Override
         public InternalFacet build(final String facetName) {
             final InternalFacet facet = new InternalCountingFacet(facetName, _counts);
-            System.out.println("Returning shard result: " + _counts);
             CacheRecycler.pushIntIntMap(_countsByOrdinal);
             return facet;
         }
@@ -489,7 +481,7 @@ public class DateFacetExecutor extends FacetExecutor {
                     _maxOrdinal = ordinal;
                 _docOrdinalPointer++;
             } else {
-                ordinal = 0;
+                throw new IllegalStateException("nextOrdinal() called when no more ordinals available");
             }
             return ordinal;
         }
@@ -519,7 +511,7 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
-            if(_maxOrdinal > -1) {
+            if(_maxOrdinal != -1) {
                 _roundedTimestamps = new long[_maxOrdinal + 1];
                 // Start at 1 because ordinal 0 represents "no value"
                 for(int i = 1; i < _roundedTimestamps.length; i++) {
@@ -533,13 +525,13 @@ public class DateFacetExecutor extends FacetExecutor {
                     .load(context).getLongValues();
             //            _docBase = context.docBase;
             _ordinals = _keyFieldValues.ordinals();
-            _roundedTimestamps = null;
         }
 
         protected abstract void postReader();
 
         @Override
         public void postCollection() {
+            postReader();
             _keyFieldValues = null;
             _docOrdinals = null;
             _roundedTimestamps = null;
