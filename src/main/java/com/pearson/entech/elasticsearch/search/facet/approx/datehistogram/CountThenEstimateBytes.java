@@ -16,6 +16,8 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
  * limitations under the License.
  */
 
+import static java.lang.Math.min;
+
 import java.io.ByteArrayInputStream;
 import java.io.Externalizable;
 import java.io.IOException;
@@ -105,7 +107,16 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     {
         this.tippingPoint = tippingPoint;
         this.builder = builder;
-        this.counter = CacheRecycler.popHashSet();
+        if(tippingPoint == 0) {
+            this.counter = null;
+            this.estimator = builder.build();
+            this.tipped = true;
+        } else {
+            this.counter = CacheRecycler.popHashSet();
+            // Pre-allocate space for hash, with a sensible cutoff
+            final int initialCapacity = min(tippingPoint, 10000);
+            this.counter.ensureCapacity(initialCapacity);
+        }
     }
 
     /**
@@ -216,17 +227,17 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
      */
     private void tip()
     {
-        estimator = builder.build();
-
-        for(final Object o : counter)
-        {
-            estimator.offerHashed(__luceneMurmurHash.hash((BytesRef) o));
+        if(!tipped) {
+            estimator = builder.build();
+            for(final Object o : counter)
+            {
+                estimator.offerHashed(__luceneMurmurHash.hash((BytesRef) o));
+            }
+            CacheRecycler.pushHashSet(counter);
+            counter = null;
+            builder = null;
+            tipped = true;
         }
-
-        CacheRecycler.pushHashSet(counter);
-        counter = null;
-        builder = null;
-        tipped = true;
     }
 
     public boolean tipped()
