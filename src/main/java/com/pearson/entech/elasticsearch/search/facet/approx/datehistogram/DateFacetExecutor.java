@@ -1,24 +1,36 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.IntsRef;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
+import org.elasticsearch.common.trove.map.TIntObjectMap;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
+import org.elasticsearch.common.trove.map.hash.TIntIntHashMap;
+import org.elasticsearch.common.trove.map.hash.TIntObjectHashMap;
 import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
+import org.elasticsearch.common.trove.procedure.TObjectIntProcedure;
+import org.elasticsearch.common.trove.procedure.TObjectObjectProcedure;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.LongValues;
-import org.elasticsearch.index.fielddata.LongValues.Iter;
+import org.elasticsearch.index.fielddata.LongValues.WithOrdinals;
+import org.elasticsearch.index.fielddata.ordinals.Ordinals.Docs;
 import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.InternalFacet;
 
+import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
+
 public class DateFacetExecutor extends FacetExecutor {
+
+    public static final AtomicInteger debug = new AtomicInteger();
 
     private final TypedFieldData _keyFieldData;
     private final TypedFieldData _valueFieldData;
@@ -67,7 +79,7 @@ public class DateFacetExecutor extends FacetExecutor {
     // TODO complete tests (see notes in files)
     // TODO keep track of missing values
     // TODO replace "new DistinctCountPayload()" with an object cache
-    // TODO global cache of the counts from each collector
+    // TODO global cache of the _counts from each collector
     // TODO limits on terms used in slicing (min freq/top N)
     // TODO make interval optional, so we can just have one bucket (custom TimeZoneRounding)
     // TODO stop using long arrays as wrappers for counters (materialize methods)
@@ -76,6 +88,7 @@ public class DateFacetExecutor extends FacetExecutor {
     // TODO surface the slice field and the distinct field name in the results
     // TODO exclude deserialized and other "foreign" objects from CacheRecycler
     // TODO better Java API (don't use internal classes)
+    // TODO init() for ordinal->term procedures at end of each collector, to pass in data structures and avoid sticky references
     // TODO make these collectors static classes, or break them out (to avoid ref. to executor)
     // TODO wrappers around iterators so we can get bytes for numeric fields without converting to strings first
 
@@ -83,9 +96,11 @@ public class DateFacetExecutor extends FacetExecutor {
 
         private BytesValues _valueFieldValues;
 
-        private TLongIntHashMap _counts;
+        private final TIntIntHashMap _countsByOrdinal;
+        private final TLongIntHashMap _counts;
 
         CountingCollector() {
+            _countsByOrdinal = CacheRecycler.popIntIntMap();
             _counts = CacheRecycler.popLongIntMap();
         }
 
@@ -100,34 +115,52 @@ public class DateFacetExecutor extends FacetExecutor {
         @Override
         public void collect(final int doc) throws IOException {
             super.collect(doc);
+            debug.incrementAndGet();
 
             if(_valueFieldData == null) {
                 // We are only counting docs
-                while(hasNextTimestamp()) {
-                    final long time = nextTimestamp();
-                    _counts.adjustOrPutValue(time, 1, 1);
+                while(hasNextOrdinal()) {
+                    _countsByOrdinal.adjustOrPutValue(nextOrdinal(), 1, 1);
                 }
             } else {
-                while(hasNextTimestamp()) {
+                while(hasNextOrdinal()) {
                     // We are counting each occurrence of valueField (regardless of its contents)
                     final org.elasticsearch.index.fielddata.BytesValues.Iter valIter =
                             _valueFieldValues.getIter(doc);
                     if(!valIter.hasNext())
                         return;
 
-                    final long time = nextTimestamp();
                     while(valIter.hasNext()) {
                         valIter.next();
-                        _counts.adjustOrPutValue(time, 1, 1);
+                        _countsByOrdinal.adjustOrPutValue(nextOrdinal(), 1, 1);
                     }
                 }
             }
         }
 
         @Override
+        protected void postReader() {
+            System.out.println(Thread.currentThread() + " Merging reader result post-collection");
+            System.out.println(Thread.currentThread() + " Current state of _counts: " + _counts);
+            System.out.println(Thread.currentThread() + " Current state of _countsByOrdinal: " + _countsByOrdinal);
+            _valueFieldValues = null;
+            // Count from 1 as 0 = missing
+            final int uniqueOrds = ordinalCount();
+            for(int i = 1; i < uniqueOrds; i++) {
+                if(_countsByOrdinal.containsKey(i)) {
+                    final int count = _countsByOrdinal.get(i);
+                    _counts.adjustOrPutValue(getRoundedTimestamp(i), count, count);
+                }
+            }
+            _countsByOrdinal.clear();
+            System.out.println(Thread.currentThread() + " New state of _counts: " + _counts);
+        }
+
+        @Override
         public InternalFacet build(final String facetName) {
             final InternalFacet facet = new InternalCountingFacet(facetName, _counts);
-            _counts = null;
+            System.out.println("Returning shard result: " + _counts);
+            CacheRecycler.pushIntIntMap(_countsByOrdinal);
             return facet;
         }
 
@@ -138,9 +171,11 @@ public class DateFacetExecutor extends FacetExecutor {
         private BytesValues _sliceFieldValues;
         private BytesValues _valueFieldValues;
 
-        private ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
+        private final TIntObjectHashMap<TObjectIntHashMap<BytesRef>> _countsByOrdinal;
+        private final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
 
         SlicedCollector() {
+            _countsByOrdinal = CacheRecycler.popIntObjectMap();
             _counts = CacheRecycler.popLongObjectMap();
         }
 
@@ -158,33 +193,29 @@ public class DateFacetExecutor extends FacetExecutor {
         public void collect(final int doc) throws IOException {
             // Exit as early as possible in order to avoid unnecessary lookups
             super.collect(doc);
-            if(!hasNextTimestamp())
+            if(!hasNextOrdinal())
                 return;
 
             if(_valueFieldData == null) {
                 // We are only counting docs for each slice
-                while(hasNextTimestamp()) {
+                while(hasNextOrdinal()) {
                     final org.elasticsearch.index.fielddata.BytesValues.Iter sliceIter =
                             _sliceFieldValues.getIter(doc);
                     if(!sliceIter.hasNext())
                         return;
 
-                    final long time = nextTimestamp();
-
                     while(sliceIter.hasNext()) {
                         // TODO we can reduce hash lookups by getting the outer map in the outer loop
-                        incrementSafely(_counts, time, sliceIter.next());
+                        incrementSafely(_countsByOrdinal, nextOrdinal(), sliceIter.next());
                     }
                 }
             } else {
                 // We are counting each occurrence of value_field in each slice (regardless of its contents)
-                while(hasNextTimestamp()) {
+                while(hasNextOrdinal()) {
                     final org.elasticsearch.index.fielddata.BytesValues.Iter sliceIter =
                             _sliceFieldValues.getIter(doc);
                     if(!sliceIter.hasNext())
                         return;
-
-                    final long time = nextTimestamp();
 
                     while(sliceIter.hasNext()) {
                         final org.elasticsearch.index.fielddata.BytesValues.Iter valIter =
@@ -192,7 +223,7 @@ public class DateFacetExecutor extends FacetExecutor {
                         while(valIter.hasNext()) {
                             // TODO we can reduce hash lookups by getting the outer map in the outer loop
                             final BytesRef unsafe = sliceIter.next();
-                            incrementSafely(_counts, time, unsafe);
+                            incrementSafely(_countsByOrdinal, nextOrdinal(), unsafe);
                         }
                     }
                 }
@@ -201,24 +232,45 @@ public class DateFacetExecutor extends FacetExecutor {
         }
 
         @Override
-        public void postCollection() {
-            super.postCollection();
+        public void postReader() {
+            _valueFieldValues = null;
             _sliceFieldValues = null;
+            // Count from 1 as 0 = missing
+            final int uniqueOrds = ordinalCount();
+            for(int i = 1; i < uniqueOrds; i++) {
+                if(_countsByOrdinal.containsKey(i)) {
+                    final long roundedTimestamp = getRoundedTimestamp(i);
+                    final TObjectIntHashMap<BytesRef> sourcePeriod = _countsByOrdinal.get(i);
+                    if(_counts.containsKey(roundedTimestamp)) {
+                        final TObjectIntHashMap<BytesRef> destPeriod = _counts.get(roundedTimestamp);
+                        sourcePeriod.forEachEntry(new TObjectIntProcedure<BytesRef>() {
+                            @Override
+                            public boolean execute(final BytesRef sliceLabel, final int sliceCount) {
+                                destPeriod.adjustOrPutValue(sliceLabel, sliceCount, sliceCount);
+                                return true;
+                            }
+                        });
+                    } else {
+                        _counts.put(roundedTimestamp, sourcePeriod);
+                    }
+                }
+            }
+            _countsByOrdinal.clear();
         }
 
         @Override
         public InternalFacet build(final String facetName) {
             final InternalFacet facet = new InternalSlicedFacet(facetName, _counts);
-            _counts = null;
+            CacheRecycler.pushIntObjectMap(_countsByOrdinal);
             return facet;
         }
 
-        private void incrementSafely(final TLongObjectMap<TObjectIntHashMap<BytesRef>> counts,
-                final long key, final BytesRef unsafe) {
-            TObjectIntHashMap<BytesRef> subMap = counts.get(key);
+        private void incrementSafely(final TIntObjectMap<TObjectIntHashMap<BytesRef>> countsByOrdinal,
+                final int key, final BytesRef unsafe) {
+            TObjectIntHashMap<BytesRef> subMap = countsByOrdinal.get(key);
             if(subMap == null) {
                 subMap = CacheRecycler.popObjectIntMap();
-                counts.put(key, subMap);
+                countsByOrdinal.put(key, subMap);
             }
             final BytesRef safe = BytesRef.deepCopyOf(unsafe);
             subMap.adjustOrPutValue(safe, 1, 1);
@@ -230,9 +282,11 @@ public class DateFacetExecutor extends FacetExecutor {
 
         private BytesValues _distinctFieldValues;
 
+        private final TIntObjectHashMap<DistinctCountPayload> _countsByOrdinal;
         private final ExtTLongObjectHashMap<DistinctCountPayload> _counts;
 
         DistinctCollector() {
+            _countsByOrdinal = CacheRecycler.popIntObjectMap();
             _counts = CacheRecycler.popLongObjectMap();
         }
 
@@ -247,7 +301,7 @@ public class DateFacetExecutor extends FacetExecutor {
         public void collect(final int doc) throws IOException {
             // Exit as early as possible in order to avoid unnecessary lookups
             super.collect(doc);
-            if(!hasNextTimestamp())
+            if(!hasNextOrdinal())
                 return;
 
             final org.elasticsearch.index.fielddata.BytesValues.Iter distinctIter =
@@ -255,9 +309,8 @@ public class DateFacetExecutor extends FacetExecutor {
             if(!distinctIter.hasNext())
                 return;
 
-            while(hasNextTimestamp()) {
-                final long time = nextTimestamp();
-                final DistinctCountPayload count = getSafely(_counts, time);
+            while(hasNextOrdinal()) {
+                final DistinctCountPayload count = getSafely(_countsByOrdinal, nextOrdinal());
                 while(distinctIter.hasNext()) {
                     // NB this causes two conversions if the field's numeric
                     final BytesRef unsafe = distinctIter.next();
@@ -269,18 +322,35 @@ public class DateFacetExecutor extends FacetExecutor {
         }
 
         @Override
-        public void postCollection() {
-            super.postCollection();
+        public void postReader() {
             _distinctFieldValues = null;
+            // Count from 1 as 0 = missing
+            for(int i = 1; i < ordinalCount(); i++) {
+                if(_countsByOrdinal.containsKey(i)) {
+                    final DistinctCountPayload payload = _countsByOrdinal.get(i);
+                    final long roundedTimestamp = getRoundedTimestamp(i);
+                    if(_counts.containsKey(roundedTimestamp)) {
+                        try {
+                            _counts.get(roundedTimestamp).merge(payload);
+                        } catch(final CardinalityMergeException e) {
+                            throw new IllegalArgumentException(e);
+                        }
+                    } else {
+                        _counts.put(roundedTimestamp, payload);
+                    }
+                }
+            }
+            _countsByOrdinal.clear();
         }
 
         @Override
         public InternalFacet build(final String facetName) {
             final InternalFacet facet = new InternalDistinctFacet(facetName, _counts);
+            CacheRecycler.pushIntObjectMap(_countsByOrdinal);
             return facet;
         }
 
-        private DistinctCountPayload getSafely(final TLongObjectMap<DistinctCountPayload> counts, final long key) {
+        private DistinctCountPayload getSafely(final TIntObjectMap<DistinctCountPayload> counts, final int key) {
             DistinctCountPayload payload = counts.get(key);
             if(payload == null) {
                 payload = new DistinctCountPayload(_exactThreshold);
@@ -296,9 +366,11 @@ public class DateFacetExecutor extends FacetExecutor {
         private BytesValues _distinctFieldValues;
         private BytesValues _sliceFieldValues;
 
+        private final TIntObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> _countsByOrdinal;
         private final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> _counts;
 
         SlicedDistinctCollector() {
+            _countsByOrdinal = CacheRecycler.popIntObjectMap();
             _counts = CacheRecycler.popLongObjectMap();
         }
 
@@ -314,7 +386,7 @@ public class DateFacetExecutor extends FacetExecutor {
         public void collect(final int doc) throws IOException {
             // Exit as early as possible in order to avoid unnecessary lookups
             super.collect(doc);
-            if(!hasNextTimestamp())
+            if(!hasNextOrdinal())
                 return;
 
             final org.elasticsearch.index.fielddata.BytesValues.Iter distinctIter =
@@ -322,12 +394,11 @@ public class DateFacetExecutor extends FacetExecutor {
             final org.elasticsearch.index.fielddata.BytesValues.Iter sliceIter =
                     _sliceFieldValues.getIter(doc);
 
-            while(hasNextTimestamp()) {
-                final long time = nextTimestamp();
+            while(hasNextOrdinal()) {
                 while(sliceIter.hasNext()) {
                     // TODO we can reduce hash lookups by getting the outer map in the outer loop
                     final BytesRef unsafeSlice = sliceIter.next();
-                    final DistinctCountPayload count = getSafely(_counts, time, unsafeSlice);
+                    final DistinctCountPayload count = getSafely(_counts, nextOrdinal(), unsafeSlice);
                     while(distinctIter.hasNext()) {
                         final BytesRef unsafeTerm = distinctIter.next();
                         // Unsafe because this may change; the counter needs to make
@@ -339,15 +410,43 @@ public class DateFacetExecutor extends FacetExecutor {
         }
 
         @Override
-        public void postCollection() {
-            super.postCollection();
+        public void postReader() {
             _distinctFieldValues = null;
             _sliceFieldValues = null;
+            // Count from 1 as 0 = missing
+            final int uniqueOrds = ordinalCount();
+            for(int i = 1; i < uniqueOrds; i++) {
+                if(_countsByOrdinal.containsKey(i)) {
+                    final long roundedTimestamp = getRoundedTimestamp(i);
+                    final ExtTHashMap<BytesRef, DistinctCountPayload> sourcePeriod = _countsByOrdinal.get(i);
+                    if(_counts.containsKey(roundedTimestamp)) {
+                        final ExtTHashMap<BytesRef, DistinctCountPayload> destPeriod = _counts.get(roundedTimestamp);
+                        sourcePeriod.forEachEntry(new TObjectObjectProcedure<BytesRef, DistinctCountPayload>() {
+                            @Override
+                            public boolean execute(final BytesRef sliceLabel, final DistinctCountPayload payload) {
+                                if(destPeriod.containsKey(sliceLabel))
+                                    try {
+                                        destPeriod.get(sliceLabel).merge(payload);
+                                    } catch(final CardinalityMergeException e) {
+                                        throw new IllegalArgumentException(e);
+                                    }
+                                else
+                                    destPeriod.put(sliceLabel, payload);
+                                return true;
+                            }
+                        });
+                    } else {
+                        _counts.put(roundedTimestamp, sourcePeriod);
+                    }
+                }
+            }
+            _countsByOrdinal.clear();
         }
 
         @Override
         public InternalFacet build(final String facetName) {
             final InternalFacet facet = new InternalSlicedDistinctFacet(facetName, _counts);
+            CacheRecycler.pushIntObjectMap(_countsByOrdinal);
             return facet;
         }
 
@@ -372,40 +471,83 @@ public class DateFacetExecutor extends FacetExecutor {
 
     private abstract class BuildableCollector extends Collector {
 
-        private LongValues _keyFieldValues;
-        private Iter _keyIter;
-        private long _prevTimestamp = -1;
-        private long _cachedRoundedTimestamp = -1;
+        private LongValues.WithOrdinals _keyFieldValues;
+        private Docs _ordinals;
+        private IntsRef _docOrdinals;
+        private int _docOrdinalsLength;
+        private int _docOrdinalsOffset;
+        private int _docOrdinalPointer;
+        private long[] _roundedTimestamps;
 
-        protected long nextTimestamp() {
-            final long next = _keyIter.next();
-            if(next != _prevTimestamp) {
-                _prevTimestamp = next;
-                _cachedRoundedTimestamp = _tzRounding.calc(next);
+        private int _maxOrdinal = -1;
+
+        protected int nextOrdinal() {
+            int ordinal;
+            if(hasNextOrdinal()) {
+                ordinal = _docOrdinals.ints[_docOrdinalPointer];
+                if(ordinal > _maxOrdinal)
+                    _maxOrdinal = ordinal;
+                _docOrdinalPointer++;
+            } else {
+                ordinal = 0;
             }
-            return _cachedRoundedTimestamp;
+            return ordinal;
         }
 
-        protected boolean hasNextTimestamp() {
-            return _keyIter.hasNext();
+        protected boolean hasNextOrdinal() {
+            return _docOrdinalsLength > 0 &&
+                    _docOrdinalPointer < _docOrdinalsLength + _docOrdinalsOffset;
+        }
+
+        protected long getRoundedTimestamp(final int ordinal) {
+            return _roundedTimestamps[ordinal];
+        }
+
+        protected int ordinalCount() {
+            return _roundedTimestamps.length;
         }
 
         @Override
         public void collect(final int doc) throws IOException {
-            _keyIter = _keyFieldValues.getIter(doc);
+            _docOrdinals = _ordinals.getOrds(doc);
+            _docOrdinalsLength = _docOrdinals.length;
+            _docOrdinalsOffset = _docOrdinals.offset;
+            _docOrdinalPointer = _docOrdinalsOffset;
         }
 
         abstract InternalFacet build(String facetName);
 
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
-            _keyFieldValues = ((LongArrayIndexFieldData) _keyFieldData.data)
+            if(_maxOrdinal > -1) {
+                _roundedTimestamps = new long[_maxOrdinal + 1];
+                // Start at 1 because ordinal 0 represents "no value"
+                for(int i = 1; i < _roundedTimestamps.length; i++) {
+                    _roundedTimestamps[i] = _tzRounding.calc(_keyFieldValues.getValueByOrd(i));
+                }
+                postReader();
+            }
+
+            _maxOrdinal = -1;
+            _keyFieldValues = (WithOrdinals) ((LongArrayIndexFieldData) _keyFieldData.data)
                     .load(context).getLongValues();
+            //            _docBase = context.docBase;
+            _ordinals = _keyFieldValues.ordinals();
+            _roundedTimestamps = null;
         }
+
+        protected abstract void postReader();
 
         @Override
         public void postCollection() {
             _keyFieldValues = null;
+            _docOrdinals = null;
+            _roundedTimestamps = null;
+        }
+
+        @Override
+        public boolean acceptsDocsOutOfOrder() {
+            return true;
         }
 
     }
