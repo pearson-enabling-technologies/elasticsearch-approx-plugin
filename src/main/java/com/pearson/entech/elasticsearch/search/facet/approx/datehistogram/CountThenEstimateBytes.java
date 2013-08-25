@@ -28,9 +28,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.lucene.codecs.bloom.HashFunction;
 import org.apache.lucene.codecs.bloom.MurmurHash2;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.CacheRecycler;
+import org.elasticsearch.common.trove.procedure.TObjectProcedure;
 import org.elasticsearch.common.trove.set.hash.THashSet;
 
 import com.clearspring.analytics.stream.cardinality.AdaptiveCounting;
@@ -229,11 +231,8 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     {
         if(!tipped) {
             estimator = builder.build();
-            for(final Object o : counter)
-            {
-                estimator.offerHashed(__luceneMurmurHash.hash((BytesRef) o));
-            }
-            CacheRecycler.pushHashSet(counter);
+            _offerMembers.init(estimator, __luceneMurmurHash);
+            counter.forEach(_offerMembers);
             counter = null;
             builder = null;
             tipped = true;
@@ -401,7 +400,6 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
                 {
                     for(final Object o : cte.counter)
                     {
-                        //merged.offerHashed(__luceneMurmurHash.hash((BytesRef) o));
                         merged.offerBytesRef((BytesRef) o);
                     }
                 }
@@ -434,4 +432,25 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             super(message);
         }
     }
+
+    private final MemberOfferer _offerMembers = new MemberOfferer();
+
+    private static class MemberOfferer implements TObjectProcedure<BytesRef> {
+
+        private ICardinality _estimator;
+        private HashFunction _hash;
+
+        private void init(final ICardinality estimator, final HashFunction hash) {
+            _estimator = estimator;
+            _hash = hash;
+        }
+
+        @Override
+        public boolean execute(final BytesRef bytes) {
+            _estimator.offerHashed(_hash.hash(bytes));
+            return true;
+        }
+
+    }
+
 }
