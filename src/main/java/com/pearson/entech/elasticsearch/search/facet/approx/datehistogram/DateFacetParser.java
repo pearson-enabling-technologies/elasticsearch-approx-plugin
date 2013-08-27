@@ -205,7 +205,6 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
             return new CountDateHistogramFacetExecutor(keyIndexFieldData, tzRounding, comparatorType);
         }
         */
-        // TODO refactor... and short/double fields
 
         //            if(distinctFieldMapper.fieldDataType().getType().equals("string")) {
         //                final PagedBytesIndexFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);

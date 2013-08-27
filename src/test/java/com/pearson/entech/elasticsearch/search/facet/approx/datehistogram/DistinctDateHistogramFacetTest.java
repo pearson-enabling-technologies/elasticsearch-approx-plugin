@@ -475,7 +475,6 @@ public class DistinctDateHistogramFacetTest {
 
         // TODO test other data types
 
-        // FIXME Do this 20 times for different amounts of data
         for(int t = 1; t <= 20; t++) {
             setUp();
             final int minPerDay = (int) pow(2, t);

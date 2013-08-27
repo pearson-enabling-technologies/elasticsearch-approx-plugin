@@ -59,7 +59,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     // TODO count facet in value_field mode as well
     @Test
     public void test100CountFacets() throws Exception {
-        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(100); // FIXME
+        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(100);
         testSomeRandomFacets(randomFacets, "test100CountFacets");
     }
 

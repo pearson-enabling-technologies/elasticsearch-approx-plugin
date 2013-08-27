@@ -3,6 +3,7 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 import java.io.IOException;
 
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.trove.ExtTHashMap;
@@ -76,7 +77,7 @@ public class DistinctCountPayload {
             try {
                 map.put(key, this.merge(map.get(key)));
             } catch(final CardinalityMergeException e) {
-                throw new IllegalArgumentException(e);
+                throw new ElasticSearchException("Unable to merge two facet cardinality objects", e);
             }
         else
             map.put(key, this);
@@ -88,7 +89,7 @@ public class DistinctCountPayload {
             try {
                 map.put(key, this.merge(map.get(key)));
             } catch(final CardinalityMergeException e) {
-                throw new IllegalArgumentException(e);
+                throw new ElasticSearchException("Unable to merge two facet cardinality objects", e);
             }
         else
             map.put(key, this);
