@@ -12,7 +12,7 @@
 
 	<profiles>
 		<profile>
-			<id>jdk</id>
+			<id>jdk6</id>
 			<activation>
 				<activeByDefault>true</activeByDefault>
 			</activation>
