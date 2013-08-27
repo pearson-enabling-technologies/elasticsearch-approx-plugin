@@ -10,6 +10,27 @@
 		<elasticsearch.version>0.90.2</elasticsearch.version>
 	</properties>
 
+	<profiles>
+		<profile>
+			<id>jdk</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<properties>
+				<jdk>1.6</jdk>
+			</properties>
+		</profile>
+		<profile>
+			<id>jdk7</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+			<properties>
+				<jdk>1.7</jdk>
+			</properties>
+		</profile>
+	</profiles>
+
 	<name>elasticsearch-approx-plugin</name>
 	<url>http://maven.apache.org</url>
 	<build>
@@ -19,8 +40,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>2.3.2</version>
 				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
+					<source>${jdk}</source>
+					<target>${jdk}</target>
 				</configuration>
 			</plugin>
 			<plugin>
