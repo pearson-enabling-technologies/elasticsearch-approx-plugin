@@ -18,13 +18,20 @@ import org.elasticsearch.common.trove.impl.Constants;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.index.Index;
 import org.elasticsearch.index.fielddata.FieldDataType;
 import org.elasticsearch.index.fielddata.IndexFieldData;
+import org.elasticsearch.index.fielddata.IndexFieldDataCache;
 import org.elasticsearch.index.mapper.FieldMapper;
+import org.elasticsearch.index.mapper.FieldMapper.Names;
+import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.indices.fielddata.cache.IndicesFieldDataCache;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.FacetParser;
 import org.elasticsearch.search.facet.FacetPhaseExecutionException;
 import org.elasticsearch.search.internal.SearchContext;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.fielddata.DateFacetIndexFieldData;
 
 /**
  * Parser is responsible to make sense of a SearchRequests "facet query" and
@@ -34,12 +41,19 @@ import org.elasticsearch.search.internal.SearchContext;
  */
 public class DateFacetParser extends AbstractComponent implements FacetParser {
 
+    private static final FieldDataType fieldDataType = new FieldDataType("date_facet_timestamp");
+
     private final ImmutableMap<String, DateFieldParser> dateFieldParsers;
     private final TObjectIntHashMap<String> rounding = new TObjectIntHashMap<String>(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, -1);
+    private final IndicesService _indicesService;
+    private final IndicesFieldDataCache _cache;
 
     @Inject
-    public DateFacetParser(final Settings settings) {
+    public DateFacetParser(final Settings settings, final IndicesService indicesService,
+            final IndicesFieldDataCache cache) {
         super(settings);
+        _indicesService = indicesService;
+        _cache = cache;
 
         dateFieldParsers = MapBuilder.<String, DateFieldParser> newMapBuilder()
                 .put("year", new DateFieldParser.YearOfCentury())
@@ -176,11 +190,9 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
                 .factor(factor)
                 .build();
 
-        final TypedFieldData keyFieldData = getFieldData(keyField, context);
+        final TypedFieldData keyFieldData = getKeyFieldData(keyField, context);
         if(keyFieldData == null)
             throw new FacetPhaseExecutionException(facetName, "[key_field] is required to be set for distinct date histogram facet");
-        if(!"long".equals(keyFieldData.type.getType()))
-            throw new FacetPhaseExecutionException(facetName, "key field [" + keyField + "] is not of type date");
 
         final TypedFieldData valueFieldData = getFieldData(valueField, context);
         final TypedFieldData distinctFieldData = getFieldData(distinctField, context);
@@ -232,6 +244,30 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
             }
             final FieldDataType fieldDataType = mapper.fieldDataType();
             final IndexFieldData fieldData = context.fieldData().getForField(mapper);
+            return new TypedFieldData(fieldData, fieldDataType);
+        }
+        return null;
+    }
+
+    private TypedFieldData getKeyFieldData(final String fieldName, final SearchContext context) {
+        if(fieldName != null) {
+            final FieldMapper<?> mapper = context.smartNameFieldMapper(fieldName);
+            if(mapper == null) {
+                throw new FacetPhaseExecutionException(fieldName, "no mapping found for " + fieldName);
+            }
+
+            final Index index = context.mapperService().index();
+            final Settings indexSettings = context.indexShard().indexSettings();
+            final Names fieldNames = mapper.names();
+            //            final Resident ifdc = new IndexFieldDataCache.Resident(
+            //                    _indicesService.indexServiceSafe(index.getName()), fieldNames, fieldDataType);
+
+            final IndexFieldDataCache ifdc =
+                    _cache.buildIndexFieldDataCache(_indicesService.indexServiceSafe(index.getName()),
+                            index, fieldNames, fieldDataType);
+            final DateFacetIndexFieldData fieldData = new DateFacetIndexFieldData(
+                    index, indexSettings, fieldNames, fieldDataType, ifdc);
+
             return new TypedFieldData(fieldData, fieldDataType);
         }
         return null;

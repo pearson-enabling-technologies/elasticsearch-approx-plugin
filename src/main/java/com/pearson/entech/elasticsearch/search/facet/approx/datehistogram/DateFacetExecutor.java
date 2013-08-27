@@ -14,9 +14,11 @@ import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.index.fielddata.LongValues.Iter;
-import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
+import org.elasticsearch.index.fielddata.plain.LongArrayAtomicFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.InternalFacet;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.fielddata.DateFacetIndexFieldData;
 
 public class DateFacetExecutor extends FacetExecutor {
 
@@ -372,7 +374,8 @@ public class DateFacetExecutor extends FacetExecutor {
 
     private abstract class BuildableCollector extends Collector {
 
-        private LongValues _keyFieldValues;
+        private LongArrayAtomicFieldData.WithOrdinals _keyFieldDataCache;
+        private LongValues.WithOrdinals _keyFieldValues;
         private Iter _keyIter;
         private long _prevTimestamp = -1;
         private long _cachedRoundedTimestamp = -1;
@@ -399,13 +402,14 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
-            _keyFieldValues = ((LongArrayIndexFieldData) _keyFieldData.data)
-                    .load(context).getLongValues();
+            _keyFieldDataCache = (LongArrayAtomicFieldData.WithOrdinals) ((DateFacetIndexFieldData) _keyFieldData.data)
+                    .load(context);
+            _keyFieldValues = _keyFieldDataCache.getLongValues();
         }
 
         @Override
         public void postCollection() {
-            _keyFieldValues = null;
+            _keyFieldDataCache = null;
         }
 
     }
