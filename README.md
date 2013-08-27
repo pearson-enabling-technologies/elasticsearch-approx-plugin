@@ -67,8 +67,9 @@ Example:
         },
             "facets": {
                 "histo" : {
-                    "date_histogram" : {
-                        "field" : "datetime",
+                    "distinct_date_histogram" : {
+                        "key_field" : "datetime",
+                        "value_field": "price",
                         "interval": "day",
                         "pre_zone": "Europe/London",
                         "pre_zone_adjust_large_interval": true
