@@ -11,7 +11,6 @@ import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
-import org.elasticsearch.common.trove.map.hash.TLongObjectHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.search.facet.InternalFacet;
 import org.junit.Test;
@@ -34,11 +33,12 @@ public class SerializationTest {
 
     private void testSerializingCountingFacet(final TLongIntHashMap counts) throws Exception {
         final TLongIntHashMap sentCounts = new TLongIntHashMap(counts);
-        final InternalCountingFacet toSend = new InternalCountingFacet("foo", counts);
+        final InternalCountingFacet toSend = new InternalCountingFacet("foo", sentCounts);
         final InternalCountingFacet toReceive = new InternalCountingFacet();
         serializeAndDeserialize(toSend, toReceive);
         final TLongIntHashMap receivedCounts = new TLongIntHashMap(toReceive.peekCounts());
-        compareCounts(sentCounts, receivedCounts);
+        // Check against original counts as sentCounts may have been recycled
+        compareCounts(counts, receivedCounts);
     }
 
     private void compareCounts(final TLongIntHashMap sentCounts, final TLongIntHashMap receivedCounts) {
@@ -83,14 +83,16 @@ public class SerializationTest {
         testSerializingDistinctFacet(counts);
     }
 
-    private void testSerializingDistinctFacet(final TLongObjectHashMap<DistinctCountPayload> counts) throws Exception {
-        final ExtTLongObjectHashMap<DistinctCountPayload> sentCounts = new ExtTLongObjectHashMap<DistinctCountPayload>(counts);
+    private void testSerializingDistinctFacet(final ExtTLongObjectHashMap<DistinctCountPayload> counts) throws Exception {
+        final ExtTLongObjectHashMap<DistinctCountPayload> sentCounts =
+                new ExtTLongObjectHashMap<DistinctCountPayload>(counts);
         final InternalDistinctFacet toSend = new InternalDistinctFacet("bar", sentCounts);
         final InternalDistinctFacet toReceive = new InternalDistinctFacet();
         serializeAndDeserialize(toSend, toReceive);
         final ExtTLongObjectHashMap<DistinctCountPayload> receivedCounts =
                 new ExtTLongObjectHashMap<DistinctCountPayload>(toReceive.peekCounts());
-        compareDistinctCounts(sentCounts, receivedCounts);
+        // Check against original counts as sentCounts may have been recycled
+        compareDistinctCounts(counts, receivedCounts);
     }
 
     private void compareDistinctCounts(final ExtTLongObjectHashMap<DistinctCountPayload> sentCounts,
@@ -155,13 +157,27 @@ public class SerializationTest {
 
     private void testSerializingSlicedDistinctFacet(final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts) throws Exception {
         final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> sentCounts =
-                new ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>>(counts);
+                deepCopySlicedDistinct(counts);
         final InternalSlicedDistinctFacet toSend = new InternalSlicedDistinctFacet("baz", sentCounts);
         final InternalSlicedDistinctFacet toReceive = new InternalSlicedDistinctFacet();
         serializeAndDeserialize(toSend, toReceive);
         final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> receivedCounts =
                 new ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>>(toReceive.peekCounts());
-        compareSlicedDistinctCounts(sentCounts, receivedCounts);
+        // Check against original counts as sentCounts may have been recycled
+        compareSlicedDistinctCounts(counts, receivedCounts);
+    }
+
+    private ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> deepCopySlicedDistinct(
+            final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts) {
+        final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> output =
+                new ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>>();
+        for(final long key : counts.keys()) {
+            output.put(key, new ExtTHashMap<BytesRef, DistinctCountPayload>());
+            for(final BytesRef br : counts.get(key).keySet()) {
+                output.get(key).put(BytesRef.deepCopyOf(br), counts.get(key).get(br));
+            }
+        }
+        return output;
     }
 
     private void compareSlicedDistinctCounts(final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> sentCounts,
@@ -205,13 +221,27 @@ public class SerializationTest {
     }
 
     private void testSerializingSlicedFacet(final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> counts) throws Exception {
-        final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> sentCounts = new ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>>(counts);
+        final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> sentCounts =
+                deepCopySliced(counts);
         final InternalSlicedFacet toSend = new InternalSlicedFacet("qux", sentCounts);
         final InternalSlicedFacet toReceive = new InternalSlicedFacet();
         serializeAndDeserialize(toSend, toReceive);
         final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> receivedCounts =
                 new ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>>(toReceive.peekCounts());
-        compareSlicedCounts(sentCounts, receivedCounts);
+        // Check against original counts as sentCounts may have been recycled
+        compareSlicedCounts(counts, receivedCounts);
+    }
+
+    private ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> deepCopySliced(final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> counts) {
+        final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> output =
+                new ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>>();
+        for(final long key : counts.keys()) {
+            output.put(key, new TObjectIntHashMap<BytesRef>());
+            for(final BytesRef br : counts.get(key).keySet()) {
+                output.get(key).put(BytesRef.deepCopyOf(br), counts.get(key).get(br));
+            }
+        }
+        return output;
     }
 
     private void compareSlicedCounts(final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> sentCounts,
