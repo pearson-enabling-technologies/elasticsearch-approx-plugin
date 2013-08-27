@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.IntsRef;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTHashMap;
@@ -13,12 +14,10 @@ import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.LongValues;
-import org.elasticsearch.index.fielddata.LongValues.Iter;
-import org.elasticsearch.index.fielddata.plain.LongArrayAtomicFieldData;
+import org.elasticsearch.index.fielddata.LongValues.WithOrdinals;
+import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.InternalFacet;
-
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.fielddata.DateFacetIndexFieldData;
 
 public class DateFacetExecutor extends FacetExecutor {
 
@@ -374,42 +373,46 @@ public class DateFacetExecutor extends FacetExecutor {
 
     private abstract class BuildableCollector extends Collector {
 
-        private LongArrayAtomicFieldData.WithOrdinals _keyFieldDataCache;
         private LongValues.WithOrdinals _keyFieldValues;
-        private Iter _keyIter;
-        private long _prevTimestamp = -1;
-        private long _cachedRoundedTimestamp = -1;
+        private IntsRef _docOrds;
+        private int _docOrdPointer;
+        private long[] _timestamps;
 
         protected long nextTimestamp() {
-            final long next = _keyIter.next();
-            if(next != _prevTimestamp) {
-                _prevTimestamp = next;
-                _cachedRoundedTimestamp = _tzRounding.calc(next);
-            }
-            return _cachedRoundedTimestamp;
+            final long next = _keyFieldValues.getValueByOrd(_docOrds.ints[_docOrdPointer]);
+            _docOrdPointer++;
+            return next;
+
         }
 
         protected boolean hasNextTimestamp() {
-            return _keyIter.hasNext();
+            return _docOrdPointer < _docOrds.length;
         }
 
         @Override
         public void collect(final int doc) throws IOException {
-            _keyIter = _keyFieldValues.getIter(doc);
+            _docOrds = _keyFieldValues.ordinals().getOrds(doc);
+            _docOrdPointer = _docOrds.offset;
         }
 
         abstract InternalFacet build(String facetName);
 
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
-            _keyFieldDataCache = (LongArrayAtomicFieldData.WithOrdinals) ((DateFacetIndexFieldData) _keyFieldData.data)
-                    .load(context);
-            _keyFieldValues = _keyFieldDataCache.getLongValues();
+            _keyFieldValues = (WithOrdinals) ((LongArrayIndexFieldData) _keyFieldData.data)
+                    .load(context).getLongValues();
+            final int maxOrd = _keyFieldValues.ordinals().getMaxOrd();
+            // TODO cache these arrays
+            _timestamps = new long[maxOrd];
+            for(int i = 1; i < maxOrd; i++) {
+                _timestamps[i] = _tzRounding.calc(_keyFieldValues.getValueByOrd(i));
+            }
         }
 
         @Override
         public void postCollection() {
-            _keyFieldDataCache = null;
+            _keyFieldValues = null;
+            _timestamps = null;
         }
 
     }
