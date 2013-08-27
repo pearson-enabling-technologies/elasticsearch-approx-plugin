@@ -1,0 +1,15 @@
+package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class MediumDataSetSingleThreadedPerformanceTest extends MediumDataSetPerformanceTest {
+
+    private final ExecutorService _singleThread = Executors.newSingleThreadExecutor();
+
+    @Override
+    protected ExecutorService threadPool() {
+        return _singleThread;
+    }
+
+}

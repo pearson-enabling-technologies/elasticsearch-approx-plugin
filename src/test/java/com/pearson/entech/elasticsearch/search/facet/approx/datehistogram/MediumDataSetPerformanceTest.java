@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import org.elasticsearch.action.ListenableActionFuture;
@@ -28,13 +27,11 @@ import org.junit.AfterClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-public class MediumDataSetPerformanceTest extends MediumDataSetTest {
+public abstract class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
     private static final Map<String, Long> __executionStartTimes = newHashMap();
 
     private static final Map<String, Long> __executionEndTimes = newHashMap();
-
-    ExecutorService _singleThread = Executors.newSingleThreadExecutor();
 
     private final boolean _hotThreads = true;
 
@@ -46,6 +43,8 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
         System.gc();
         Thread.sleep(2000);
     }
+
+    protected abstract ExecutorService threadPool();
 
     @AfterClass
     public static void tearDownClass() {
@@ -99,14 +98,14 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
     }
 
     private <T extends RandomDateFacetQuery> void testSomeRandomFacets(final List<T> randomFacets, final String testName) throws Exception {
-        final List<SearchResponse> responses = executeSerially(randomFacets, testName);
+        final List<SearchResponse> responses = runQueries(randomFacets, testName);
         assertEquals(randomFacets.size(), responses.size());
         for(int i = 0; i < randomFacets.size(); i++) {
             randomFacets.get(i).checkResults(responses.get(i));
         }
     }
 
-    private <T> List<T> executeSerially(final List<? extends Callable<T>> tasks, final String testName) throws Exception {
+    private <T> List<T> runQueries(final List<? extends Callable<T>> tasks, final String testName) throws Exception {
         clearMemory();
         final ListenableActionFuture<NodesHotThreadsResponse> threads = _hotThreads ?
                 new NodesHotThreadsRequestBuilder(client().admin().cluster())
@@ -114,7 +113,7 @@ public class MediumDataSetPerformanceTest extends MediumDataSetTest {
                         .setType("cpu").setThreads(4).execute()
                 : null;
         logExecutionStart(testName);
-        final List<Future<T>> futures = _singleThread.invokeAll(tasks);
+        final List<Future<T>> futures = threadPool().invokeAll(tasks);
         logExecutionEnd(testName);
         if(_hotThreads) {
             final NodeHotThreads[] nodes = threads.actionGet().getNodes();
