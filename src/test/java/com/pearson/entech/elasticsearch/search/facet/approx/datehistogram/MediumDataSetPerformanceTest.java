@@ -57,34 +57,34 @@ public abstract class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
     // TODO count facet in value_field mode as well
     @Test
-    public void test1000CountFacets() throws Exception {
-        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(1000);
-        testSomeRandomFacets(randomFacets, "test1000CountFacets");
+    public void test100CountFacets() throws Exception {
+        final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(100);
+        testSomeRandomFacets(randomFacets, "test100CountFacets");
     }
 
     @Test
-    public void test1000ApproxDistinctFacets() throws Exception {
-        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(1000, 0, 0.01);
-        testSomeRandomFacets(randomFacets, "test1000ApproxDistinctFacets");
+    public void test100ApproxDistinctFacets() throws Exception {
+        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(100, 0, 0.01);
+        testSomeRandomFacets(randomFacets, "test100ApproxDistinctFacets");
     }
 
     @Test
-    public void test1000MixedDistinctFacets() throws Exception {
-        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(1000, 5000, 0.01);
-        testSomeRandomFacets(randomFacets, "test1000MixedDistinctFacets");
+    public void test100MixedDistinctFacets() throws Exception {
+        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(100, 5000, 0.01);
+        testSomeRandomFacets(randomFacets, "test100MixedDistinctFacets");
     }
 
     @Test
-    public void test1000ExactDistinctFacets() throws Exception {
-        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(1000, Integer.MAX_VALUE, 0);
-        testSomeRandomFacets(randomFacets, "test1000ExactDistinctFacets");
+    public void test100ExactDistinctFacets() throws Exception {
+        final List<RandomDistinctDateFacetQuery> randomFacets = nRandomDistinctFacets(100, Integer.MAX_VALUE, 0);
+        testSomeRandomFacets(randomFacets, "test100ExactDistinctFacets");
     }
 
     // TODO sliced facet in value_field mode as well
     @Test
-    public void test1000SlicedFacets() throws Exception {
-        final List<RandomSlicedDateFacetQuery> randomFacets = nRandomSlicedFacets(1000);
-        testSomeRandomFacets(randomFacets, "test1000SlicedFacets");
+    public void test100SlicedFacets() throws Exception {
+        final List<RandomSlicedDateFacetQuery> randomFacets = nRandomSlicedFacets(100);
+        testSomeRandomFacets(randomFacets, "test100SlicedFacets");
     }
 
     @Test

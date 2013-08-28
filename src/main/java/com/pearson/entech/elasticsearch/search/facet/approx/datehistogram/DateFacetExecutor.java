@@ -374,6 +374,7 @@ public class DateFacetExecutor extends FacetExecutor {
 
     }
 
+    // TODO really this needs to be two classes, for ordinal and non-ordinal data
     private abstract class BuildableCollector extends Collector {
 
         private LongValues _keyFieldValues;
@@ -383,6 +384,8 @@ public class DateFacetExecutor extends FacetExecutor {
         private final TIntArrayList _ordToTimestampPointers = new TIntArrayList();
         private Iter _docIter;
         private final Iter _emptyIter = new Iter.Empty(); // TODO static
+        private long _lastDatetime;
+        private long _lastTimestamp;
 
         protected long nextTimestamp() {
             if(_keyFieldValues instanceof WithOrdinals) {
@@ -418,29 +421,40 @@ public class DateFacetExecutor extends FacetExecutor {
         public void setNextReader(final AtomicReaderContext context) throws IOException {
             _keyFieldValues = ((LongArrayIndexFieldData) _keyFieldData.data)
                     .load(context).getLongValues();
-            _timestamps.resetQuick();
-            _timestamps.add(0);
-            _ordToTimestampPointers.resetQuick();
-            _ordToTimestampPointers.add(0);
-            long lastNewTS = 0;
-            int tsPointer = 0;
-            _docIter = _emptyIter;
             if(_keyFieldValues instanceof WithOrdinals) {
                 final int maxOrd = ((WithOrdinals) _keyFieldValues).ordinals().getMaxOrd();
+                int tsPointer = 0;
+                _timestamps.resetQuick();
+                _timestamps.add(0);
+                _ordToTimestampPointers.resetQuick();
+                _ordToTimestampPointers.add(0);
                 // TODO cache these lookup tables
                 for(int i = 1; i < maxOrd; i++) {
                     final long datetime = ((WithOrdinals) _keyFieldValues).getValueByOrd(i);
-                    if(datetime > lastNewTS && datetime - lastNewTS > 1000) {
-                        final long nextTS = _tzRounding.calc(datetime);
-                        if(nextTS != lastNewTS) {
-                            tsPointer++;
-                            _timestamps.add(nextTS);
-                            lastNewTS = nextTS;
-                        }
+                    final long timestamp = calcTimestamp(datetime);
+                    if(timestamp != _lastTimestamp) {
+                        tsPointer++;
+                        _timestamps.add(timestamp);
                     }
                     _ordToTimestampPointers.add(tsPointer);
                 }
+            } else {
+                _docIter = _emptyIter;
             }
+        }
+
+        private long calcTimestamp(final long datetime) {
+            long output;
+            if(datetime == _lastDatetime) {
+                output = _lastTimestamp;
+            } else if(datetime > _lastTimestamp && datetime - _lastTimestamp < 1000) {
+                output = _lastTimestamp;
+            } else {
+                output = _tzRounding.calc(datetime);
+            }
+            _lastDatetime = datetime;
+            _lastTimestamp = output;
+            return output;
         }
 
         @Override
