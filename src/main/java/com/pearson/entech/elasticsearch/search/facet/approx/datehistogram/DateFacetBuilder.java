@@ -281,7 +281,7 @@ public class DateFacetBuilder extends FacetBuilder {
         if(factor != 1.0f) {
             builder.field("factor", factor);
         }
-        if(exactThreshold > 0) {
+        if(exactThreshold != -1) {
             builder.field("exact_threshold", exactThreshold);
         }
         builder.endObject();
