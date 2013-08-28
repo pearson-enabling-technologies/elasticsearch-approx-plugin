@@ -1,9 +1,6 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
-import static com.google.common.collect.Maps.newHashMap;
-
 import java.io.IOException;
-import java.util.Map;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.util.BytesRef;
@@ -12,24 +9,20 @@ import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
+import org.elasticsearch.common.trove.list.array.TIntArrayList;
 import org.elasticsearch.common.trove.list.array.TLongArrayList;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
 import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
-import org.elasticsearch.common.trove.map.hash.TLongLongHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.LongValues;
+import org.elasticsearch.index.fielddata.LongValues.Iter;
 import org.elasticsearch.index.fielddata.LongValues.WithOrdinals;
 import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.InternalFacet;
 
 public class DateFacetExecutor extends FacetExecutor {
-
-    // FIXME needs to be parameterized by rounding method, also expiry etc.
-    private static final Map<String, TLongLongHashMap> __tzCache = newHashMap();
-
-    private final TLongLongHashMap _tzCache;
 
     private final TypedFieldData _keyFieldData;
     private final TypedFieldData _valueFieldData;
@@ -44,7 +37,7 @@ public class DateFacetExecutor extends FacetExecutor {
 
     public DateFacetExecutor(final TypedFieldData keyFieldData, final TypedFieldData valueFieldData,
             final TypedFieldData distinctFieldData, final TypedFieldData sliceFieldData,
-            final TimeZoneRounding tzRounding, final String tzDescriptor, final int exactThreshold) {
+            final TimeZoneRounding tzRounding, final int exactThreshold) {
         _keyFieldData = keyFieldData;
         _valueFieldData = valueFieldData;
         _distinctFieldData = distinctFieldData;
@@ -59,11 +52,6 @@ public class DateFacetExecutor extends FacetExecutor {
             _collector = new DistinctCollector();
         else
             _collector = new SlicedDistinctCollector();
-        synchronized(__tzCache) {
-            if(!__tzCache.containsKey(tzDescriptor))
-                __tzCache.put(tzDescriptor, new TLongLongHashMap());
-        }
-        _tzCache = __tzCache.get(tzDescriptor);
     }
 
     @Override
@@ -388,71 +376,77 @@ public class DateFacetExecutor extends FacetExecutor {
 
     private abstract class BuildableCollector extends Collector {
 
-        private LongValues.WithOrdinals _keyFieldValues;
+        private LongValues _keyFieldValues;
         private IntsRef _docOrds;
         private int _docOrdPointer;
-        //        private final TLongArrayList _timestamps = new TLongArrayList();
-        private final TLongArrayList _ordToTimestamps = new TLongArrayList();
+        private final TLongArrayList _timestamps = new TLongArrayList();
+        private final TIntArrayList _ordToTimestampPointers = new TIntArrayList();
+        private Iter _docIter;
+        private final Iter _emptyIter = new Iter.Empty(); // TODO static
 
         protected long nextTimestamp() {
-            final long next;
-            synchronized(__tzCache) {
-                next = _tzCache.get(_ordToTimestamps.get(_docOrds.ints[_docOrdPointer]));
+            if(_keyFieldValues instanceof WithOrdinals) {
+                final long ts = _timestamps.get(_ordToTimestampPointers.get(_docOrds.ints[_docOrdPointer]));
+                _docOrdPointer++;
+                return ts;
+            } else {
+                return _tzRounding.calc(_docIter.next()); // TODO cache me
             }
-            _docOrdPointer++;
-            return next;
         }
 
         protected boolean hasNextTimestamp() {
-            return _docOrdPointer < _docOrds.length;
+            if(_keyFieldValues instanceof WithOrdinals) {
+                return _docOrdPointer < _docOrds.length;
+            } else {
+                return _docIter.hasNext();
+            }
         }
 
         @Override
         public void collect(final int doc) throws IOException {
-            _docOrds = _keyFieldValues.ordinals().getOrds(doc);
-            _docOrdPointer = _docOrds.offset;
+            if(_keyFieldValues instanceof WithOrdinals) {
+                _docOrds = ((WithOrdinals) _keyFieldValues).ordinals().getOrds(doc);
+                _docOrdPointer = _docOrds.offset;
+            } else {
+                _docIter = _keyFieldValues.getIter(doc);
+            }
         }
 
         abstract InternalFacet build(String facetName);
 
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
-            _keyFieldValues = (WithOrdinals) ((LongArrayIndexFieldData) _keyFieldData.data)
+            _keyFieldValues = ((LongArrayIndexFieldData) _keyFieldData.data)
                     .load(context).getLongValues();
-            final int maxOrd = _keyFieldValues.ordinals().getMaxOrd();
-            _ordToTimestamps.resetQuick();
-            _ordToTimestamps.add(0);
+            _timestamps.resetQuick();
+            _timestamps.add(0);
+            _ordToTimestampPointers.resetQuick();
+            _ordToTimestampPointers.add(0);
             long lastNewTS = 0;
-            // TODO divide by 1000 and use ints instead?
-            for(int i = 1; i < maxOrd; i++) {
-                final long datetime = _keyFieldValues.getValueByOrd(i);
-                if(datetime > lastNewTS && datetime - lastNewTS < 1000) {
-                    // do we really need to do this?
-                    synchronized(_tzCache) {
-                        _tzCache.putIfAbsent(datetime, lastNewTS);
-                    }
-                } else {
-                    synchronized(_tzCache) {
-                        if(!_tzCache.containsKey(datetime)) {
-                            _tzCache.put(datetime, _tzRounding.calc(datetime));
+            int tsPointer = 0;
+            _docIter = _emptyIter;
+            if(_keyFieldValues instanceof WithOrdinals) {
+                final int maxOrd = ((WithOrdinals) _keyFieldValues).ordinals().getMaxOrd();
+                // TODO cache these lookup tables
+                for(int i = 1; i < maxOrd; i++) {
+                    final long datetime = ((WithOrdinals) _keyFieldValues).getValueByOrd(i);
+                    if(datetime > lastNewTS && datetime - lastNewTS > 1000) {
+                        final long nextTS = _tzRounding.calc(datetime);
+                        if(nextTS != lastNewTS) {
+                            tsPointer++;
+                            _timestamps.add(nextTS);
+                            lastNewTS = nextTS;
                         }
-                        lastNewTS = _tzCache.get(datetime);
                     }
+                    _ordToTimestampPointers.add(tsPointer);
                 }
-                _ordToTimestamps.add(lastNewTS);
             }
-
-            //            System.out.println(Thread.currentThread().getName() + " > After setNextReader:");
-            //            System.out.println(Thread.currentThread().getName() + " > _timestamps = " + _timestamps);
-            //            System.out.println(Thread.currentThread().getName() + " > _ordToTimestamps = " + Arrays.toString(_ordToTimestamps));
         }
 
         @Override
         public void postCollection() {
-            // TODO check for excessive size, and clean up
-            //            System.out.println(Thread.currentThread().getName() + " > After postCollection:");
-            //            System.out.println(Thread.currentThread().getName() + " > _timestamps size = " + _timestamps.size());
-            //            System.out.println(Thread.currentThread().getName() + " > _ordToTimestamps size = " + _ordToTimestamps.size());
+            //            CacheRecycler.pushIntArray(_ordToTimestampPointers);
+            //            _timestamps.resetQuick();
         }
 
     }
