@@ -1,6 +1,9 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
+import static com.google.common.collect.Maps.newHashMap;
+
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.util.BytesRef;
@@ -9,10 +12,10 @@ import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
-import org.elasticsearch.common.trove.list.array.TIntArrayList;
 import org.elasticsearch.common.trove.list.array.TLongArrayList;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
 import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
+import org.elasticsearch.common.trove.map.hash.TLongLongHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.LongValues;
@@ -22,6 +25,11 @@ import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.InternalFacet;
 
 public class DateFacetExecutor extends FacetExecutor {
+
+    // FIXME needs to be parameterized by rounding method, also expiry etc.
+    private static final Map<String, TLongLongHashMap> __tzCache = newHashMap();
+
+    private final TLongLongHashMap _tzCache;
 
     private final TypedFieldData _keyFieldData;
     private final TypedFieldData _valueFieldData;
@@ -36,7 +44,7 @@ public class DateFacetExecutor extends FacetExecutor {
 
     public DateFacetExecutor(final TypedFieldData keyFieldData, final TypedFieldData valueFieldData,
             final TypedFieldData distinctFieldData, final TypedFieldData sliceFieldData,
-            final TimeZoneRounding tzRounding, final int exactThreshold) {
+            final TimeZoneRounding tzRounding, final String tzDescriptor, final int exactThreshold) {
         _keyFieldData = keyFieldData;
         _valueFieldData = valueFieldData;
         _distinctFieldData = distinctFieldData;
@@ -51,6 +59,11 @@ public class DateFacetExecutor extends FacetExecutor {
             _collector = new DistinctCollector();
         else
             _collector = new SlicedDistinctCollector();
+        synchronized(__tzCache) {
+            if(!__tzCache.containsKey(tzDescriptor))
+                __tzCache.put(tzDescriptor, new TLongLongHashMap());
+        }
+        _tzCache = __tzCache.get(tzDescriptor);
     }
 
     @Override
@@ -378,11 +391,11 @@ public class DateFacetExecutor extends FacetExecutor {
         private LongValues.WithOrdinals _keyFieldValues;
         private IntsRef _docOrds;
         private int _docOrdPointer;
-        private final TLongArrayList _timestamps = new TLongArrayList();
-        private final TIntArrayList _ordToTimestampPointers = new TIntArrayList();
+        //        private final TLongArrayList _timestamps = new TLongArrayList();
+        private final TLongArrayList _ordToTimestamps = new TLongArrayList();
 
         protected long nextTimestamp() {
-            final long next = _timestamps.get(_ordToTimestampPointers.get(_docOrds.ints[_docOrdPointer]));
+            final long next = _tzCache.get(_ordToTimestamps.get(_docOrds.ints[_docOrdPointer]));
             _docOrdPointer++;
             return next;
         }
@@ -404,28 +417,29 @@ public class DateFacetExecutor extends FacetExecutor {
             _keyFieldValues = (WithOrdinals) ((LongArrayIndexFieldData) _keyFieldData.data)
                     .load(context).getLongValues();
             final int maxOrd = _keyFieldValues.ordinals().getMaxOrd();
-            _timestamps.resetQuick();
-            _timestamps.add(0);
-            _ordToTimestampPointers.resetQuick();
-            _ordToTimestampPointers.add(0);
+            _ordToTimestamps.resetQuick();
+            _ordToTimestamps.add(0);
             long lastNewTS = 0;
-            int tsPointer = 0;
-            // TODO cache these lookup tables
+            // TODO divide by 1000 and use ints instead?
             for(int i = 1; i < maxOrd; i++) {
                 final long datetime = _keyFieldValues.getValueByOrd(i);
-                if(datetime - lastNewTS > 1000) {
-                    final long nextTS = _tzRounding.calc(datetime);
-                    if(nextTS != lastNewTS) {
-                        tsPointer++;
-                        _timestamps.add(nextTS);
-                        lastNewTS = nextTS;
+                if(datetime > lastNewTS && datetime - lastNewTS < 1000) {
+                    // _tzCache.putIfAbsent(datetime, lastNewTS);
+                    // do we really need to do this?
+                } else {
+                    synchronized(_tzCache) {
+                        if(!_tzCache.containsKey(datetime)) {
+                            _tzCache.put(datetime, _tzRounding.calc(datetime));
+                        }
                     }
+                    lastNewTS = _tzCache.get(datetime);
                 }
-                _ordToTimestampPointers.add(tsPointer);
+                _ordToTimestamps.add(lastNewTS);
             }
+
             //            System.out.println(Thread.currentThread().getName() + " > After setNextReader:");
             //            System.out.println(Thread.currentThread().getName() + " > _timestamps = " + _timestamps);
-            //            System.out.println(Thread.currentThread().getName() + " > _ordToTimestampPointers = " + Arrays.toString(_ordToTimestampPointers));
+            //            System.out.println(Thread.currentThread().getName() + " > _ordToTimestamps = " + Arrays.toString(_ordToTimestamps));
         }
 
         @Override
@@ -433,7 +447,7 @@ public class DateFacetExecutor extends FacetExecutor {
             // TODO check for excessive size, and clean up
             //            System.out.println(Thread.currentThread().getName() + " > After postCollection:");
             //            System.out.println(Thread.currentThread().getName() + " > _timestamps size = " + _timestamps.size());
-            //            System.out.println(Thread.currentThread().getName() + " > _ordToTimestampPointers size = " + _ordToTimestampPointers.size());
+            //            System.out.println(Thread.currentThread().getName() + " > _ordToTimestamps size = " + _ordToTimestamps.size());
         }
 
     }
