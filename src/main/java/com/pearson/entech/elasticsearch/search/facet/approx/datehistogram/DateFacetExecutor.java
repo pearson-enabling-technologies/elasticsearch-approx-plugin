@@ -9,6 +9,8 @@ import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
+import org.elasticsearch.common.trove.list.array.TIntArrayList;
+import org.elasticsearch.common.trove.list.array.TLongArrayList;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
 import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
@@ -376,13 +378,13 @@ public class DateFacetExecutor extends FacetExecutor {
         private LongValues.WithOrdinals _keyFieldValues;
         private IntsRef _docOrds;
         private int _docOrdPointer;
-        private long[] _timestamps;
+        private final TLongArrayList _timestamps = new TLongArrayList();
+        private final TIntArrayList _ordToTimestampPointers = new TIntArrayList();
 
         protected long nextTimestamp() {
-            final long next = _keyFieldValues.getValueByOrd(_docOrds.ints[_docOrdPointer]);
+            final long next = _timestamps.get(_ordToTimestampPointers.get(_docOrds.ints[_docOrdPointer]));
             _docOrdPointer++;
             return next;
-
         }
 
         protected boolean hasNextTimestamp() {
@@ -402,17 +404,34 @@ public class DateFacetExecutor extends FacetExecutor {
             _keyFieldValues = (WithOrdinals) ((LongArrayIndexFieldData) _keyFieldData.data)
                     .load(context).getLongValues();
             final int maxOrd = _keyFieldValues.ordinals().getMaxOrd();
-            // TODO cache these arrays
-            _timestamps = new long[maxOrd];
+            _timestamps.resetQuick();
+            _timestamps.add(0);
+            _ordToTimestampPointers.resetQuick();
+            _ordToTimestampPointers.add(0);
+            long lastNewTS = 0;
+            int tsPointer = 0;
+            // TODO cache these lookup tables
             for(int i = 1; i < maxOrd; i++) {
-                _timestamps[i] = _tzRounding.calc(_keyFieldValues.getValueByOrd(i));
+                final long datetime = _keyFieldValues.getValueByOrd(i);
+                if(datetime > lastNewTS && datetime - lastNewTS > 1000) {
+                    final long nextTS = _tzRounding.calc(datetime);
+                    if(nextTS != lastNewTS) {
+                        tsPointer++;
+                        _timestamps.add(nextTS);
+                        lastNewTS = nextTS;
+                    }
+                }
+                _ordToTimestampPointers.add(tsPointer);
             }
+            //            System.out.println(Thread.currentThread().getName() + " > After setNextReader:");
+            //            System.out.println(Thread.currentThread().getName() + " > _timestamps = " + _timestamps);
+            //            System.out.println(Thread.currentThread().getName() + " > _ordToTimestampPointers = " + Arrays.toString(_ordToTimestampPointers));
         }
 
         @Override
         public void postCollection() {
-            _keyFieldValues = null;
-            _timestamps = null;
+            //            CacheRecycler.pushIntArray(_ordToTimestampPointers);
+            //            _timestamps.resetQuick();
         }
 
     }
