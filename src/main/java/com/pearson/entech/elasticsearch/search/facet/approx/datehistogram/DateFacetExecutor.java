@@ -395,7 +395,10 @@ public class DateFacetExecutor extends FacetExecutor {
         private final TLongArrayList _ordToTimestamps = new TLongArrayList();
 
         protected long nextTimestamp() {
-            final long next = _tzCache.get(_ordToTimestamps.get(_docOrds.ints[_docOrdPointer]));
+            final long next;
+            synchronized(__tzCache) {
+                next = _tzCache.get(_ordToTimestamps.get(_docOrds.ints[_docOrdPointer]));
+            }
             _docOrdPointer++;
             return next;
         }
@@ -424,15 +427,17 @@ public class DateFacetExecutor extends FacetExecutor {
             for(int i = 1; i < maxOrd; i++) {
                 final long datetime = _keyFieldValues.getValueByOrd(i);
                 if(datetime > lastNewTS && datetime - lastNewTS < 1000) {
-                    // _tzCache.putIfAbsent(datetime, lastNewTS);
                     // do we really need to do this?
+                    synchronized(_tzCache) {
+                        _tzCache.putIfAbsent(datetime, lastNewTS);
+                    }
                 } else {
                     synchronized(_tzCache) {
                         if(!_tzCache.containsKey(datetime)) {
                             _tzCache.put(datetime, _tzRounding.calc(datetime));
                         }
+                        lastNewTS = _tzCache.get(datetime);
                     }
-                    lastNewTS = _tzCache.get(datetime);
                 }
                 _ordToTimestamps.add(lastNewTS);
             }
