@@ -413,7 +413,7 @@ public class DateFacetExecutor extends FacetExecutor {
             // TODO cache these lookup tables
             for(int i = 1; i < maxOrd; i++) {
                 final long datetime = _keyFieldValues.getValueByOrd(i);
-                if(datetime > lastNewTS && datetime - lastNewTS > 1000) {
+                if(datetime - lastNewTS > 1000) {
                     final long nextTS = _tzRounding.calc(datetime);
                     if(nextTS != lastNewTS) {
                         tsPointer++;
@@ -430,8 +430,10 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         public void postCollection() {
-            //            CacheRecycler.pushIntArray(_ordToTimestampPointers);
-            //            _timestamps.resetQuick();
+            // TODO check for excessive size, and clean up
+            //            System.out.println(Thread.currentThread().getName() + " > After postCollection:");
+            //            System.out.println(Thread.currentThread().getName() + " > _timestamps size = " + _timestamps.size());
+            //            System.out.println(Thread.currentThread().getName() + " > _ordToTimestampPointers size = " + _ordToTimestampPointers.size());
         }
 
     }
