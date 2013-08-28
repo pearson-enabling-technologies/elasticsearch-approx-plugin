@@ -125,11 +125,15 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
      * Deserialization constructor
      *
      * @param bytes
+     * @param ints
+     * @param builder for estimator to use if there are too many bytes for our liking
      * @throws IOException
      * @throws ClassNotFoundException
      */
-    public CountThenEstimateBytes(final byte[] bytes) throws IOException, ClassNotFoundException
+    public CountThenEstimateBytes(final byte[] bytes, final int tippingPoint,
+            final IBuilder<ICardinality> builder) throws IOException, ClassNotFoundException
     {
+        this(tippingPoint, builder);
         readExternal(new ObjectInputStream(new ByteArrayInputStream(bytes)));
 
         if(!tipped && builder.sizeof() <= bytes.length)
@@ -290,7 +294,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
 
             assert (count <= tippingPoint) : String.format("Invalid serialization: count (%d) > tippingPoint (%d)", count, tippingPoint);
 
-            counter = CacheRecycler.popHashSet();
+            //            counter = CacheRecycler.popHashSet();
             for(int i = 0; i < count; i++)
             {
                 final int length = in.readInt();

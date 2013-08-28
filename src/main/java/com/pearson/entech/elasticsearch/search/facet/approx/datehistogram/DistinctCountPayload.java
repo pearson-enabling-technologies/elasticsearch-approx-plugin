@@ -11,8 +11,11 @@ import org.elasticsearch.common.trove.map.TLongObjectMap;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 import com.clearspring.analytics.stream.cardinality.HyperLogLog;
+import com.clearspring.analytics.stream.cardinality.HyperLogLog.Builder;
 
 public class DistinctCountPayload {
+
+    private final Builder _stdBuilder = new HyperLogLog.Builder(0.0025);
 
     private long _count;
 
@@ -20,19 +23,17 @@ public class DistinctCountPayload {
 
     public DistinctCountPayload(final int entryLimit) {
         _count = 0;
-        //        _cardinality = new CountThenEstimateBytes(entryLimit,
-        //                new HyperLogLog.Builder(0.0025));
-        //        _cardinality = new CountThenEstimateBytes(entryLimit, AdaptiveCounting.Builder.obyCount(1000000000));
-        _cardinality = new CountThenEstimateBytes(entryLimit, new HyperLogLog.Builder(0.0025));
+        _cardinality = new CountThenEstimateBytes(entryLimit, _stdBuilder);
     }
 
     DistinctCountPayload(final StreamInput in) throws IOException {
         _count = in.readVLong();
+        final int entryLimit = in.readVInt();
         final int payloadSize = in.readVInt();
         final byte[] payloadBytes = new byte[payloadSize];
         in.readBytes(payloadBytes, 0, payloadSize);
         try {
-            _cardinality = new CountThenEstimateBytes(payloadBytes);
+            _cardinality = new CountThenEstimateBytes(payloadBytes, entryLimit, _stdBuilder);
         } catch(final ClassNotFoundException e) {
             throw new IOException(e);
         }
@@ -43,15 +44,9 @@ public class DistinctCountPayload {
         _cardinality = cardinality;
     }
 
-    DistinctCountPayload(final long count, final byte[] cardinality) throws IOException, ClassNotFoundException {
-        _count = count;
-        _cardinality = new CountThenEstimateBytes(cardinality);
-    }
-
-    DistinctCountPayload update(final BytesRef unsafe) {
+    boolean update(final BytesRef unsafe) {
         _count++;
-        _cardinality.offerBytesRef(unsafe);
-        return this;
+        return _cardinality.offerBytesRef(unsafe);
     }
 
     byte[] cardinalityBytes() throws IOException {
@@ -107,6 +102,7 @@ public class DistinctCountPayload {
 
     public void writeTo(final StreamOutput output) throws IOException {
         output.writeVLong(_count);
+        output.writeVInt(_cardinality.tippingPoint);
         final byte[] bytes = _cardinality.getBytes();
         output.writeVInt(bytes.length);
         output.writeBytes(bytes);
