@@ -444,10 +444,7 @@ public class DateFacetExecutor extends FacetExecutor {
         }
 
         @Override
-        public void postCollection() {
-            //            CacheRecycler.pushIntArray(_ordToTimestampPointers);
-            //            _timestamps.resetQuick();
-        }
+        public void postCollection() {}
 
     }
 

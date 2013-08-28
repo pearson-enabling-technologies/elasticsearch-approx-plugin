@@ -5,7 +5,7 @@ import java.util.concurrent.Executors;
 
 public class MediumDataSetFiveThreadsPerformanceTest extends MediumDataSetPerformanceTest {
 
-    private final ExecutorService _fiveThreads = Executors.newFixedThreadPool(5);
+    private final ExecutorService _fiveThreads = Executors.newFixedThreadPool(10);
 
     @Override
     protected ExecutorService threadPool() {
