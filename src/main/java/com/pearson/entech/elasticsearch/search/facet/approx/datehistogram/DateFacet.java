@@ -60,7 +60,6 @@ public abstract class DateFacet<P extends ToXContent> extends InternalFacet {
 
     @Override
     public final void readFrom(final StreamInput in) throws IOException {
-        // FIXME I don't think this advances the stream properly, let's stick to ES StreamInput/StreamOutput methods
         super.readFrom(in);
         readData(in);
     }

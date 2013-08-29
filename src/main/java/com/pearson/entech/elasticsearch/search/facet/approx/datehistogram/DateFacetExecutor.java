@@ -35,9 +35,14 @@ public class DateFacetExecutor extends FacetExecutor {
 
     private final int _exactThreshold;
 
+    private final boolean _debug;
+    private long _debugTotalCount;
+    private long _debugDistinctCount;
+    private DistinctCountPayload _debugCurrPayload;
+
     public DateFacetExecutor(final TypedFieldData keyFieldData, final TypedFieldData valueFieldData,
             final TypedFieldData distinctFieldData, final TypedFieldData sliceFieldData,
-            final TimeZoneRounding tzRounding, final int exactThreshold) {
+            final TimeZoneRounding tzRounding, final int exactThreshold, final boolean debug) {
         _keyFieldData = keyFieldData;
         _valueFieldData = valueFieldData;
         _distinctFieldData = distinctFieldData;
@@ -52,6 +57,7 @@ public class DateFacetExecutor extends FacetExecutor {
             _collector = new DistinctCollector();
         else
             _collector = new SlicedDistinctCollector();
+        _debug = debug;
     }
 
     @Override
@@ -267,7 +273,19 @@ public class DateFacetExecutor extends FacetExecutor {
                     final BytesRef unsafe = distinctIter.next();
                     // Unsafe because this may change; the counter needs to make
                     // it safe if it's going to keep hold of the bytes
-                    count.update(unsafe);
+                    final boolean modified = count.update(unsafe);
+
+                    if(_debug) {
+                        _debugTotalCount++;
+                        if(modified) {
+                            _debugDistinctCount++;
+                        }
+                        //                        System.out.println("update called, currently holding "
+                        //                                + _debugTotalCount + " entries with "
+                        //                                + _debugDistinctCount + " distinct values");
+                        assert _debugTotalCount == count.getCount();
+                        assert _debugDistinctCount == count.getCardinality().cardinality();
+                    }
                 }
             }
         }
@@ -280,7 +298,7 @@ public class DateFacetExecutor extends FacetExecutor {
 
         @Override
         public InternalFacet build(final String facetName) {
-            final InternalFacet facet = new InternalDistinctFacet(facetName, _counts);
+            final InternalFacet facet = new InternalDistinctFacet(facetName, _counts, _debug);
             return facet;
         }
 
@@ -290,6 +308,13 @@ public class DateFacetExecutor extends FacetExecutor {
                 payload = new DistinctCountPayload(_exactThreshold);
                 counts.put(key, payload);
             }
+
+            if(_debug) {
+                _debugCurrPayload = payload;
+                _debugTotalCount = payload.getCount();
+                _debugDistinctCount = payload.getCardinality().cardinality();
+            }
+
             return payload;
         }
 
@@ -445,15 +470,16 @@ public class DateFacetExecutor extends FacetExecutor {
 
         private long calcTimestamp(final long datetime) {
             long output;
-            if(datetime == _lastDatetime) {
-                output = _lastTimestamp;
-            } else if(datetime > _lastTimestamp && datetime - _lastTimestamp < 1000) {
-                output = _lastTimestamp;
-            } else {
-                output = _tzRounding.calc(datetime);
-            }
-            _lastDatetime = datetime;
-            _lastTimestamp = output;
+            //            if(datetime == _lastDatetime) {
+            //                output = _lastTimestamp;
+            //            } else if(datetime > _lastTimestamp && datetime - _lastTimestamp < 1000) {
+            //                output = _lastTimestamp;
+            //            } else {
+            //                output = _tzRounding.calc(datetime);
+            //                _lastTimestamp = output;
+            //            }
+            //            _lastDatetime = datetime;
+            output = _tzRounding.calc(datetime);
             return output;
         }
 

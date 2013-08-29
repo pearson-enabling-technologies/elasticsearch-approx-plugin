@@ -3,12 +3,16 @@ package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 import static com.google.common.collect.Lists.newArrayList;
 import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
 import java.util.List;
 
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.BoolFilterBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -77,6 +81,8 @@ public class CountingQueryResultChecker {
         private final long _count;
 
         private SearchResponse _response;
+        private SearchRequest _request;
+        private String _requestString;
 
         protected BucketSpecifier(final String field, final long startTime, final long endTime, final long count) {
             _field = field;
@@ -109,8 +115,13 @@ public class CountingQueryResultChecker {
             return 0;
         }
 
-        public void validate() {
-            _response = toSearchRequest().execute().actionGet();
+        public void validate() throws IOException {
+            final SearchRequestBuilder builder = toSearchRequest();
+            _request = builder.request();
+            final XContentBuilder xBuilder = XContentFactory.jsonBuilder();
+            builder.internalBuilder().toXContent(xBuilder, null);
+            _requestString = builder.toString();
+            _response = builder.execute().actionGet();
             final TermsFacet facet = _response.getFacets().facet("bucket_check");
             final long totalCount = getTotalCount(facet);
             injectAdditionalChecks(facet);

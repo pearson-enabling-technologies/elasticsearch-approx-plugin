@@ -94,10 +94,10 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
      * Default constructor
      * Exact counts up to 1000, estimation done with default Builder
      */
-    public CountThenEstimateBytes()
-    {
-        this(1000, AdaptiveCounting.Builder.obyCount(1000000000));
-    }
+    //    public CountThenEstimateBytes()
+    //    {
+    //        this(1000, AdaptiveCounting.Builder.obyCount(1000000000));
+    //    }
 
     private static final MurmurHash2 __luceneMurmurHash = MurmurHash2.INSTANCE;
 
@@ -233,6 +233,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
      */
     private void tip()
     {
+        // FIXME sometimes we are hitting this method even when we our test (e.g. test100ExactDistinctFacets) specifies no approximation
         if(!tipped) {
             estimator = builder.build();
             _offerMembers.init(estimator, __luceneMurmurHash);

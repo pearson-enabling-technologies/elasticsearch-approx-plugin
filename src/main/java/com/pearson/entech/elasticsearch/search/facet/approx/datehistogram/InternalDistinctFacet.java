@@ -25,6 +25,8 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
     private List<DistinctTimePeriod<NullEntry>> _periods;
     private long _distinctCount;
 
+    private final boolean _debug;
+
     private static final ExtTLongObjectHashMap<DistinctCountPayload> EMPTY = new ExtTLongObjectHashMap<DistinctCountPayload>();
     static final String TYPE = "distinct_date_facet";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
@@ -49,11 +51,19 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
     // Only for deserialization
     protected InternalDistinctFacet() {
         super("not set");
+        _debug = false;
     }
 
     public InternalDistinctFacet(final String name, final ExtTLongObjectHashMap<DistinctCountPayload> counts) {
         super(name);
         _counts = counts;
+        _debug = false;
+    }
+
+    public InternalDistinctFacet(final String name, final ExtTLongObjectHashMap<DistinctCountPayload> counts, final boolean debug) {
+        super(name);
+        _counts = counts;
+        _debug = debug;
     }
 
     @Override
