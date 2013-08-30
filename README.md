@@ -17,7 +17,7 @@ Plugin < 1.3.0: ElasticSearch 0.19.X, tested on 0.19.11
 
 Plugin 1.3.X: ElasticSearch 0.20.X, tested on 0.20.6
 
-Plugin 2.0.1: ElasticSearch 0.90.2
+Plugin 2.0.1: ElasticSearch 0.90.2 -- STILL IN DEVELOPMENT!
 
 ElasticSearch 0.90.3 is not supported yet.
 
