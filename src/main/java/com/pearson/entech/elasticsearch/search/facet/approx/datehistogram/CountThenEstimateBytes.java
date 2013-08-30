@@ -136,10 +136,8 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         this(tippingPoint, builder);
         readExternal(new ObjectInputStream(new ByteArrayInputStream(bytes)));
 
-        if(!tipped && builder.sizeof() <= bytes.length)
-        {
+        if(!tipped && counter.size() > tippingPoint)
             tip();
-        }
     }
 
     @Override
