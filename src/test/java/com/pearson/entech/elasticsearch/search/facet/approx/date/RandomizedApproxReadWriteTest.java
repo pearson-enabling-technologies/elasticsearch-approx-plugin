@@ -190,7 +190,7 @@ public class RandomizedApproxReadWriteTest {
                 .execute().actionGet();
 
         if(searchResponse.getFailedShards() > 0) {
-            System.out.println(searchResponse); // TODO remove all printlns
+            System.out.println(searchResponse);
             fail(Joiner.on(", ").join(searchResponse.getShardFailures()));
         }
 
@@ -311,7 +311,7 @@ public class RandomizedApproxReadWriteTest {
                 .execute().actionGet();
 
         if(searchResponse.getFailedShards() > 0) {
-            System.out.println(searchResponse); // TODO remove all printlns
+            System.out.println(searchResponse);
             fail(Joiner.on(", ").join(searchResponse.getShardFailures()));
         }
 
@@ -473,8 +473,6 @@ public class RandomizedApproxReadWriteTest {
     @Test
     public void testRandomizedWithManyItemsOnDayBucket() throws Exception {
 
-        // TODO test other data types
-
         for(int t = 1; t <= 20; t++) {
             setUp();
             final int minPerDay = (int) pow(2, t);
@@ -533,8 +531,6 @@ public class RandomizedApproxReadWriteTest {
                         abs(fuzzyDistinctTokens - exactDistinctTokens) <= tolerance);
             }
         }
-
-        // TODO test total count/distinct
     }
 
     // Helper methods

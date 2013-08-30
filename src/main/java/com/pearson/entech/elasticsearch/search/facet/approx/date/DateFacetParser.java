@@ -193,8 +193,6 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
 
         return new DateFacetExecutor(keyFieldData, valueFieldData, distinctFieldData, sliceFieldData,
                 tzRounding, exactThreshold, debug);
-
-        // TODO implement scripts
     }
 
     private TypedFieldData getFieldData(final String fieldName, final SearchContext context) {

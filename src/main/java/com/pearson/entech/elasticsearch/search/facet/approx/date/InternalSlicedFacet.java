@@ -21,7 +21,6 @@ import org.elasticsearch.search.facet.Facet;
 
 public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledList<Slice<String>>>> {
 
-    // FIXME these maps are growing VERY big and eating a LOT of memory
     private ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
 
     private long _total;

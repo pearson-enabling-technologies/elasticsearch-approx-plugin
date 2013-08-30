@@ -34,14 +34,6 @@ import org.junit.AfterClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.date.DateFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.DateFacetBuilder;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.DistinctCountPayload;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.HasDistinct;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalDistinctFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.NullEntry;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.TimePeriod;
-
 public abstract class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
     private static final Map<String, Long> __executionStartTimes = newHashMap();
@@ -50,9 +42,6 @@ public abstract class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
     private final boolean _hotThreads = true;
 
-    // TODO we don't have unit tests for sliced distinct facets yet
-
-    // TODO add instrumentation for heap usage
     private void clearMemory() throws Exception {
         client().admin().indices().prepareClearCache(_index).execute().actionGet();
         System.gc();
@@ -70,7 +59,6 @@ public abstract class MediumDataSetPerformanceTest extends MediumDataSetTest {
         }
     }
 
-    // TODO count facet in value_field mode as well
     @Test
     public void test100CountFacets() throws Exception {
         final List<RandomDateFacetQuery> randomFacets = nRandomDateFacets(100);
@@ -95,7 +83,6 @@ public abstract class MediumDataSetPerformanceTest extends MediumDataSetTest {
         testSomeRandomFacets(randomFacets, "test100ExactDistinctFacets");
     }
 
-    // TODO sliced facet in value_field mode as well
     @Test
     public void test100SlicedFacets() throws Exception {
         final List<RandomSlicedDateFacetQuery> randomFacets = nRandomSlicedFacets(100);

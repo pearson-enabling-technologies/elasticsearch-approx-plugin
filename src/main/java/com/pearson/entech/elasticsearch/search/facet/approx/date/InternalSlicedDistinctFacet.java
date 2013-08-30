@@ -21,8 +21,6 @@ import org.elasticsearch.search.facet.Facet;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 
-// TODO we could add slice-wise totals and distincts too
-
 public class InternalSlicedDistinctFacet
         extends DateFacet<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>>
         implements HasDistinct {
@@ -126,8 +124,6 @@ public class InternalSlicedDistinctFacet
         _serializePeriods.init(out, size);
         _counts.forEachEntry(_serializePeriods);
     }
-
-    // TODO reduce and materialize logic is similar to InternalSlicedFacet -- factor out?
 
     @Override
     public Facet reduce(final List<Facet> facets) {

@@ -24,6 +24,8 @@ import org.elasticsearch.search.facet.InternalFacet;
 
 public class DateFacetExecutor extends FacetExecutor {
 
+    private static final Iter __emptyIter = new Iter.Empty();
+
     private final TypedFieldData _keyFieldData;
     private final TypedFieldData _valueFieldData;
     private final TypedFieldData _distinctFieldData;
@@ -69,18 +71,6 @@ public class DateFacetExecutor extends FacetExecutor {
     public Collector collector() {
         return _collector;
     }
-
-    // TODO global cache of the counts from each collector
-    // TODO limits on terms used in slicing (min freq/top N)
-    // TODO make interval optional, so we can just have one bucket (custom TimeZoneRounding)
-    // TODO stop using long arrays as wrappers for counters (materialize methods)
-    // TODO support other slice labels apart from String?
-    // TODO replace NullEntry with a mixin for having an entry, maybe
-    // TODO surface the slice field and the distinct field name in the results
-    // TODO exclude deserialized and other "foreign" objects from CacheRecycler
-    // TODO better Java API (don't use internal classes)
-    // TODO make these collectors static classes, or break them out (to avoid ref. to executor)
-    // TODO wrappers around iterators so we can get bytes for numeric fields without converting to strings first
 
     private class CountingCollector extends BuildableCollector {
 
@@ -381,7 +371,6 @@ public class DateFacetExecutor extends FacetExecutor {
 
     }
 
-    // TODO really this needs to be two classes, for ordinal and non-ordinal data
     private abstract class BuildableCollector extends Collector {
 
         private LongValues _keyFieldValues;
@@ -390,8 +379,6 @@ public class DateFacetExecutor extends FacetExecutor {
         private final TLongArrayList _timestamps = new TLongArrayList();
         private final TIntArrayList _ordToTimestampPointers = new TIntArrayList();
         private Iter _docIter;
-        private final Iter _emptyIter = new Iter.Empty(); // TODO static
-
         private long _lastNonOrdDatetime = 0;
         private long _lastNonOrdTimestamp = 0;
 
@@ -449,7 +436,6 @@ public class DateFacetExecutor extends FacetExecutor {
                 _ordToTimestampPointers.add(0);
                 long lastDateTime = 0;
                 long lastTimestamp = 0;
-                // TODO cache these lookup tables
                 for(int i = 1; i < maxOrd; i++) {
                     final long datetime = ((WithOrdinals) _keyFieldValues).getValueByOrd(i);
 
@@ -473,7 +459,7 @@ public class DateFacetExecutor extends FacetExecutor {
                     _ordToTimestampPointers.add(tsPointer);
                 }
             } else {
-                _docIter = _emptyIter;
+                _docIter = __emptyIter;
             }
         }
 
