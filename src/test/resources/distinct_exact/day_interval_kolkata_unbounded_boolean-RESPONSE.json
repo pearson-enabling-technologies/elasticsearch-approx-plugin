@@ -1,0 +1,29 @@
+{
+    "took": 48,
+    "timed_out": false,
+    "_shards": {
+        "total": 5,
+        "successful": 5,
+        "failed": 0
+    },
+    "hits": {
+        "total": 489319,
+        "max_score": 0,
+        "hits": []
+    },
+    "facets": {
+        "histo": {
+            "_type": "distinct_date_facet",
+            "count": 122547,
+            "distinct_count": 2,
+            "entries": [
+                {
+                    "time": 1367865000000,
+                    "count": 122547,
+                    "distinct_count": 2
+                }
+            ]
+        }
+    }
+}
+

@@ -3,12 +3,33 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.pearson.entech</groupId>
 	<artifactId>elasticsearch-approx-plugin</artifactId>
-	<version>2.0.1</version>
+	<version>2.1.0-SNAPSHOT</version>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<elasticsearch.version>0.90.2</elasticsearch.version>
 	</properties>
+
+	<profiles>
+		<profile>
+			<id>jdk6</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<properties>
+				<jdk>1.6</jdk>
+			</properties>
+		</profile>
+		<profile>
+			<id>jdk7</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+			<properties>
+				<jdk>1.7</jdk>
+			</properties>
+		</profile>
+	</profiles>
 
 	<name>elasticsearch-approx-plugin</name>
 	<url>http://maven.apache.org</url>
@@ -19,40 +40,40 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>2.3.2</version>
 				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
+					<source>${jdk}</source>
+					<target>${jdk}</target>
 				</configuration>
 			</plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.12.4</version>
-                <configuration>
-                    <forkMode>pertest</forkMode>
-                    <argLine>-Xms1g -Xmx1g</argLine>
-                    <testFailureIgnore>false</testFailureIgnore>
-                    <skip>false</skip>
-                </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>2.3</version>
-                <configuration>
-                    <appendAssemblyId>false</appendAssemblyId>
-                    <outputDirectory>${project.build.directory}/releases/</outputDirectory>
-                    <descriptors>
-                        <descriptor>${basedir}/src/main/assemblies/plugin.xml</descriptor>
-                    </descriptors>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.12.4</version>
+				<configuration>
+					<forkMode>pertest</forkMode>
+					<argLine>-Xms4g -Xmx4g</argLine>
+					<testFailureIgnore>false</testFailureIgnore>
+					<skip>false</skip>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.3</version>
+				<configuration>
+					<appendAssemblyId>false</appendAssemblyId>
+					<outputDirectory>${project.build.directory}/releases/</outputDirectory>
+					<descriptors>
+						<descriptor>${basedir}/src/main/assemblies/plugin.xml</descriptor>
+					</descriptors>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 	<dependencies>
@@ -60,6 +81,12 @@
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.10</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.skyscreamer</groupId>
+			<artifactId>jsonassert</artifactId>
+			<version>1.2.0</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -81,12 +108,7 @@
 		<dependency>
 			<groupId>com.clearspring.analytics</groupId>
 			<artifactId>stream</artifactId>
-			<version>2.2.0</version>
-		</dependency>
-		<dependency>
-			<groupId>net.sf.trove4j</groupId>
-			<artifactId>trove4j</artifactId>
-			<version>3.0.3</version>
+			<version>2.4.0</version>
 		</dependency>
 	</dependencies>
 

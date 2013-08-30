@@ -1,3 +1,11 @@
+src/test/resources/data/*
+!src/test/resources/data/note.txt
+src/test/resources/target
+
+test-output
+
+threadlog*
+
 *.pydevproject
 .project
 .metadata
@@ -12,7 +20,6 @@ local.properties
 .classpath
 .settings/
 .loadpath
-src/test/resources/target/
 
 # External tool builders
 .externalToolBuilders/

@@ -1,0 +1,4 @@
+ElasticSearch indexes for tests go here, e.g. "MediumDataSetTest" (this is the cluster name).
+
+See: https://pearson.app.box.com/s/uvsz0gv8rhgex0aacc2u
+
