@@ -70,13 +70,6 @@ public class DateFacetExecutor extends FacetExecutor {
         return _collector;
     }
 
-    // TODO proper support for floating point numbers in distinct/slice/value fields
-    // TODO calculate for-loop boundary values before starting loops (not each time)
-    // TODO better checking for 0-length collections and other trip-ups
-    // TODO sorting of data within facets
-    // TODO complete tests (see notes in files)
-    // TODO keep track of missing values
-    // TODO replace "new DistinctCountPayload()" with an object cache
     // TODO global cache of the counts from each collector
     // TODO limits on terms used in slicing (min freq/top N)
     // TODO make interval optional, so we can just have one bucket (custom TimeZoneRounding)
@@ -103,7 +96,6 @@ public class DateFacetExecutor extends FacetExecutor {
         public void setNextReader(final AtomicReaderContext context) throws IOException {
             super.setNextReader(context);
             if(_valueFieldData != null)
-                // TODO if these aren't strings, this isn't the most efficient way:
                 _valueFieldValues = _valueFieldData.data.load(context).getBytesValues();
         }
 
@@ -157,10 +149,8 @@ public class DateFacetExecutor extends FacetExecutor {
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
             super.setNextReader(context);
-            // TODO if these aren't strings, this isn't the most efficient way:
             _sliceFieldValues = _sliceFieldData.data.load(context).getBytesValues();
             if(_valueFieldData != null)
-                // TODO if these aren't strings, this isn't the most efficient way:
                 _valueFieldValues = _valueFieldData.data.load(context).getBytesValues();
         }
 
@@ -182,7 +172,6 @@ public class DateFacetExecutor extends FacetExecutor {
                     final long time = nextTimestamp();
 
                     while(sliceIter.hasNext()) {
-                        // TODO we can reduce hash lookups by getting the outer map in the outer loop
                         incrementSafely(_counts, time, sliceIter.next());
                     }
                 }
@@ -200,7 +189,6 @@ public class DateFacetExecutor extends FacetExecutor {
                         final org.elasticsearch.index.fielddata.BytesValues.Iter valIter =
                                 _valueFieldValues.getIter(doc);
                         while(valIter.hasNext()) {
-                            // TODO we can reduce hash lookups by getting the outer map in the outer loop
                             final BytesRef unsafe = sliceIter.next();
                             incrementSafely(_counts, time, unsafe);
                         }
@@ -249,7 +237,6 @@ public class DateFacetExecutor extends FacetExecutor {
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
             super.setNextReader(context);
-            // TODO if these aren't strings, this isn't the most efficient way:
             _distinctFieldValues = _distinctFieldData.data.load(context).getBytesValues();
         }
 
@@ -331,7 +318,6 @@ public class DateFacetExecutor extends FacetExecutor {
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
             super.setNextReader(context);
-            // TODO if these aren't strings, this isn't the most efficient way:
             _distinctFieldValues = _distinctFieldData.data.load(context).getBytesValues();
             _sliceFieldValues = _sliceFieldData.data.load(context).getBytesValues();
         }
@@ -351,7 +337,6 @@ public class DateFacetExecutor extends FacetExecutor {
             while(hasNextTimestamp()) {
                 final long time = nextTimestamp();
                 while(sliceIter.hasNext()) {
-                    // TODO we can reduce hash lookups by getting the outer map in the outer loop
                     final BytesRef unsafeSlice = sliceIter.next();
                     final DistinctCountPayload count = getSafely(_counts, time, unsafeSlice);
                     while(distinctIter.hasNext()) {
