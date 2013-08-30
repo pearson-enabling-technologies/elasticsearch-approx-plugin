@@ -8,7 +8,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.search.facet.FacetModule;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DateFacetParser;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.DateFacetParser;
 import com.pearson.entech.elasticsearch.search.facet.approx.termlist.InternalTermListFacet;
 import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetParser;
 

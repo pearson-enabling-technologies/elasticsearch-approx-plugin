@@ -120,7 +120,7 @@ period and for each slice within that time period.
 
 * Using `slice_field` and `distinct_field` together is not yet tested
 
-* Floating-point fields are not officially supported (they may work but we haven't really tested them yet)
+* Floating-point fields are not officially supported (they may work but we haven't really tested them thoroughly enough)
 
 * Script fields are not yet supported
 
@@ -187,10 +187,17 @@ It's all done via Maven, so just `mvn test` to build the plugin and run the
 tests. Amongst other things, they check that the approximate distinct counts
 are within a tolerance of 1% of the expected values.
 
+To run the full test suite, you will need to download a fairly large archive
+of ElasticSearch index data from here:
+
+https://pearson.app.box.com/s/uvsz0gv8rhgex0aacc2u
+
+Download `MediumDataSetTest.tar.bz2` and unpack it in `src/test/resources/data`.
+
 The tests use quite a lot of memory and take several minutes to run. This is
-because they use several iterations of randomly generated data of increasing
-size, in order to verify the accuracy of the approximate counts in the date
-histogram. The final run puts over a million distinct values in each bucket.
+because they use several iterations of randomly generated data and queries, in
+order to verify the accuracy of the approximate counts in the date histogram,
+among other things. One run puts over a million distinct values in each bucket.
 
 If you get any out-of-memory errors, you'll need to raise the amount of memory
 you allocate to the mvn process. From the command line, the pom takes care of
