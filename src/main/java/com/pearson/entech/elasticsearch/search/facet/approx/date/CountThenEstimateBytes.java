@@ -231,7 +231,6 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
      */
     private void tip()
     {
-        // FIXME sometimes we are hitting this method even when we our test (e.g. test100ExactDistinctFacets) specifies no approximation
         if(!tipped) {
             estimator = builder.build();
             _offerMembers.init(estimator, __luceneMurmurHash);
