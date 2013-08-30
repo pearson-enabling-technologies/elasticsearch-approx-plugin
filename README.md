@@ -17,12 +17,14 @@ Plugin < 1.3.0: ElasticSearch 0.19.X, tested on 0.19.11
 
 Plugin 1.3.X: ElasticSearch 0.20.X, tested on 0.20.6
 
-Plugin 2.0.1: ElasticSearch 0.90.2, plus significant feature and performance improvements, and breaking API changes
+*Plugin 2.0.1: Interim release, don't use this, try the next one...*
+
+Plugin 2.1.0: ElasticSearch 0.90.2, plus significant feature and performance improvements, and breaking API changes
 
 ElasticSearch 0.90.3 is not supported yet.
 
-If you are upgrading from 1.X.X to 2.X.X, please read the following carefully,
-as the syntax (and semantics) have changed considerably.
+**N.B.** If you are upgrading from a previous version to 2.1.0, please read the
+following carefully, as the syntax (and semantics) have changed considerably.
 
 
 ## Date Facet
@@ -40,7 +42,7 @@ several modes.
 
 * Counting occurrences of one field per time interval, per value of another field
 
-* Counting unique values of one field per time interval, per value of another field
+* **COMING SOON:** Counting unique values of one field per time interval, per value of another field
 
 It can be used to answer analytical queries like "how many distinct users have
 I seen per country per day?"
@@ -116,6 +118,8 @@ period and for each slice within that time period.
 
 ### Limitations
 
+* Using `slice_field` and `distinct_field` together is not yet tested
+
 * Floating-point fields are not officially supported (they may work but we haven't really tested them yet)
 
 * Script fields are not yet supported
@@ -172,6 +176,10 @@ This facet doesn't actually use anything clever like approximate counting --
 it's not really approximate in the same sense as the previous one -- but we
 thought you might find it useful.
 
+**N.B.** The `use_field_data`/`read_from_cache` option from previous versions
+is no longer supported. The plugin now uses ElasticSearch's field data cache
+exclusively.
+
 
 ## Building and testing
 
@@ -186,7 +194,7 @@ histogram. The final run puts over a million distinct values in each bucket.
 
 If you get any out-of-memory errors, you'll need to raise the amount of memory
 you allocate to the mvn process. From the command line, the pom takes care of
-this via the argLine parameter. If you're an Eclipse user, put ` -Xms1G -Xmx1G`
+this via the argLine parameter. If you're an Eclipse user, put ` -Xms4G -Xmx4G`
 in the VM Arguments box of the Arguments tab in Run Configurations for that
 test run.
 
