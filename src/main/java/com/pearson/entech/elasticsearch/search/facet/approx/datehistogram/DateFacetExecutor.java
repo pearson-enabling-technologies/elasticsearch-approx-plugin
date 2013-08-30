@@ -280,9 +280,6 @@ public class DateFacetExecutor extends FacetExecutor {
                         if(modified) {
                             _debugDistinctCount++;
                         }
-                        //                        System.out.println("update called, currently holding "
-                        //                                + _debugTotalCount + " entries with "
-                        //                                + _debugDistinctCount + " distinct values");
                         assert _debugTotalCount == count.getCount();
                         assert _debugDistinctCount == count.getCardinality().cardinality();
                     }

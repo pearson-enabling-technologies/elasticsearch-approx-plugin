@@ -186,12 +186,10 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
         final TypedFieldData distinctFieldData = getFieldData(distinctField, context);
         final TypedFieldData sliceFieldData = getFieldData(sliceField, context);
 
-        //////// DEBUG ////////
-        boolean debug = false;
-        if(distinctField != null && sliceField == null
-                && exactThreshold == Integer.MAX_VALUE) {
-            debug = true;
-        }
+        if(exactThreshold < 0)
+            exactThreshold = Integer.MAX_VALUE;
+
+        final boolean debug = false;
 
         return new DateFacetExecutor(keyFieldData, valueFieldData, distinctFieldData, sliceFieldData,
                 tzRounding, exactThreshold, debug);
