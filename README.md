@@ -187,6 +187,11 @@ It's all done via Maven, so just `mvn test` to build the plugin and run the
 tests. Amongst other things, they check that the approximate distinct counts
 are within a tolerance of 1% of the expected values.
 
+To target Java 7 in the compiler (assuming you're running under JDK7), append
+`-Pjdk7` to the `mvn` command line, e.g.:
+
+`mvn clean test -Pjdk7`
+
 To run the full test suite, you will need to download a fairly large archive
 of ElasticSearch index data from here:
 

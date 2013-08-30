@@ -406,8 +406,9 @@ public class DateFacetExecutor extends FacetExecutor {
         private final TIntArrayList _ordToTimestampPointers = new TIntArrayList();
         private Iter _docIter;
         private final Iter _emptyIter = new Iter.Empty(); // TODO static
-        private long _lastDatetime;
-        private long _lastTimestamp;
+
+        private long _lastNonOrdDatetime = 0;
+        private long _lastNonOrdTimestamp = 0;
 
         protected long nextTimestamp() {
             if(_keyFieldValues instanceof WithOrdinals) {
@@ -415,7 +416,18 @@ public class DateFacetExecutor extends FacetExecutor {
                 _docOrdPointer++;
                 return ts;
             } else {
-                return _tzRounding.calc(_docIter.next()); // TODO cache me
+                final long datetime = _docIter.next();
+                // If this datetime is less than a second after the previously-seen timestamp, it will have the same timestamp
+                // (true because we don't support granularity less than 1 sec)
+                if(datetime == _lastNonOrdDatetime || (datetime > _lastNonOrdTimestamp && datetime - _lastNonOrdTimestamp < 1000)) {
+                    _lastNonOrdDatetime = datetime;
+                    // _lastNonOrdTimestamp already contains right value
+                } else {
+                    // Get and save new timestamp
+                    _lastNonOrdDatetime = datetime;
+                    _lastNonOrdTimestamp = _tzRounding.calc(datetime);
+                }
+                return _lastNonOrdTimestamp;
             }
         }
 
@@ -450,34 +462,34 @@ public class DateFacetExecutor extends FacetExecutor {
                 _timestamps.add(0);
                 _ordToTimestampPointers.resetQuick();
                 _ordToTimestampPointers.add(0);
+                long lastDateTime = 0;
+                long lastTimestamp = 0;
                 // TODO cache these lookup tables
                 for(int i = 1; i < maxOrd; i++) {
                     final long datetime = ((WithOrdinals) _keyFieldValues).getValueByOrd(i);
-                    final long timestamp = calcTimestamp(datetime);
-                    if(timestamp != _lastTimestamp) {
-                        tsPointer++;
-                        _timestamps.add(timestamp);
+
+                    // If this datetime is less than a second after the previously-seen timestamp, it will have the same timestamp
+                    // (true because we don't support granularity less than 1 sec)
+                    if(datetime == lastDateTime || (datetime > lastTimestamp && datetime - lastTimestamp < 1000)) {
+                        // Just add another instance of the same timestamp pointer
+                        _ordToTimestampPointers.add(tsPointer);
+                    } else {
+                        // We may or may not have a new timestamp
+                        final long newTimestamp = _tzRounding.calc(datetime);
+                        if(newTimestamp != lastTimestamp) {
+                            // We do -- save it and update pointer
+                            lastTimestamp = newTimestamp;
+                            _timestamps.add(newTimestamp);
+                            tsPointer++;
+                            // Otherwise this ord will have the same pointer as the last one
+                        }
                     }
+                    lastDateTime = datetime;
                     _ordToTimestampPointers.add(tsPointer);
                 }
             } else {
                 _docIter = _emptyIter;
             }
-        }
-
-        private long calcTimestamp(final long datetime) {
-            long output;
-            //            if(datetime == _lastDatetime) {
-            //                output = _lastTimestamp;
-            //            } else if(datetime > _lastTimestamp && datetime - _lastTimestamp < 1000) {
-            //                output = _lastTimestamp;
-            //            } else {
-            //                output = _tzRounding.calc(datetime);
-            //                _lastTimestamp = output;
-            //            }
-            //            _lastDatetime = datetime;
-            output = _tzRounding.calc(datetime);
-            return output;
         }
 
         @Override
