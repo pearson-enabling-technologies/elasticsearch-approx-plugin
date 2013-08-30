@@ -195,38 +195,6 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
                 tzRounding, exactThreshold, debug);
 
         // TODO implement scripts
-        /*
-        if (valueScript != null) {
-            SearchScript script = context.scriptService().search(context.lookup(), scriptLang, valueScript, params);
-            return new ValueScriptDateHistogramFacetExecutor(keyIndexFieldData, script, tzRounding, comparatorType);
-        } else if (valueField != null) {
-            FieldMapper valueMapper = context.smartNameFieldMapper(valueField);
-            if (valueMapper == null) {
-                throw new FacetPhaseExecutionException(facetName, "(value) field [" + valueField + "] not found");
-            }
-            IndexNumericFieldData valueIndexFieldData = context.fieldData().getForField(valueMapper);
-            return new ValueDateHistogramFacetExecutor(keyIndexFieldData, valueIndexFieldData, tzRounding, comparatorType);
-        } else {
-            return new CountDateHistogramFacetExecutor(keyIndexFieldData, tzRounding, comparatorType);
-        }
-        */
-
-        //            if(distinctFieldMapper.fieldDataType().getType().equals("string")) {
-        //                final PagedBytesIndexFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
-        //                final LongArrayIndexFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
-        //                return new StringDistinctDateHistogramFacetExecutor(
-        //                        keyIndexFieldData, distinctFieldData, tzRounding, comparatorType, maxExactPerShard);
-        //            } else if(distinctFieldMapper.fieldDataType().getType().equals("long")
-        //                    || distinctFieldMapper.fieldDataType().getType().equals("int")
-        //                    || distinctFieldMapper.fieldDataType().getType().equals("short")
-        //                    || distinctFieldMapper.fieldDataType().getType().equals("byte")) {
-        //                final IndexNumericFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
-        //                final LongArrayIndexFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
-        //                return new LongDistinctDateHistogramFacetExecutor(
-        //                        keyIndexFieldData, distinctFieldData, tzRounding, comparatorType, maxExactPerShard);
-        //            } else {
-        //                throw new FacetPhaseExecutionException(facetName, "distinct field [" + distinctField + "] is not of type string or long");
-        //            }
     }
 
     private TypedFieldData getFieldData(final String fieldName, final SearchContext context) {
