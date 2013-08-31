@@ -25,14 +25,14 @@ public class StringDistinctDateHistogramFacetExecutor extends FacetExecutor {
     private final PagedBytesIndexFieldData distinctIndexFieldData;
 
     private final TimeZoneRounding tzRounding;
-    private final DistinctDateHistogramFacet.ComparatorType comparatorType;
+    private final ComparatorType comparatorType;
     private final ExtTLongObjectHashMap<DistinctCountPayload> counts;
     private final int maxExactPerShard;
 
     public StringDistinctDateHistogramFacetExecutor(final LongArrayIndexFieldData keyIndexFieldData,
             final PagedBytesIndexFieldData distinctIndexFieldData,
             final TimeZoneRounding tzRounding,
-            final DistinctDateHistogramFacet.ComparatorType comparatorType,
+            final ComparatorType comparatorType,
             final int maxExactPerShard) {
         this.comparatorType = comparatorType;
         this.keyIndexFieldData = keyIndexFieldData;

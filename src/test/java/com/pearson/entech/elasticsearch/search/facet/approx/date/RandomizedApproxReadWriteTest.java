@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
+package com.pearson.entech.elasticsearch.search.facet.approx.date;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.max;
@@ -46,9 +46,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.base.Joiner;
-import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.DistinctDateHistogramFacet.Entry;
 
-public class DistinctDateHistogramFacetTest {
+public class RandomizedApproxReadWriteTest {
 
     private static Node __node;
 
@@ -84,23 +83,22 @@ public class DistinctDateHistogramFacetTest {
     private final Random _random = new Random(0);
 
     @BeforeClass
-    public static void setUpClass() {
+    public static void setUpClass() throws InterruptedException {
         final Settings settings = ImmutableSettings.settingsBuilder()
                 .put("node.http.enabled", false)
                 .put("index.gateway.type", "none")
                 // Reluctantly removed this to reduce overall memory:
-                //.put("index.store.type", "memory")
+                // .put("index.store.type", "memory")
                 .put("index.number_of_shards", 3)
                 .put("index.number_of_replicas", 0)
-                .put("index.cache.field.type", "soft")
-                .put("index.merge.policy.merge_factor", 30)
+                .put("index.merge.policy.merge_factor", 100)
                 .put("path.data", "target")
                 .put("refresh_interval", -1)
                 .build();
         __node = nodeBuilder()
                 .local(true)
                 .settings(settings)
-                .clusterName("DistinctDateHistogramFacetTest")
+                .clusterName("RandomizedApproxReadWriteTest")
                 .node();
         __node.start();
     }
@@ -178,25 +176,25 @@ public class DistinctDateHistogramFacetTest {
         final SearchResponse searchResponse = client()
                 .prepareSearch()
                 .setQuery(matchAllQuery())
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats1").keyField("date").valueField("num").interval("day").mode(mode))
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats2").keyField("date").valueField("num").interval("day").preZone("-02:00").mode(mode))
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats3").keyField("date").valueField("num").interval("day").preZone("-02:00").mode(mode))
+                .addFacet(new DateFacetBuilder("stats1").keyField("date").distinctField("num").interval("day").mode(mode))
+                .addFacet(new DateFacetBuilder("stats2").keyField("date").distinctField("num").interval("day").preZone("-02:00").mode(mode))
+                .addFacet(new DateFacetBuilder("stats3").keyField("date").distinctField("num").interval("day").preZone("-02:00").mode(mode))
                 //                .addFacet(
-                //                        new DistinctDateHistogramFacetBuilder("stats4").keyField("date").valueScript("doc['num'].value * 2").interval("day").preZone("-02:00")
+                //                        new DateFacetBuilder("stats4").keyField("date").distinctScript("doc['num'].distinct * 2").interval("day").preZone("-02:00")
                 //                                .mode(mode))
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats5").keyField("date").valueField("num").interval("24h").mode(mode))
+                .addFacet(new DateFacetBuilder("stats5").keyField("date").distinctField("num").interval("24h").mode(mode))
                 .addFacet(
-                        new DistinctDateHistogramFacetBuilder("stats6").keyField("date").valueField("num").interval("day").preZone("-02:00").postZone("-02:00")
+                        new DateFacetBuilder("stats6").keyField("date").distinctField("num").interval("day").preZone("-02:00").postZone("-02:00")
                                 .mode(mode))
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats7").keyField("date").valueField("num").interval("quarter").mode(mode))
+                .addFacet(new DateFacetBuilder("stats7").keyField("date").distinctField("num").interval("quarter").mode(mode))
                 .execute().actionGet();
 
         if(searchResponse.getFailedShards() > 0) {
-            System.out.println(searchResponse); // TODO remove all printlns
+            System.out.println(searchResponse);
             fail(Joiner.on(", ").join(searchResponse.getShardFailures()));
         }
 
-        DistinctDateHistogramFacet facet = searchResponse.getFacets().facet("stats1");
+        InternalDistinctFacet facet = searchResponse.getFacets().facet("stats1");
         assertThat(facet.getName(), equalTo("stats1"));
         assertThat(facet.getEntries().size(), equalTo(2));
         assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
@@ -308,17 +306,17 @@ public class DistinctDateHistogramFacetTest {
 
         final SearchResponse searchResponse = client().prepareSearch()
                 .setQuery(matchAllQuery())
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats1").keyField("date").valueField("num").interval("day").preZone("+02:00"))
-                .addFacet(new DistinctDateHistogramFacetBuilder("stats2").keyField("date").valueField("num").interval("day").preZone("+01:30"))
+                .addFacet(new DateFacetBuilder("stats1").keyField("date").distinctField("num").interval("day").preZone("+02:00"))
+                .addFacet(new DateFacetBuilder("stats2").keyField("date").distinctField("num").interval("day").preZone("+01:30"))
                 .execute().actionGet();
 
         if(searchResponse.getFailedShards() > 0) {
-            System.out.println(searchResponse); // TODO remove all printlns
+            System.out.println(searchResponse);
             fail(Joiner.on(", ").join(searchResponse.getShardFailures()));
         }
 
         // time zone causes the dates to shift by 2:00
-        DistinctDateHistogramFacet facet = searchResponse.getFacets().facet("stats1");
+        InternalDistinctFacet facet = searchResponse.getFacets().facet("stats1");
         assertThat(facet.getName(), equalTo("stats1"));
         assertThat(facet.getEntries().size(), equalTo(2));
         assertThat(facet.getEntries().get(0).getTime(), equalTo(utcTimeInMillis("2009-03-05")));
@@ -352,10 +350,9 @@ public class DistinctDateHistogramFacetTest {
         putSync(newID(), 1, __days[6]);
         assertEquals(4, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
-        System.out.println(response);
         assertEquals(4, response.getHits().getTotalHits());
-        final InternalDistinctDateHistogramFacet facet = response.getFacets().facet(__facetName);
-        final List<Entry> facetList = facet.entries();
+        final InternalDistinctFacet facet = response.getFacets().facet(__facetName);
+        final List<DistinctTimePeriod<NullEntry>> facetList = facet.entries();
         // Expecting just one hit and one distinct hit per doc, for the username.
         assertEquals(4, facetList.size());
         assertEquals(__days[0], facetList.get(0).getTime());
@@ -383,8 +380,8 @@ public class DistinctDateHistogramFacetTest {
         assertEquals(4, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __txtField);
         assertEquals(4, response.getHits().getTotalHits());
-        final InternalDistinctDateHistogramFacet facet = response.getFacets().facet(__facetName);
-        final List<Entry> facetList = facet.entries();
+        final InternalDistinctFacet facet = response.getFacets().facet(__facetName);
+        final List<DistinctTimePeriod<NullEntry>> facetList = facet.entries();
         // Expecting one hit for each token in the string "Document created [at] <TIMESTAMP>"
         // for each document, in this case these are unique per bucket too. The word "at"
         // is a stopword and is removed.
@@ -418,8 +415,8 @@ public class DistinctDateHistogramFacetTest {
         assertEquals(8, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField);
         assertEquals(8, response.getHits().getTotalHits());
-        final InternalDistinctDateHistogramFacet facet = response.getFacets().facet(__facetName);
-        final List<Entry> facetList = facet.entries();
+        final InternalDistinctFacet facet = response.getFacets().facet(__facetName);
+        final List<DistinctTimePeriod<NullEntry>> facetList = facet.entries();
         // Hits and distinct hits can now vary in intervals where the same user posted more
         // than once (i.e. day 0 here).
         assertEquals(4, facetList.size());
@@ -452,8 +449,8 @@ public class DistinctDateHistogramFacetTest {
         assertEquals(8, countAll());
         final SearchResponse response = getHistogram(__days[0], __days[7], "day", __txtField);
         assertEquals(8, response.getHits().getTotalHits());
-        final InternalDistinctDateHistogramFacet facet = response.getFacets().facet(__facetName);
-        final List<Entry> facetList = facet.entries();
+        final InternalDistinctFacet facet = response.getFacets().facet(__facetName);
+        final List<DistinctTimePeriod<NullEntry>> facetList = facet.entries();
         // Now things get a bit more complex as all the posts are identically worded apart
         // from the timestamp at the end. 3 tokens indexed per each instance of the field.
         assertEquals(4, facetList.size());
@@ -476,9 +473,6 @@ public class DistinctDateHistogramFacetTest {
     @Test
     public void testRandomizedWithManyItemsOnDayBucket() throws Exception {
 
-        // TODO test other data types
-
-        // Do this 20 times for different amounts of data
         for(int t = 1; t <= 20; t++) {
             setUp();
             final int minPerDay = (int) pow(2, t);
@@ -489,8 +483,8 @@ public class DistinctDateHistogramFacetTest {
 
             System.out.println("Randomized testing: running facet");
             final SearchResponse response = getHistogram(__days[0], __days[7], "day", __userField, 1000);
-            final InternalDistinctDateHistogramFacet facet1 = response.getFacets().facet(__facetName);
-            final List<Entry> facetList1 = facet1.entries();
+            final InternalDistinctFacet facet1 = response.getFacets().facet(__facetName);
+            final List<DistinctTimePeriod<NullEntry>> facetList1 = facet1.entries();
             assertEquals(7, facetList1.size());
             assertEquals(totalItems, facet1.getTotalCount());
             int tolerance = totalItems / 100;
@@ -513,8 +507,8 @@ public class DistinctDateHistogramFacetTest {
             }
 
             final SearchResponse response2 = getHistogram(__days[0], __days[7], "day", __txtField, 1000);
-            final InternalDistinctDateHistogramFacet facet2 = response2.getFacets().facet(__facetName);
-            final List<Entry> facetList2 = facet2.entries();
+            final InternalDistinctFacet facet2 = response2.getFacets().facet(__facetName);
+            final List<DistinctTimePeriod<NullEntry>> facetList2 = facet2.entries();
             assertEquals(7, facetList2.size());
             assertEquals(3 * totalItems, facet2.getTotalCount());
             tolerance = totalItems / 100;
@@ -537,8 +531,6 @@ public class DistinctDateHistogramFacetTest {
                         abs(fuzzyDistinctTokens - exactDistinctTokens) <= tolerance);
             }
         }
-
-        // TODO test total count/distinct
     }
 
     // Helper methods
@@ -547,20 +539,21 @@ public class DistinctDateHistogramFacetTest {
         return __counter.getAndIncrement();
     }
 
-    private SearchResponse getHistogram(final long start, final long end, final String interval, final String valueField) {
-        return getHistogram(start, end, interval, valueField, 0);
+    private SearchResponse getHistogram(final long start, final long end, final String interval, final String distinctField) {
+        return getHistogram(start, end, interval, distinctField, 0);
     }
 
-    private SearchResponse getHistogram(final long start, final long end, final String interval, final String valueField, final int maxExactPerShard) {
+    private SearchResponse getHistogram(final long start, final long end, final String interval, final String distinctField, final int exactThreshold) {
         final FilterBuilder range =
                 FilterBuilders.numericRangeFilter(__tsField)
                         .from(start)
                         .to(end);
-        final DistinctDateHistogramFacetBuilder facet =
-                new DistinctDateHistogramFacetBuilder(__facetName)
+        final DateFacetBuilder facet =
+                new DateFacetBuilder(__facetName)
                         .keyField(__tsField)
-                        .valueField(valueField)
+                        .distinctField(distinctField)
                         .facetFilter(range)
+                        .exactThreshold(exactThreshold)
                         .interval(interval);
         return client().prepareSearch(__index)
                 .setSearchType(SearchType.COUNT)

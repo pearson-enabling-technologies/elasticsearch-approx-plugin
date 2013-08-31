@@ -1,0 +1,39 @@
+{
+    "took": 1005,
+    "timed_out": false,
+    "_shards": {
+        "total": 5,
+        "successful": 5,
+        "failed": 0
+    },
+    "hits": {
+        "total": 489319,
+        "max_score": 0,
+        "hits": []
+    },
+    "facets": {
+        "histo": {
+            "_type": "distinct_date_facet",
+            "count": 122132,
+            "distinct_count": 54476,
+            "entries": [
+                {
+                    "time": 1367938800000,
+                    "count": 26567,
+                    "distinct_count": 26567
+                },
+                {
+                    "time": 1367942400000,
+                    "count": 77034,
+                    "distinct_count": 54097
+                },
+                {
+                    "time": 1367946000000,
+                    "count": 18531,
+                    "distinct_count": 18531
+                }
+            ]
+        }
+    }
+}
+
