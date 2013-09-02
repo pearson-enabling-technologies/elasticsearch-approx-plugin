@@ -32,6 +32,7 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
     private long _debugTotalCount;
     private long _debugDistinctCount;
     private DistinctCountPayload _debugCurrPayload;
+    private final BytesFieldIterator<AtomicFieldData<? extends ScriptDocValues>> _distinctFieldIter;
 
     public DistinctCollector(final LongArrayIndexFieldData keyFieldData,
             final IndexFieldData<D> distinctFieldData,
@@ -39,6 +40,7 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
             final int exactThreshold) {
         super(keyFieldData, tzRounding);
         _distinctFieldData = distinctFieldData;
+        _distinctFieldIter = new BytesFieldIterator(distinctFieldData); // TODO type safety?
         _exactThreshold = exactThreshold;
         _counts = CacheRecycler.popLongObjectMap();
     }
@@ -46,30 +48,22 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
     @Override
     public void setNextReader(final AtomicReaderContext context) throws IOException {
         super.setNextReader(context);
-        _distinctFieldValues = _distinctFieldData.load(context).getBytesValues();
+        _distinctFieldIter.setNextReader(context);
     }
 
     @Override
     public void collect(final int doc) throws IOException {
-        // Exit as early as possible in order to avoid unnecessary lookups
+        _distinctFieldIter.collect(doc);
+
+        // Exit as early as possible in order to avoid unnecessary lookups/conversions
         super.collect(doc);
         if(!hasNextTimestamp())
             return;
 
-        // TODO change this to iterate over the ordinals of the distinct field,
-        // so we only have to copy out the bytes ref once per unique value, not
-        // once per document
-
-        final org.elasticsearch.index.fielddata.BytesValues.Iter distinctIter =
-                _distinctFieldValues.getIter(doc);
-
-        while(distinctIter.hasNext()) {
+        while(_distinctFieldIter.hasNext()) {
             // NB this causes two conversions if the field's numeric
-            final BytesRef unsafe = distinctIter.next();
+            final BytesRef safe = _distinctFieldIter.next();
             if(hasNextTimestamp()) {
-                final BytesRef safe = BytesRef.deepCopyOf(unsafe);
-                // Unsafe because this may change; the counter needs to make
-                // it safe if it's going to keep hold of the bytes
                 while(hasNextTimestamp()) {
                     final long time = nextTimestamp();
                     final DistinctCountPayload count = getSafely(_counts, time);
@@ -85,12 +79,17 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
                     }
                 }
             }
+
+            // Reset timestamp iterator for this doc
+            // TODO make this a standalone CollectableIterator like _distinctFieldIter
+            super.collect(doc);
         }
     }
 
     @Override
     public void postCollection() {
         super.postCollection();
+        _distinctFieldIter.postCollection();
         _distinctFieldValues = null;
     }
 

@@ -20,9 +20,9 @@ public class DateFacetExecutor extends FacetExecutor {
     private static final Iter __emptyIter = new Iter.Empty();
 
     private final LongArrayIndexFieldData _keyFieldData;
-    private final IndexFieldData<?> _valueFieldData;
-    private final IndexFieldData<?> _distinctFieldData;
-    private final IndexFieldData<?> _sliceFieldData;
+    private final IndexFieldData _valueFieldData;
+    private final IndexFieldData _distinctFieldData;
+    private final IndexFieldData _sliceFieldData;
 
     private final TimestampFirstCollector _collector;
 
@@ -30,7 +30,7 @@ public class DateFacetExecutor extends FacetExecutor {
 
     private final int _exactThreshold;
 
-    public DateFacetExecutor(final LongArrayIndexFieldData keyFieldData, final IndexFieldData<?> valueFieldData,
+    public DateFacetExecutor(final LongArrayIndexFieldData keyFieldData, final IndexFieldData valueFieldData,
             final IndexFieldData distinctFieldData, final IndexFieldData sliceFieldData,
             final TimeZoneRounding tzRounding, final int exactThreshold, final boolean debug) {
         _keyFieldData = keyFieldData;

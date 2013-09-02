@@ -12,29 +12,18 @@ import org.elasticsearch.index.fielddata.BytesValues.WithOrdinals;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.ScriptDocValues;
 
-public abstract class BytesFieldFirstCollector<B extends AtomicFieldData<? extends ScriptDocValues>, V extends AtomicFieldData<? extends ScriptDocValues>>
-        extends BuildableCollector {
+public class BytesFieldIterator<B extends AtomicFieldData<? extends ScriptDocValues>>
+        extends CollectableIterator<BytesRef> {
 
     private final IndexFieldData<B> _bytesFieldData;
-    private final IndexFieldData<V> _valueFieldData;
     private BytesValues _bytesFieldValues;
-    private BytesValues _valueFieldValues;
     private IntsRef _docOrds;
     private int _docOrdPointer;
     private Iter _docIter;
-    private Iter _valueFieldIter;
 
-    public BytesFieldFirstCollector(
-            final IndexFieldData<B> bytesFieldData,
-            final IndexFieldData<V> valueFieldData) {
-        _bytesFieldData = bytesFieldData;
-        _valueFieldData = valueFieldData;
-    }
-
-    public BytesFieldFirstCollector(
+    public BytesFieldIterator(
             final IndexFieldData<B> bytesFieldData) {
         _bytesFieldData = bytesFieldData;
-        _valueFieldData = null;
     }
 
     @Override
@@ -45,18 +34,15 @@ public abstract class BytesFieldFirstCollector<B extends AtomicFieldData<? exten
         } else {
             _docIter = _bytesFieldValues.getIter(doc);
         }
-        if(hasValueField())
-            _valueFieldIter = _valueFieldValues.getIter(doc);
     }
 
     @Override
     public void setNextReader(final AtomicReaderContext context) throws IOException {
         _bytesFieldValues = _bytesFieldData.load(context).getBytesValues();
-        if(hasValueField())
-            _valueFieldValues = _valueFieldData.load(context).getBytesValues();
     }
 
-    protected boolean hasNextBytes() {
+    @Override
+    public boolean hasNext() {
         if(_bytesFieldValues instanceof WithOrdinals) {
             return _docOrdPointer < _docOrds.length;
         } else {
@@ -64,26 +50,22 @@ public abstract class BytesFieldFirstCollector<B extends AtomicFieldData<? exten
         }
     }
 
-    protected BytesRef nextBytes() {
+    @Override
+    public BytesRef next() {
         if(_bytesFieldValues instanceof WithOrdinals) {
-            final BytesRef safe = ((WithOrdinals) _bytesFieldValues).getSafeValueByOrd(_docOrdPointer);
+            final BytesRef unsafe = ((WithOrdinals) _bytesFieldValues).getSafeValueByOrd(_docOrds.ints[_docOrdPointer]);
             _docOrdPointer++;
-            return safe;
+            return unsafe;
         } else {
             return _docIter.next();
         }
     }
 
-    protected boolean hasValueField() {
-        return _valueFieldData != null;
-    }
-
-    protected boolean hasNextValue() {
-        return _valueFieldIter != null && _valueFieldIter.hasNext();
-    }
-
-    protected BytesRef nextValue() {
-        return _valueFieldIter == null ? null : _valueFieldIter.next();
+    @Override
+    public void postCollection() {
+        //        _docOrds = null;
+        //        _docOrdPointer = -1;
+        //        _docIter = null;
     }
 
 }
