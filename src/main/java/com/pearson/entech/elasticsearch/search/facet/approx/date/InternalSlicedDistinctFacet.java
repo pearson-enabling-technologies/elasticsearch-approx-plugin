@@ -123,6 +123,7 @@ public class InternalSlicedDistinctFacet
         final int size = _counts.size();
         _serializePeriods.init(out, size);
         _counts.forEachEntry(_serializePeriods);
+        _serializePeriods.clear();
     }
 
     @Override
@@ -157,6 +158,7 @@ public class InternalSlicedDistinctFacet
         final long[] counter = { 0 };
         _materializePeriods.init(_periods);
         _counts.forEachEntry(_materializePeriods);
+        _materializePeriods.clear();
         Collections.sort(_periods, ChronologicalOrder.INSTANCE);
         _total = counter[0];
         releaseCache();
@@ -260,6 +262,12 @@ public class InternalSlicedDistinctFacet
             return true;
         }
 
+        public void clear() {
+            _target = null;
+            _accumulator = null;
+            _materializeSlices.clear();
+        }
+
         private final SliceMaterializer _materializeSlices = new SliceMaterializer();
 
         private static class SliceMaterializer implements TObjectObjectProcedure<BytesRef, DistinctCountPayload> {
@@ -295,6 +303,11 @@ public class InternalSlicedDistinctFacet
                 return true;
             }
 
+            public void clear() {
+                _target = null;
+                _accumulator = null;
+            }
+
         }
 
     }
@@ -323,6 +336,11 @@ public class InternalSlicedDistinctFacet
             return true;
         }
 
+        public void clear() {
+            _output = null;
+            _serializeSlices.clear();
+        }
+
         private final SliceSerializer _serializeSlices = new SliceSerializer();
 
         private static final class SliceSerializer implements TObjectObjectProcedure<BytesRef, DistinctCountPayload> {
@@ -344,6 +362,10 @@ public class InternalSlicedDistinctFacet
                     throw new IllegalStateException(e);
                 }
                 return true;
+            }
+
+            public void clear() {
+                _output = null;
             }
 
         }

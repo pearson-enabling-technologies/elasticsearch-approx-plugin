@@ -1,15 +1,18 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.date.collectors;
 
+import static com.google.common.collect.Maps.newHashMap;
+
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
+import org.elasticsearch.common.trove.list.array.TIntArrayList;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
 import org.elasticsearch.index.fielddata.AtomicFieldData;
-import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.ScriptDocValues;
 import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
@@ -21,12 +24,12 @@ import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalDistinc
 public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValues>, D extends AtomicFieldData<? extends ScriptDocValues>>
         extends TimestampFirstCollector<V> {
 
-    private final IndexFieldData<D> _distinctFieldData;
     private final int _exactThreshold;
 
-    private BytesValues _distinctFieldValues;
+    //    private final ExtTLongObjectHashMap<DistinctCountPayload> _counts;
 
-    private final ExtTLongObjectHashMap<DistinctCountPayload> _counts;
+    // TODO Can we use a cleverer data structure here? Something like a linked list?
+    private Map<BytesRef, TIntArrayList> _occurrences;
 
     private final boolean _debug = false;
     private long _debugTotalCount;
@@ -39,10 +42,10 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
             final TimeZoneRounding tzRounding,
             final int exactThreshold) {
         super(keyFieldData, tzRounding);
-        _distinctFieldData = distinctFieldData;
         _distinctFieldIter = new BytesFieldIterator(distinctFieldData); // TODO type safety?
         _exactThreshold = exactThreshold;
-        _counts = CacheRecycler.popLongObjectMap();
+        //        _counts = CacheRecycler.popLongObjectMap();
+        _occurrences = newHashMap();
     }
 
     @Override
@@ -62,22 +65,31 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
 
         while(_distinctFieldIter.hasNext()) {
             // NB this causes two conversions if the field's numeric
-            final BytesRef safe = _distinctFieldIter.next();
-            if(hasNextTimestamp()) {
-                while(hasNextTimestamp()) {
-                    final long time = nextTimestamp();
-                    final DistinctCountPayload count = getSafely(_counts, time);
-                    final boolean modified = count.updateSafe(safe);
+            final BytesRef unsafe = _distinctFieldIter.next();
+            TIntArrayList timestampList = _occurrences.get(unsafe);
+            if(timestampList == null) {
+                final BytesRef safe = BytesRef.deepCopyOf(unsafe);
+                timestampList = new TIntArrayList();
+                _occurrences.put(safe, timestampList);
+            }
 
-                    if(_debug) {
-                        _debugTotalCount++;
-                        if(modified) {
-                            _debugDistinctCount++;
-                        }
-                        assert _debugTotalCount == count.getCount();
-                        assert _debugDistinctCount == count.getCardinality().cardinality();
-                    }
-                }
+            while(hasNextTimestamp()) {
+                final long time = nextTimestamp();
+                timestampList.add((int) (time / 1000));
+
+                //                    // Get rid of all of this eventually
+                //
+                //                    final DistinctCountPayload count = getSafely(_counts, time);
+                //                    final boolean modified = count.updateSafe(unsafe);
+                //
+                //                    if(_debug) {
+                //                        _debugTotalCount++;
+                //                        if(modified) {
+                //                            _debugDistinctCount++;
+                //                        }
+                //                        assert _debugTotalCount == count.getCount();
+                //                        assert _debugDistinctCount == count.getCardinality().cardinality();
+                //                    }
             }
 
             // Reset timestamp iterator for this doc
@@ -90,12 +102,29 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
     public void postCollection() {
         super.postCollection();
         _distinctFieldIter.postCollection();
-        _distinctFieldValues = null;
     }
 
     @Override
     public InternalFacet build(final String facetName) {
-        final InternalFacet facet = new InternalDistinctFacet(facetName, _counts, _debug);
+        final ExtTLongObjectHashMap<DistinctCountPayload> counts = CacheRecycler.popLongObjectMap();
+        for(final BytesRef fieldVal : _occurrences.keySet()) {
+            final TIntArrayList timestampList = _occurrences.get(fieldVal);
+            final int timestampCount = timestampList.size();
+            for(int i = 0; i < timestampCount; i++) {
+                final long timestampSecs = timestampList.get(i);
+                final long timestamp = timestampSecs * 1000;
+                DistinctCountPayload payload = counts.get(timestamp);
+                if(payload == null) {
+                    payload = new DistinctCountPayload(_exactThreshold);
+                    counts.put(timestamp, payload);
+                }
+                payload.updateSafe(fieldVal);
+            }
+            _occurrences.put(fieldVal, null); // Free this up for GC immediately
+        }
+
+        _occurrences = null;
+        final InternalFacet facet = new InternalDistinctFacet(facetName, counts, _debug);
         return facet;
     }
 

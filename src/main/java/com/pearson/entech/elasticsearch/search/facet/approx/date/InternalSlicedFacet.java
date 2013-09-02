@@ -110,6 +110,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
         final int size = _counts.size();
         _serializePeriods.init(out, size);
         _counts.forEachEntry(_serializePeriods);
+        _serializePeriods.clear();
     }
 
     @Override
@@ -143,6 +144,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
         final long[] counter = { 0 };
         _materializePeriods.init(_periods, counter);
         _counts.forEachEntry(_materializePeriods);
+        _materializePeriods.clear();
         Collections.sort(_periods, ChronologicalOrder.INSTANCE);
         _total = counter[0];
         releaseCache();
@@ -236,6 +238,11 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
             return true;
         }
 
+        public void clear() {
+            _target = null;
+            _materializeSlices.clear();
+        }
+
         private final SliceMaterializer _materializeSlices = new SliceMaterializer();
 
         private static final class SliceMaterializer implements TObjectIntProcedure<BytesRef> {
@@ -254,6 +261,10 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
                 _target.add(new Slice<String>(key.utf8ToString(), count));
                 _counter[0] += count;
                 return true;
+            }
+
+            public void clear() {
+                _target = null;
             }
 
         }
@@ -284,6 +295,11 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
             return true;
         }
 
+        public void clear() {
+            _output = null;
+            _serializeSlices.clear();
+        }
+
         private final SliceSerializer _serializeSlices = new SliceSerializer();
 
         private static final class SliceSerializer implements TObjectIntProcedure<BytesRef> {
@@ -305,6 +321,10 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
                     throw new IllegalStateException(e);
                 }
                 return true;
+            }
+
+            public void clear() {
+                _output = null;
             }
 
         }
