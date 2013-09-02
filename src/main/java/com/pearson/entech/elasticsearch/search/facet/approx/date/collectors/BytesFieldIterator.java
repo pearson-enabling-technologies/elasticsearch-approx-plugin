@@ -53,7 +53,7 @@ public class BytesFieldIterator<B extends AtomicFieldData<? extends ScriptDocVal
     @Override
     public BytesRef next() {
         if(_bytesFieldValues instanceof WithOrdinals) {
-            final BytesRef unsafe = ((WithOrdinals) _bytesFieldValues).getSafeValueByOrd(_docOrds.ints[_docOrdPointer]);
+            final BytesRef unsafe = ((WithOrdinals) _bytesFieldValues).getValueByOrd(_docOrds.ints[_docOrdPointer]);
             _docOrdPointer++;
             return unsafe;
         } else {
@@ -63,9 +63,9 @@ public class BytesFieldIterator<B extends AtomicFieldData<? extends ScriptDocVal
 
     @Override
     public void postCollection() {
-        //        _docOrds = null;
-        //        _docOrdPointer = -1;
-        //        _docIter = null;
+        _docOrds = null;
+        _docOrdPointer = -1;
+        _docIter = null;
     }
 
 }
