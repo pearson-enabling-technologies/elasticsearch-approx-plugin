@@ -41,7 +41,8 @@ public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extend
         _tzRounding = tzRounding;
     }
 
-    public TimestampFirstCollector(final LongArrayIndexFieldData keyFieldData, final TimeZoneRounding tzRounding) {
+    public TimestampFirstCollector(final LongArrayIndexFieldData keyFieldData,
+            final TimeZoneRounding tzRounding) {
         this(keyFieldData, null, tzRounding);
     }
 
@@ -55,7 +56,6 @@ public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extend
         }
         if(hasValueField())
             _valueFieldIter = _valueFieldValues.getIter(doc);
-
     }
 
     @Override

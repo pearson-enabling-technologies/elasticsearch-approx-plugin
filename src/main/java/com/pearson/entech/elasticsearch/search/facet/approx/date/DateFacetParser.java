@@ -18,8 +18,8 @@ import org.elasticsearch.common.trove.impl.Constants;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.index.fielddata.FieldDataType;
 import org.elasticsearch.index.fielddata.IndexFieldData;
+import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.FacetParser;
@@ -176,15 +176,11 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
                 .factor(factor)
                 .build();
 
-        final TypedFieldData keyFieldData = getFieldData(keyField, context);
-        if(keyFieldData == null)
-            throw new FacetPhaseExecutionException(facetName, "[key_field] is required to be set for distinct date histogram facet");
-        if(!"long".equals(keyFieldData.type.getType()))
-            throw new FacetPhaseExecutionException(facetName, "key field [" + keyField + "] is not of type date");
+        final LongArrayIndexFieldData keyFieldData = getKeyFieldData(facetName, keyField, context);
 
-        final TypedFieldData valueFieldData = getFieldData(valueField, context);
-        final TypedFieldData distinctFieldData = getFieldData(distinctField, context);
-        final TypedFieldData sliceFieldData = getFieldData(sliceField, context);
+        final IndexFieldData<?> valueFieldData = getFieldData(facetName, valueField, context);
+        final IndexFieldData<?> distinctFieldData = getFieldData(facetName, distinctField, context);
+        final IndexFieldData<?> sliceFieldData = getFieldData(facetName, sliceField, context);
 
         if(exactThreshold < 0)
             exactThreshold = Integer.MAX_VALUE;
@@ -195,17 +191,30 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
                 tzRounding, exactThreshold, debug);
     }
 
-    private TypedFieldData getFieldData(final String fieldName, final SearchContext context) {
+    private <IFD> IFD getFieldData(final String facetName, final String fieldName, final SearchContext context) {
         if(fieldName != null) {
             final FieldMapper<?> mapper = context.smartNameFieldMapper(fieldName);
             if(mapper == null) {
-                throw new FacetPhaseExecutionException(fieldName, "no mapping found for " + fieldName);
+                throw new FacetPhaseExecutionException(facetName, "no mapping found for " + fieldName);
             }
-            final FieldDataType fieldDataType = mapper.fieldDataType();
-            final IndexFieldData fieldData = context.fieldData().getForField(mapper);
-            return new TypedFieldData(fieldData, fieldDataType);
+            return context.fieldData().getForField(mapper);
         }
         return null;
+    }
+
+    private LongArrayIndexFieldData getKeyFieldData(final String facetName, final String fieldName, final SearchContext context) {
+        if(fieldName != null) {
+            final FieldMapper<?> mapper = context.smartNameFieldMapper(fieldName);
+            if(mapper == null) {
+                throw new FacetPhaseExecutionException(facetName, "no mapping found for " + fieldName);
+            }
+            if(!"long".equals(mapper.fieldDataType().getType())) {
+                throw new FacetPhaseExecutionException(facetName, "key field " + fieldName + " is not of type long");
+            }
+            return context.fieldData().getForField(mapper);
+        }
+        else
+            throw new FacetPhaseExecutionException(facetName, "[key_field] is required to be set for date facet");
     }
 
     private long parseOffset(final String offset) throws IOException {
@@ -234,23 +243,6 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
                 return DateTimeZone.forID(text);
             }
         }
-    }
-
-    private boolean isIntegral(final TypedFieldData typedFieldData) {
-        if(typedFieldData == null)
-            return false;
-        final String typeName = typedFieldData.type.getType();
-        return "byte".equals(typeName)
-                || "short".equals(typeName)
-                || "int".equals(typeName)
-                || "long".equals(typeName);
-    }
-
-    private boolean isString(final TypedFieldData typedFieldData) {
-        if(typedFieldData == null)
-            return false;
-        final String typeName = typedFieldData.type.getType();
-        return "string".equals(typeName);
     }
 
     static interface DateFieldParser {

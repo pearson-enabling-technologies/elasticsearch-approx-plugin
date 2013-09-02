@@ -24,7 +24,6 @@ public class SlicedCollector<V extends AtomicFieldData<? extends ScriptDocValues
     private final IndexFieldData<S> _sliceFieldData;
 
     private BytesValues _sliceFieldValues;
-    private BytesValues.Iter _valueFieldIter;
 
     private ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
 
