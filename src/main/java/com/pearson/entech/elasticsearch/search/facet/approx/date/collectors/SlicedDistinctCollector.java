@@ -85,7 +85,7 @@ public class SlicedDistinctCollector<V extends AtomicFieldData<? extends ScriptD
                     final BytesRef unsafeTerm = distinctIter.next();
                     // Unsafe because this may change; the counter needs to make
                     // it safe if it's going to keep hold of the bytes
-                    count.update(unsafeTerm);
+                    count.updateUnsafe(unsafeTerm);
                 }
             }
         }

@@ -162,7 +162,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         throw new UnsupportedOperationException();
     }
 
-    public boolean offerBytesRef(final BytesRef unsafe) {
+    public boolean offerBytesRefUnsafe(final BytesRef unsafe) {
         boolean modified = false;
 
         if(tipped)
@@ -186,11 +186,34 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         return modified;
     }
 
+    public boolean offerBytesRefSafe(final BytesRef safe) {
+        boolean modified = false;
+
+        if(tipped)
+        {
+            // The estimator just needs the hash of the current bytes of the BytesRef
+            modified = estimator.offerHashed(__luceneMurmurHash.hash(safe));
+        }
+        else
+        {
+            if(counter.add(safe))
+            {
+                modified = true;
+                if(counter.size() > tippingPoint)
+                {
+                    tip();
+                }
+            }
+        }
+
+        return modified;
+    }
+
     @Override
     public boolean offer(final Object o)
     {
         if(o instanceof BytesRef)
-            return offerBytesRef((BytesRef) o);
+            return offerBytesRefUnsafe((BytesRef) o);
 
         final BytesRef ref = new BytesRef(o.toString());
 
@@ -402,7 +425,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
                 {
                     for(final Object o : cte.counter)
                     {
-                        merged.offerBytesRef((BytesRef) o);
+                        merged.offerBytesRefUnsafe((BytesRef) o);
                     }
                 }
             }

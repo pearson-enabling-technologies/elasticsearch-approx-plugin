@@ -44,9 +44,14 @@ public class DistinctCountPayload {
         _cardinality = cardinality;
     }
 
-    public boolean update(final BytesRef unsafe) {
+    public boolean updateUnsafe(final BytesRef unsafe) {
         _count++;
-        return _cardinality.offerBytesRef(unsafe);
+        return _cardinality.offerBytesRefUnsafe(unsafe);
+    }
+
+    public boolean updateSafe(final BytesRef safe) {
+        _count++;
+        return _cardinality.offerBytesRefSafe(safe);
     }
 
     byte[] cardinalityBytes() throws IOException {

@@ -5,6 +5,7 @@ import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.LongValues.Iter;
 import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
+import org.elasticsearch.search.facet.FacetPhaseExecutionException;
 import org.elasticsearch.search.facet.InternalFacet;
 
 import com.pearson.entech.elasticsearch.search.facet.approx.date.collectors.CountingCollector;
@@ -52,7 +53,7 @@ public class DateFacetExecutor extends FacetExecutor {
             if(_valueFieldData == null)
                 _collector = new DistinctCollector(keyFieldData, distinctFieldData, tzRounding, exactThreshold);
             else
-                _collector = new DistinctCollector(keyFieldData, valueFieldData, distinctFieldData, tzRounding, exactThreshold);
+                throw new FacetPhaseExecutionException("unknown date_facet", "Can't use distinct_field and value_field together");
         else if(_valueFieldData == null)
             _collector = new SlicedDistinctCollector(keyFieldData, sliceFieldData, distinctFieldData, tzRounding, exactThreshold);
         else

@@ -143,4 +143,5 @@ public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extend
     protected BytesRef nextValue() {
         return _valueFieldIter == null ? null : _valueFieldIter.next();
     }
+
 }

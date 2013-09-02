@@ -34,17 +34,6 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
     private DistinctCountPayload _debugCurrPayload;
 
     public DistinctCollector(final LongArrayIndexFieldData keyFieldData,
-            final IndexFieldData<V> valueFieldData,
-            final IndexFieldData<D> distinctFieldData,
-            final TimeZoneRounding tzRounding,
-            final int exactThreshold) {
-        super(keyFieldData, valueFieldData, tzRounding);
-        _distinctFieldData = distinctFieldData;
-        _exactThreshold = exactThreshold;
-        _counts = CacheRecycler.popLongObjectMap();
-    }
-
-    public DistinctCollector(final LongArrayIndexFieldData keyFieldData,
             final IndexFieldData<D> distinctFieldData,
             final TimeZoneRounding tzRounding,
             final int exactThreshold) {
@@ -67,28 +56,33 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
         if(!hasNextTimestamp())
             return;
 
+        // TODO change this to iterate over the ordinals of the distinct field,
+        // so we only have to copy out the bytes ref once per unique value, not
+        // once per document
+
         final org.elasticsearch.index.fielddata.BytesValues.Iter distinctIter =
                 _distinctFieldValues.getIter(doc);
-        if(!distinctIter.hasNext())
-            return;
 
-        while(hasNextTimestamp()) {
-            final long time = nextTimestamp();
-            final DistinctCountPayload count = getSafely(_counts, time);
-            while(distinctIter.hasNext()) {
-                // NB this causes two conversions if the field's numeric
-                final BytesRef unsafe = distinctIter.next();
+        while(distinctIter.hasNext()) {
+            // NB this causes two conversions if the field's numeric
+            final BytesRef unsafe = distinctIter.next();
+            if(hasNextTimestamp()) {
+                final BytesRef safe = BytesRef.deepCopyOf(unsafe);
                 // Unsafe because this may change; the counter needs to make
                 // it safe if it's going to keep hold of the bytes
-                final boolean modified = count.update(unsafe);
+                while(hasNextTimestamp()) {
+                    final long time = nextTimestamp();
+                    final DistinctCountPayload count = getSafely(_counts, time);
+                    final boolean modified = count.updateSafe(safe);
 
-                if(_debug) {
-                    _debugTotalCount++;
-                    if(modified) {
-                        _debugDistinctCount++;
+                    if(_debug) {
+                        _debugTotalCount++;
+                        if(modified) {
+                            _debugDistinctCount++;
+                        }
+                        assert _debugTotalCount == count.getCount();
+                        assert _debugDistinctCount == count.getCardinality().cardinality();
                     }
-                    assert _debugTotalCount == count.getCount();
-                    assert _debugDistinctCount == count.getCardinality().cardinality();
                 }
             }
         }
