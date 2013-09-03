@@ -19,7 +19,7 @@ Plugin 1.3.X: ElasticSearch 0.20.X, tested on 0.20.6
 
 *Plugin 2.0.1: Interim release, don't use this, try the next one...*
 
-Plugin 2.1.0: ElasticSearch 0.90.2, plus significant feature and performance improvements, and breaking API changes
+Plugin 2.1.X: ElasticSearch 0.90.2, plus significant feature and performance improvements, and breaking API changes
 
 ElasticSearch 0.90.3 is not supported yet.
 
@@ -45,7 +45,8 @@ several modes.
 * **COMING SOON:** Counting unique values of one field per time interval, per value of another field
 
 It can be used to answer analytical queries like "how many distinct users have
-I seen per country per day?"
+I seen per day?" or "how many logins have occurred per day, broken down by
+country?".
 
 Unique value counting uses a [probabilistic algorithm](http://www.infoq.com/presentations/scalability-data-mining)
 called [HyperLogLog](http://metamarkets.com/2012/fast-cheap-and-98-right-cardinality-estimation-for-big-data/)
@@ -54,7 +55,7 @@ all values in memory or transfer them across the network between shards. This
 provideds both memory and speed improvements in most circumstances. This
 implementation is hardcoded to a relative standard deviation of 0.0025, which
 uses about 80KB of memory per bucket per shard, and in tests, provides
-estimates within 1% of the true count almost all the time. 
+estimates within 1% of the true count reliably. 
 
 The API for approximate counting also provides an `exact_threshold` parameter.
 Each bucket will use an exact counting method (keeping all values in a HashSet)
