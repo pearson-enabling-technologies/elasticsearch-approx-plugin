@@ -88,6 +88,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
      * Cardinality counter
      * Null after tipping point is reached
      */
+    // TODO reimplement with trie, see if it's more efficient
     protected THashSet<BytesRef> counter;
     protected int totalCounterBytes = 0;
 

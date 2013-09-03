@@ -111,7 +111,7 @@ public abstract class MediumDataSetPerformanceTest extends MediumDataSetTest {
         clearMemory();
         final ListenableActionFuture<NodesHotThreadsResponse> threads = _hotThreads ?
                 new NodesHotThreadsRequestBuilder(client().admin().cluster())
-                        .setInterval(TimeValue.timeValueSeconds(2))
+                        .setInterval(TimeValue.timeValueSeconds(3))
                         .setType("cpu").setThreads(4).execute()
                 : null;
         logExecutionStart(testName);

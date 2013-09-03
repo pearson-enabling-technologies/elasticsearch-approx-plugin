@@ -28,7 +28,7 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
 
     //    private final ExtTLongObjectHashMap<DistinctCountPayload> _counts;
 
-    // TODO Can we use a cleverer data structure here? Something like a linked list?
+    // TODO Can we use a cleverer data structure here? Try with a trie
     private Map<BytesRef, TIntArrayList> _occurrences;
 
     private final boolean _debug = false;
