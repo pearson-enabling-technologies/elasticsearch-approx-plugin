@@ -24,14 +24,17 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 import org.apache.lucene.codecs.bloom.HashFunction;
 import org.apache.lucene.codecs.bloom.MurmurHash2;
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.CacheRecycler;
+import org.apache.lucene.util.BytesRefHash;
 import org.elasticsearch.common.trove.procedure.TObjectProcedure;
 import org.elasticsearch.common.trove.set.hash.THashSet;
 
@@ -88,8 +91,9 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
      * Cardinality counter
      * Null after tipping point is reached
      */
-    // TODO reimplement with trie, see if it's more efficient
-    protected THashSet<BytesRef> counter;
+    protected BytesRefHash counter;
+    private static Method compact;
+    private final static Object[] nullParams = {};
     protected int totalCounterBytes = 0;
 
     /**
@@ -101,6 +105,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     //        this(1000, AdaptiveCounting.Builder.obyCount(1000000000));
     //    }
 
+    // Used for adding bytesrefs to the estimator, not used in exact counting
     private static final MurmurHash2 __luceneMurmurHash = MurmurHash2.INSTANCE;
 
     /**
@@ -116,10 +121,18 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             this.estimator = builder.build();
             this.tipped = true;
         } else {
-            this.counter = CacheRecycler.popHashSet();
+            //            this.counter = CacheRecycler.popHashSet();
             // Pre-allocate space for hash, with a sensible cutoff
             final int initialCapacity = min(tippingPoint, 10000);
-            this.counter.ensureCapacity(initialCapacity);
+            //            this.counter.ensureCapacity(initialCapacity);
+            this.counter = new BytesRefHash();
+        }
+
+        try {
+            compact = BytesRefHash.class.getDeclaredMethod("compact", null);
+            compact.setAccessible(true);
+        } catch(final Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -175,7 +188,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         else
         {
             // The counter must copy the BytesRef as it needs to stay intact
-            if(counter.add(BytesRef.deepCopyOf(unsafe)))
+            if(counter.add(BytesRef.deepCopyOf(unsafe)) >= 0)
             {
                 modified = true;
                 if(counter.size() > tippingPoint)
@@ -202,7 +215,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         }
         else
         {
-            if(counter.add(safe))
+            if(counter.add(safe) >= 0)
             {
                 modified = true;
                 if(counter.size() > tippingPoint)
@@ -236,7 +249,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         }
         else
         {
-            if(counter.add(ref))
+            if(counter.add(ref) >= 0)
             {
                 modified = true;
                 if(counter.size() > tippingPoint)
@@ -270,9 +283,27 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     {
         if(!tipped) {
             estimator = builder.build();
-            _offerMembers.init(estimator, __luceneMurmurHash);
-            counter.forEach(_offerMembers);
-            _offerMembers.clear();
+            //            _offerMembers.init(estimator, __luceneMurmurHash);
+            //            counter.forEach(_offerMembers);
+            //            _offerMembers.clear();
+
+            int[] ids;
+            try {
+                ids = (int[]) compact.invoke(counter, nullParams);
+            } catch(final IllegalAccessException e) {
+                throw new RuntimeException(e);
+            } catch(final InvocationTargetException e) {
+                throw new RuntimeException(e);
+            }
+            final BytesRef scratch = new BytesRef();
+            for(int i = 0; i < ids.length; i++) {
+                final int id = ids[i];
+                if(id < 0)
+                    break;
+                counter.get(id, scratch);
+                estimator.offerHashed(__luceneMurmurHash.hash(scratch));
+            }
+
             counter = null;
             totalCounterBytes = 0;
             builder = null;
@@ -388,10 +419,30 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             out.writeObject(builder);
             out.writeInt(counter.size());
             out.writeInt(totalCounterBytes);
-            _serializer.init(counter, out);
-            counter.forEach(_serializer);
-            _serializer.clear();
-            CacheRecycler.pushHashSet(counter);
+            //            _serializer.init(counter, out);
+            //            counter.forEach(_serializer);
+            //            _serializer.clear();
+            //            CacheRecycler.pushHashSet(counter);
+
+            int[] ids;
+            try {
+                ids = (int[]) compact.invoke(counter, nullParams);
+            } catch(final IllegalAccessException e) {
+                throw new RuntimeException(e);
+            } catch(final InvocationTargetException e) {
+                throw new RuntimeException(e);
+            }
+            final BytesRef scratch = new BytesRef();
+            for(int i = 0; i < ids.length; i++) {
+                final int id = ids[i];
+                if(id < 0)
+                    break;
+                counter.get(id, scratch);
+                out.writeInt(scratch.length);
+                out.write(scratch.bytes, scratch.offset, scratch.length);
+            }
+            counter.close();
+
         }
     }
 
@@ -443,10 +494,28 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
 
                 for(final CountThenEstimateBytes cte : untipped)
                 {
-                    for(final Object o : cte.counter)
-                    {
-                        merged.offerBytesRefSafe((BytesRef) o);
+                    final BytesRef scratch = new BytesRef();
+                    int[] ids;
+                    try {
+                        ids = (int[]) compact.invoke(cte.counter, nullParams);
+                    } catch(final IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    } catch(final InvocationTargetException e) {
+                        throw new RuntimeException(e);
                     }
+                    for(int i = 0; i < ids.length; i++) {
+                        final int id = ids[i];
+                        if(id < 0)
+                            break;
+                        cte.counter.get(id, scratch);
+                        merged.offerBytesRefUnsafe(scratch);
+                    }
+                    cte.counter.close();
+
+                    //                    for(final Object o : cte.counter)
+                    //                    {
+                    //                        merged.offerBytesRefSafe((BytesRef) o);
+                    //                    }
                 }
             }
             else
@@ -529,6 +598,17 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         private void clear() {
             _counter = null;
             _out = null;
+        }
+
+    }
+
+    private final static NonSortingComparator __nonSorter = new NonSortingComparator();
+
+    private static class NonSortingComparator implements Comparator<BytesRef> {
+
+        @Override
+        public int compare(final BytesRef arg0, final BytesRef arg1) {
+            return 0;
         }
 
     }
