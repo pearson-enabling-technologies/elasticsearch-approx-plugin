@@ -119,6 +119,7 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
         final int size = _counts.size();
         _serialize.init(out, size);
         _counts.forEachEntry(_serialize);
+        _serialize.clear();
     }
 
     @Override
@@ -155,6 +156,7 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
         Collections.sort(_periods, ChronologicalOrder.INSTANCE);
         _total = _materializePeriod.getOverallTotal();
         _distinctCount = _materializePeriod.getOverallDistinct();
+        _materializePeriod.clear();
         releaseCache();
     }
 
@@ -222,6 +224,11 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
             return true;
         }
 
+        public void clear() {
+            _target = null;
+            _accumulator = null;
+        }
+
     }
 
     private final Serializer _serialize = new Serializer();
@@ -245,6 +252,10 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
                 throw new IllegalStateException(e);
             }
             return true;
+        }
+
+        public void clear() {
+            _output = null;
         }
 
     }

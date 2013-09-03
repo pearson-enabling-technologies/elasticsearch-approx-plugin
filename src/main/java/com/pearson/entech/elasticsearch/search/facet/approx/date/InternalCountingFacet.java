@@ -101,6 +101,7 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
         final int size = _counts.size();
         _serialize.init(out, size);
         _counts.forEachEntry(_serialize);
+        _serialize.clear();
     }
 
     @Override
@@ -135,6 +136,7 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
         final long[] counter = { 0 };
         _materializePeriod.init(_periods, counter);
         _counts.forEachEntry(_materializePeriod);
+        _materializePeriod.clear();
         Collections.sort(_periods, ChronologicalOrder.INSTANCE);
         _total = counter[0];
         releaseCache();
@@ -181,6 +183,10 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
             return true;
         }
 
+        public void clear() {
+            _target = null;
+        }
+
     }
 
     private final Serializer _serialize = new Serializer();
@@ -203,6 +209,10 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
                 throw new IllegalStateException(e);
             }
             return true;
+        }
+
+        public void clear() {
+            _output = null;
         }
 
     }

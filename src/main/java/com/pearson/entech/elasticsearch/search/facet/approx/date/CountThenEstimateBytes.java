@@ -88,7 +88,9 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
      * Cardinality counter
      * Null after tipping point is reached
      */
+    // TODO reimplement with trie, see if it's more efficient
     protected THashSet<BytesRef> counter;
+    protected int totalCounterBytes = 0;
 
     /**
      * Default constructor
@@ -162,7 +164,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         throw new UnsupportedOperationException();
     }
 
-    public boolean offerBytesRef(final BytesRef unsafe) {
+    public boolean offerBytesRefUnsafe(final BytesRef unsafe) {
         boolean modified = false;
 
         if(tipped)
@@ -180,6 +182,37 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
                 {
                     tip();
                 }
+                else
+                {
+                    totalCounterBytes += unsafe.length;
+                }
+            }
+        }
+
+        return modified;
+    }
+
+    public boolean offerBytesRefSafe(final BytesRef safe) {
+        boolean modified = false;
+
+        if(tipped)
+        {
+            // The estimator just needs the hash of the current bytes of the BytesRef
+            modified = estimator.offerHashed(__luceneMurmurHash.hash(safe));
+        }
+        else
+        {
+            if(counter.add(safe))
+            {
+                modified = true;
+                if(counter.size() > tippingPoint)
+                {
+                    tip();
+                }
+                else
+                {
+                    totalCounterBytes += safe.length;
+                }
             }
         }
 
@@ -190,7 +223,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     public boolean offer(final Object o)
     {
         if(o instanceof BytesRef)
-            return offerBytesRef((BytesRef) o);
+            return offerBytesRefUnsafe((BytesRef) o);
 
         final BytesRef ref = new BytesRef(o.toString());
 
@@ -209,6 +242,10 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
                 if(counter.size() > tippingPoint)
                 {
                     tip();
+                }
+                else
+                {
+                    totalCounterBytes += ref.length;
                 }
             }
         }
@@ -235,7 +272,9 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             estimator = builder.build();
             _offerMembers.init(estimator, __luceneMurmurHash);
             counter.forEach(_offerMembers);
+            _offerMembers.clear();
             counter = null;
+            totalCounterBytes = 0;
             builder = null;
             tipped = true;
         }
@@ -292,13 +331,18 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
 
             assert (count <= tippingPoint) : String.format("Invalid serialization: count (%d) > tippingPoint (%d)", count, tippingPoint);
 
+            totalCounterBytes = in.readInt();
+
+            final byte[] backing = new byte[totalCounterBytes];
+            int backingPointer = 0;
+
             //            counter = CacheRecycler.popHashSet();
             for(int i = 0; i < count; i++)
             {
                 final int length = in.readInt();
-                final byte[] bytes = new byte[length];
-                in.readFully(bytes);
-                counter.add(new BytesRef(bytes));
+                in.read(backing, backingPointer, length);
+                counter.add(new BytesRef(backing, backingPointer, length));
+                backingPointer += length;
             }
         }
     }
@@ -343,11 +387,10 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             out.writeInt(tippingPoint);
             out.writeObject(builder);
             out.writeInt(counter.size());
-            for(final BytesRef o : counter)
-            {
-                out.writeInt(o.length);
-                out.write(o.bytes, o.offset, o.length);
-            }
+            out.writeInt(totalCounterBytes);
+            _serializer.init(counter, out);
+            counter.forEach(_serializer);
+            _serializer.clear();
             CacheRecycler.pushHashSet(counter);
         }
     }
@@ -402,7 +445,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
                 {
                     for(final Object o : cte.counter)
                     {
-                        merged.offerBytesRef((BytesRef) o);
+                        merged.offerBytesRefSafe((BytesRef) o);
                     }
                 }
             }
@@ -451,6 +494,41 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         public boolean execute(final BytesRef bytes) {
             _estimator.offerHashed(_hash.hash(bytes));
             return true;
+        }
+
+        public void clear() {
+            _estimator = null;
+            _hash = null;
+        }
+
+    }
+
+    private final HashSetSerializer _serializer = new HashSetSerializer();
+
+    private static class HashSetSerializer implements TObjectProcedure<BytesRef> {
+
+        private THashSet<BytesRef> _counter;
+        private ObjectOutput _out;
+
+        private void init(final THashSet<BytesRef> counter, final ObjectOutput out) {
+            _counter = counter;
+            _out = out;
+        }
+
+        @Override
+        public boolean execute(final BytesRef bytes) {
+            try {
+                _out.writeInt(bytes.length);
+                _out.write(bytes.bytes, bytes.offset, bytes.length);
+            } catch(final IOException e) {
+                throw new IllegalStateException(e);
+            }
+            return true;
+        }
+
+        private void clear() {
+            _counter = null;
+            _out = null;
         }
 
     }
