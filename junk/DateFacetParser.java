@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.datehistogram;
 
 import java.io.IOException;
 
@@ -18,13 +18,20 @@ import org.elasticsearch.common.trove.impl.Constants;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.index.Index;
+import org.elasticsearch.index.fielddata.FieldDataType;
 import org.elasticsearch.index.fielddata.IndexFieldData;
-import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
+import org.elasticsearch.index.fielddata.IndexFieldDataCache;
 import org.elasticsearch.index.mapper.FieldMapper;
+import org.elasticsearch.index.mapper.FieldMapper.Names;
+import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.indices.fielddata.cache.IndicesFieldDataCache;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.FacetParser;
 import org.elasticsearch.search.facet.FacetPhaseExecutionException;
 import org.elasticsearch.search.internal.SearchContext;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.datehistogram.fielddata.DateFacetIndexFieldData;
 
 /**
  * Parser is responsible to make sense of a SearchRequests "facet query" and
@@ -34,12 +41,19 @@ import org.elasticsearch.search.internal.SearchContext;
  */
 public class DateFacetParser extends AbstractComponent implements FacetParser {
 
+    private static final FieldDataType fieldDataType = new FieldDataType("date_facet_timestamp");
+
     private final ImmutableMap<String, DateFieldParser> dateFieldParsers;
     private final TObjectIntHashMap<String> rounding = new TObjectIntHashMap<String>(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, -1);
+    private final IndicesService _indicesService;
+    private final IndicesFieldDataCache _cache;
 
     @Inject
-    public DateFacetParser(final Settings settings) {
+    public DateFacetParser(final Settings settings, final IndicesService indicesService,
+            final IndicesFieldDataCache cache) {
         super(settings);
+        _indicesService = indicesService;
+        _cache = cache;
 
         dateFieldParsers = MapBuilder.<String, DateFieldParser> newMapBuilder()
                 .put("year", new DateFieldParser.YearOfCentury())
@@ -176,45 +190,87 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
                 .factor(factor)
                 .build();
 
-        final LongArrayIndexFieldData keyFieldData = getKeyFieldData(facetName, keyField, context);
+        final TypedFieldData keyFieldData = getKeyFieldData(keyField, context);
+        if(keyFieldData == null)
+            throw new FacetPhaseExecutionException(facetName, "[key_field] is required to be set for distinct date histogram facet");
 
-        final IndexFieldData<?> valueFieldData = getFieldData(facetName, valueField, context);
-        final IndexFieldData<?> distinctFieldData = getFieldData(facetName, distinctField, context);
-        final IndexFieldData<?> sliceFieldData = getFieldData(facetName, sliceField, context);
-
-        if(exactThreshold < 0)
-            exactThreshold = Integer.MAX_VALUE;
-
-        final boolean debug = false;
+        final TypedFieldData valueFieldData = getFieldData(valueField, context);
+        final TypedFieldData distinctFieldData = getFieldData(distinctField, context);
+        final TypedFieldData sliceFieldData = getFieldData(sliceField, context);
 
         return new DateFacetExecutor(keyFieldData, valueFieldData, distinctFieldData, sliceFieldData,
-                tzRounding, exactThreshold, debug);
+                tzRounding, exactThreshold);
+
+        // TODO implement scripts
+        /*
+        if (valueScript != null) {
+            SearchScript script = context.scriptService().search(context.lookup(), scriptLang, valueScript, params);
+            return new ValueScriptDateHistogramFacetExecutor(keyIndexFieldData, script, tzRounding, comparatorType);
+        } else if (valueField != null) {
+            FieldMapper valueMapper = context.smartNameFieldMapper(valueField);
+            if (valueMapper == null) {
+                throw new FacetPhaseExecutionException(facetName, "(value) field [" + valueField + "] not found");
+            }
+            IndexNumericFieldData valueIndexFieldData = context.fieldData().getForField(valueMapper);
+            return new ValueDateHistogramFacetExecutor(keyIndexFieldData, valueIndexFieldData, tzRounding, comparatorType);
+        } else {
+            return new CountDateHistogramFacetExecutor(keyIndexFieldData, tzRounding, comparatorType);
+        }
+        */
+
+        //            if(distinctFieldMapper.fieldDataType().getType().equals("string")) {
+        //                final PagedBytesIndexFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
+        //                final LongArrayIndexFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
+        //                return new StringDistinctDateHistogramFacetExecutor(
+        //                        keyIndexFieldData, distinctFieldData, tzRounding, comparatorType, maxExactPerShard);
+        //            } else if(distinctFieldMapper.fieldDataType().getType().equals("long")
+        //                    || distinctFieldMapper.fieldDataType().getType().equals("int")
+        //                    || distinctFieldMapper.fieldDataType().getType().equals("short")
+        //                    || distinctFieldMapper.fieldDataType().getType().equals("byte")) {
+        //                final IndexNumericFieldData distinctFieldData = context.fieldData().getForField(distinctFieldMapper);
+        //                final LongArrayIndexFieldData keyIndexFieldData = context.fieldData().getForField(keyMapper);
+        //                return new LongDistinctDateHistogramFacetExecutor(
+        //                        keyIndexFieldData, distinctFieldData, tzRounding, comparatorType, maxExactPerShard);
+        //            } else {
+        //                throw new FacetPhaseExecutionException(facetName, "distinct field [" + distinctField + "] is not of type string or long");
+        //            }
     }
 
-    private <IFD> IFD getFieldData(final String facetName, final String fieldName, final SearchContext context) {
+    private TypedFieldData getFieldData(final String fieldName, final SearchContext context) {
         if(fieldName != null) {
             final FieldMapper<?> mapper = context.smartNameFieldMapper(fieldName);
             if(mapper == null) {
-                throw new FacetPhaseExecutionException(facetName, "no mapping found for " + fieldName);
+                throw new FacetPhaseExecutionException(fieldName, "no mapping found for " + fieldName);
             }
-            return context.fieldData().getForField(mapper);
+            final FieldDataType fieldDataType = mapper.fieldDataType();
+            final IndexFieldData fieldData = context.fieldData().getForField(mapper);
+            return new TypedFieldData(fieldData, fieldDataType);
         }
         return null;
     }
 
-    private LongArrayIndexFieldData getKeyFieldData(final String facetName, final String fieldName, final SearchContext context) {
+    private TypedFieldData getKeyFieldData(final String fieldName, final SearchContext context) {
         if(fieldName != null) {
             final FieldMapper<?> mapper = context.smartNameFieldMapper(fieldName);
             if(mapper == null) {
-                throw new FacetPhaseExecutionException(facetName, "no mapping found for " + fieldName);
+                throw new FacetPhaseExecutionException(fieldName, "no mapping found for " + fieldName);
             }
-            if(!"long".equals(mapper.fieldDataType().getType())) {
-                throw new FacetPhaseExecutionException(facetName, "key field " + fieldName + " is not of type long");
-            }
-            return context.fieldData().getForField(mapper);
+
+            final Index index = context.mapperService().index();
+            final Settings indexSettings = context.indexShard().indexSettings();
+            final Names fieldNames = mapper.names();
+            //            final Resident ifdc = new IndexFieldDataCache.Resident(
+            //                    _indicesService.indexServiceSafe(index.getName()), fieldNames, fieldDataType);
+
+            final IndexFieldDataCache ifdc =
+                    _cache.buildIndexFieldDataCache(_indicesService.indexServiceSafe(index.getName()),
+                            index, fieldNames, fieldDataType);
+            final DateFacetIndexFieldData fieldData = new DateFacetIndexFieldData(
+                    index, indexSettings, fieldNames, fieldDataType, ifdc);
+
+            return new TypedFieldData(fieldData, fieldDataType);
         }
-        else
-            throw new FacetPhaseExecutionException(facetName, "[key_field] is required to be set for date facet");
+        return null;
     }
 
     private long parseOffset(final String offset) throws IOException {
@@ -243,6 +299,23 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
                 return DateTimeZone.forID(text);
             }
         }
+    }
+
+    private boolean isIntegral(final TypedFieldData typedFieldData) {
+        if(typedFieldData == null)
+            return false;
+        final String typeName = typedFieldData.type.getType();
+        return "byte".equals(typeName)
+                || "short".equals(typeName)
+                || "int".equals(typeName)
+                || "long".equals(typeName);
+    }
+
+    private boolean isString(final TypedFieldData typedFieldData) {
+        if(typedFieldData == null)
+            return false;
+        final String typeName = typedFieldData.type.getType();
+        return "string".equals(typeName);
     }
 
     static interface DateFieldParser {
