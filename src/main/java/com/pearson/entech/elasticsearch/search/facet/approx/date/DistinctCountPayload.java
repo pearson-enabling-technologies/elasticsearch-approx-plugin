@@ -107,7 +107,7 @@ public class DistinctCountPayload {
 
     public void writeTo(final StreamOutput output) throws IOException {
         output.writeVLong(_count);
-        output.writeVInt(_cardinality.tippingPoint);
+        output.writeVInt(_cardinality.getTippingPoint());
         final byte[] bytes = _cardinality.getBytes();
         output.writeVInt(bytes.length);
         output.writeBytes(bytes);
