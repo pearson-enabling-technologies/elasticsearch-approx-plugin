@@ -92,8 +92,9 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
      * Null after tipping point is reached
      */
     protected BytesRefHash counter;
-    private static Method compact;
-    private final static Object[] nullParams = {};
+    private static final Method __compact = getCompactMethod();
+    private static final Class<?>[] __emptyParamTypes = {};
+    private static final Object[] __emptyParams = {};
     protected int totalCounterBytes = 0;
 
     /**
@@ -126,13 +127,6 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             final int initialCapacity = min(tippingPoint, 10000);
             //            this.counter.ensureCapacity(initialCapacity);
             this.counter = new BytesRefHash();
-        }
-
-        try {
-            compact = BytesRefHash.class.getDeclaredMethod("compact", null);
-            compact.setAccessible(true);
-        } catch(final Exception e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -287,22 +281,12 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             //            counter.forEach(_offerMembers);
             //            _offerMembers.clear();
 
-            int[] ids;
-            try {
-                ids = (int[]) compact.invoke(counter, nullParams);
-            } catch(final IllegalAccessException e) {
-                throw new RuntimeException(e);
-            } catch(final InvocationTargetException e) {
-                throw new RuntimeException(e);
-            }
-            final BytesRef scratch = new BytesRef();
-            for(int i = 0; i < ids.length; i++) {
-                final int id = ids[i];
-                if(id < 0)
-                    break;
-                counter.get(id, scratch);
-                estimator.offerHashed(__luceneMurmurHash.hash(scratch));
-            }
+            process(counter, new Procedure() {
+                @Override
+                public void consume(final BytesRef unsafe) {
+                    estimator.offerHashed(__luceneMurmurHash.hash(unsafe));
+                }
+            });
 
             counter = null;
             totalCounterBytes = 0;
@@ -424,25 +408,13 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             //            _serializer.clear();
             //            CacheRecycler.pushHashSet(counter);
 
-            int[] ids;
-            try {
-                ids = (int[]) compact.invoke(counter, nullParams);
-            } catch(final IllegalAccessException e) {
-                throw new RuntimeException(e);
-            } catch(final InvocationTargetException e) {
-                throw new RuntimeException(e);
-            }
-            final BytesRef scratch = new BytesRef();
-            for(int i = 0; i < ids.length; i++) {
-                final int id = ids[i];
-                if(id < 0)
-                    break;
-                counter.get(id, scratch);
-                out.writeInt(scratch.length);
-                out.write(scratch.bytes, scratch.offset, scratch.length);
-            }
-            counter.close();
-
+            process(counter, new Procedure() {
+                @Override
+                public void consume(final BytesRef unsafe) throws IOException {
+                    out.writeInt(unsafe.length);
+                    out.write(unsafe.bytes, unsafe.offset, unsafe.length);
+                }
+            });
         }
     }
 
@@ -469,73 +441,99 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
      */
     public static CountThenEstimateBytes mergeEstimators(final CountThenEstimateBytes... estimators) throws CardinalityMergeException
     {
-        CountThenEstimateBytes merged = null;
+        final CountThenEstimateBytes merged;
         final int numEstimators = (estimators == null) ? 0 : estimators.length;
-        if(numEstimators > 0)
-        {
+        if(numEstimators > 0) {
             final List<ICardinality> tipped = new ArrayList<ICardinality>(numEstimators);
             final List<CountThenEstimateBytes> untipped = new ArrayList<CountThenEstimateBytes>(numEstimators);
 
-            for(final CountThenEstimateBytes estimator : estimators)
-            {
-                if(estimator.tipped)
-                {
+            for(final CountThenEstimateBytes estimator : estimators) {
+                if(estimator.tipped) {
                     tipped.add(estimator.estimator);
-                }
-                else
-                {
+                } else {
                     untipped.add(estimator);
                 }
             }
 
-            if(untipped.size() > 0)
-            {
-                merged = new CountThenEstimateBytes(untipped.get(0).tippingPoint, untipped.get(0).builder);
+            final int untippedSize = untipped.size();
+            if(untippedSize > 0) {
+                //                merged = new CountThenEstimateBytes(untipped.get(0).tippingPoint, untipped.get(0).builder);
+                merged = untipped.get(0);
 
-                for(final CountThenEstimateBytes cte : untipped)
-                {
-                    final BytesRef scratch = new BytesRef();
-                    int[] ids;
-                    try {
-                        ids = (int[]) compact.invoke(cte.counter, nullParams);
-                    } catch(final IllegalAccessException e) {
-                        throw new RuntimeException(e);
-                    } catch(final InvocationTargetException e) {
-                        throw new RuntimeException(e);
-                    }
-                    for(int i = 0; i < ids.length; i++) {
-                        final int id = ids[i];
-                        if(id < 0)
-                            break;
-                        cte.counter.get(id, scratch);
-                        merged.offerBytesRefUnsafe(scratch);
-                    }
-                    cte.counter.close();
+                for(int i = 1; i < untippedSize; i++) {
+                    final CountThenEstimateBytes cte = untipped.get(i);
+                    process(cte.counter, new Procedure() {
+                        @Override
+                        public void consume(final BytesRef unsafe) throws Exception {
+                            merged.offerBytesRefUnsafe(unsafe);
+                        }
+                    });
 
                     //                    for(final Object o : cte.counter)
                     //                    {
                     //                        merged.offerBytesRefSafe((BytesRef) o);
                     //                    }
                 }
-            }
-            else
-            {
+
+            } else {
+
                 merged = new CountThenEstimateBytes(0, new LinearCounting.Builder(1));
                 merged.tip();
                 merged.estimator = tipped.remove(0);
+
             }
 
-            if(!tipped.isEmpty())
-            {
-                if(!merged.tipped)
-                {
+            if(!tipped.isEmpty()) {
+                if(!merged.tipped) {
                     merged.tip();
                 }
                 merged.estimator = merged.estimator.merge(tipped.toArray(new ICardinality[tipped.size()]));
             }
 
+            return merged;
         }
-        return merged;
+        return null;
+    }
+
+    private static void process(final BytesRefHash hash, final Procedure proc) {
+        int[] ids;
+        try {
+            ids = (int[]) __compact.invoke(hash, __emptyParams);
+        } catch(final IllegalAccessException e) {
+            throw new RuntimeException(e);
+        } catch(final InvocationTargetException e) {
+            throw new RuntimeException(e);
+        }
+        final BytesRef scratch = new BytesRef();
+        for(int i = 0; i < ids.length; i++) {
+            final int id = ids[i];
+            if(id < 0)
+                break;
+            hash.get(id, scratch);
+            try {
+                proc.consume(scratch);
+            } catch(final Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
+        hash.clear();
+    }
+
+    private static interface Procedure {
+        void consume(BytesRef unsafe) throws Exception;
+    }
+
+    private static Method getCompactMethod() {
+        Method compact;
+        try {
+            compact = BytesRefHash.class.getDeclaredMethod("compact", new Class[0]);
+        } catch(final SecurityException e) {
+            throw new RuntimeException(e);
+        } catch(final NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
+        compact.setAccessible(true);
+        return compact;
     }
 
     @SuppressWarnings("serial")
