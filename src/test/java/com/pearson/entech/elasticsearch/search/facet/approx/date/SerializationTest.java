@@ -1,7 +1,10 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.date;
 
+import static com.google.common.collect.Maps.newHashMap;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+
+import java.util.Map;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.CacheRecycler;
@@ -14,12 +17,6 @@ import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.search.facet.InternalFacet;
 import org.junit.Test;
-
-import com.pearson.entech.elasticsearch.search.facet.approx.date.DistinctCountPayload;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalCountingFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalDistinctFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalSlicedDistinctFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalSlicedFacet;
 
 public class SerializationTest {
 
@@ -58,7 +55,8 @@ public class SerializationTest {
     @Test
     public void testSerializingEmptyDistinctFacet() throws Exception {
         final ExtTLongObjectHashMap<DistinctCountPayload> counts = CacheRecycler.popLongObjectMap();
-        testSerializingDistinctFacet(counts);
+        final Map<Long, Integer> expectedCounts = newHashMap();
+        testSerializingDistinctFacet(counts, expectedCounts, expectedCounts);
     }
 
     @Test
@@ -86,37 +84,38 @@ public class SerializationTest {
         final ExtTLongObjectHashMap<DistinctCountPayload> counts = CacheRecycler.popLongObjectMap();
         counts.put(1, payload1);
         counts.put(2, payload2);
-        testSerializingDistinctFacet(counts);
+        final Map<Long, Integer> expectedCounts = newHashMap();
+        expectedCounts.put(1l, 2);
+        expectedCounts.put(2l, 2);
+        final Map<Long, Integer> expectedCardinalities = expectedCounts; // They're the same in this case
+        testSerializingDistinctFacet(counts, expectedCounts, expectedCardinalities);
     }
 
-    private void testSerializingDistinctFacet(final ExtTLongObjectHashMap<DistinctCountPayload> counts) throws Exception {
-        final ExtTLongObjectHashMap<DistinctCountPayload> sentCounts =
-                new ExtTLongObjectHashMap<DistinctCountPayload>(counts);
-        final InternalDistinctFacet toSend = new InternalDistinctFacet("bar", sentCounts);
+    private void testSerializingDistinctFacet(final ExtTLongObjectHashMap<DistinctCountPayload> counts,
+            final Map<Long, Integer> expectedCounts, final Map<Long, Integer> expectedCardinalities) throws Exception {
+        final InternalDistinctFacet toSend = new InternalDistinctFacet("bar", counts);
         final InternalDistinctFacet toReceive = new InternalDistinctFacet();
         serializeAndDeserialize(toSend, toReceive);
         final ExtTLongObjectHashMap<DistinctCountPayload> receivedCounts =
                 new ExtTLongObjectHashMap<DistinctCountPayload>(toReceive.peekCounts());
-        // Check against original counts as sentCounts may have been recycled
-        compareDistinctCounts(counts, receivedCounts);
+        compareDistinctCounts(expectedCounts, expectedCardinalities, receivedCounts);
     }
 
-    private void compareDistinctCounts(final ExtTLongObjectHashMap<DistinctCountPayload> sentCounts,
-            final ExtTLongObjectHashMap<DistinctCountPayload> receivedCounts) {
-        assertEquals(sentCounts.size(), receivedCounts.size());
-        for(final long key : sentCounts.keys()) {
-            assertTrue(receivedCounts.containsKey(key));
-            final DistinctCountPayload sentVal = sentCounts.get(key);
-            final DistinctCountPayload receivedVal = receivedCounts.get(key);
-            assertEquals(sentVal.getCount(), receivedVal.getCount());
-            assertEquals(sentVal.getCardinality().cardinality(), receivedVal.getCardinality().cardinality());
+    private void compareDistinctCounts(final Map<Long, Integer> expectedCounts,
+            final Map<Long, Integer> expectedCardinalities, final ExtTLongObjectHashMap<DistinctCountPayload> receivedCounts) {
+        assertEquals(expectedCounts.size(), receivedCounts.size());
+        for(final long period : expectedCounts.keySet()) {
+            final DistinctCountPayload payload = receivedCounts.get(period);
+            assertEquals(expectedCounts.get(period).intValue(), payload.getCount());
+            assertEquals(expectedCardinalities.get(period).intValue(), payload.getCardinality().cardinality());
         }
     }
 
     @Test
     public void testSerializingEmptySlicedDistinctFacet() throws Exception {
         final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts = CacheRecycler.popLongObjectMap();
-        testSerializingSlicedDistinctFacet(counts);
+        final Map<Long, Map<BytesRef, Integer>> emptyMap = newHashMap();
+        testSerializingSlicedDistinctFacet(counts, emptyMap, emptyMap);
     }
 
     @Test
@@ -156,50 +155,52 @@ public class SerializationTest {
         payload4.updateUnsafe(new BytesRef("bart"));
         payload4.updateUnsafe(new BytesRef("bart"));
         period2.put(label1, payload3);
-        period2.put(label1, payload4);
+        period2.put(label2, payload4);
         counts.put(2, period2);
-        testSerializingSlicedDistinctFacet(counts);
+        final Map<Long, Map<BytesRef, Integer>> expectedCounts = newHashMap();
+        final Map<BytesRef, Integer> period1Counts = newHashMap();
+        period1Counts.put(new BytesRef("itchy"), 2);
+        period1Counts.put(new BytesRef("scratchy"), 2);
+        expectedCounts.put(1l, period1Counts);
+        final Map<BytesRef, Integer> period2Counts = newHashMap();
+        period2Counts.put(new BytesRef("itchy"), 2);
+        period2Counts.put(new BytesRef("scratchy"), 2);
+        expectedCounts.put(2l, period2Counts);
+        final Map<Long, Map<BytesRef, Integer>> expectedCards = newHashMap();
+        final Map<BytesRef, Integer> period1Cards = newHashMap();
+        period1Cards.put(new BytesRef("itchy"), 2);
+        period1Cards.put(new BytesRef("scratchy"), 1);
+        expectedCards.put(1l, period1Cards);
+        final Map<BytesRef, Integer> period2Cards = newHashMap();
+        period2Cards.put(new BytesRef("itchy"), 2);
+        period2Cards.put(new BytesRef("scratchy"), 1);
+        expectedCards.put(2l, period2Cards);
+        testSerializingSlicedDistinctFacet(counts, expectedCounts, expectedCards);
     }
 
-    private void testSerializingSlicedDistinctFacet(final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts) throws Exception {
-        final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> sentCounts =
-                deepCopySlicedDistinct(counts);
-        final InternalSlicedDistinctFacet toSend = new InternalSlicedDistinctFacet("baz", sentCounts);
+    private void testSerializingSlicedDistinctFacet(final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts,
+            final Map<Long, Map<BytesRef, Integer>> expectedCounts, final Map<Long, Map<BytesRef, Integer>> expectedCards) throws Exception {
+        final InternalSlicedDistinctFacet toSend = new InternalSlicedDistinctFacet("baz", counts);
         final InternalSlicedDistinctFacet toReceive = new InternalSlicedDistinctFacet();
         serializeAndDeserialize(toSend, toReceive);
         final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> receivedCounts =
                 new ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>>(toReceive.peekCounts());
         // Check against original counts as sentCounts may have been recycled
-        compareSlicedDistinctCounts(counts, receivedCounts);
+        compareSlicedDistinctCounts(expectedCounts, expectedCards, receivedCounts);
     }
 
-    private ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> deepCopySlicedDistinct(
-            final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts) {
-        final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> output =
-                new ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>>();
-        for(final long key : counts.keys()) {
-            output.put(key, new ExtTHashMap<BytesRef, DistinctCountPayload>());
-            for(final BytesRef br : counts.get(key).keySet()) {
-                output.get(key).put(BytesRef.deepCopyOf(br), counts.get(key).get(br));
-            }
-        }
-        return output;
-    }
-
-    private void compareSlicedDistinctCounts(final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> sentCounts,
-            final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> receivedCounts) {
-        assertEquals(sentCounts.size(), receivedCounts.size());
-        for(final long key : sentCounts.keys()) {
-            assertTrue(receivedCounts.containsKey(key));
-            final ExtTHashMap<BytesRef, DistinctCountPayload> sentSlice = sentCounts.get(key);
-            final ExtTHashMap<BytesRef, DistinctCountPayload> receivedSlice = receivedCounts.get(key);
-            assertEquals(sentSlice.size(), receivedSlice.size());
-            for(final BytesRef label : sentSlice.keySet()) {
-                assertTrue(receivedSlice.containsKey(label));
-                final DistinctCountPayload sentPayload = sentSlice.get(label);
-                final DistinctCountPayload receivedPayload = receivedSlice.get(label);
-                assertEquals(sentPayload.getCount(), receivedPayload.getCount());
-                assertEquals(sentPayload.getCardinality().cardinality(), receivedPayload.getCardinality().cardinality());
+    private void compareSlicedDistinctCounts(final Map<Long, Map<BytesRef, Integer>> expectedCounts,
+            final Map<Long, Map<BytesRef, Integer>> expectedCards, final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts) {
+        assertEquals(expectedCounts.size(), counts.size());
+        for(final long period : expectedCounts.keySet()) {
+            assertTrue(counts.containsKey(period));
+            final ExtTHashMap<BytesRef, DistinctCountPayload> receivedPeriod = counts.get(period);
+            final Map<BytesRef, Integer> expectedPeriodCounts = expectedCounts.get(period);
+            final Map<BytesRef, Integer> expectedPeriodCards = expectedCards.get(period);
+            for(final BytesRef label : expectedCounts.get(period).keySet()) {
+                assertTrue(receivedPeriod.containsKey(label));
+                assertEquals(expectedPeriodCounts.get(label).intValue(), receivedPeriod.get(label).getCount());
+                assertEquals(expectedPeriodCards.get(label).intValue(), receivedPeriod.get(label).getCardinality().cardinality());
             }
         }
     }
