@@ -85,7 +85,7 @@ public class SlicedDistinctCollector<V extends AtomicFieldData<? extends ScriptD
                     final BytesRef unsafeTerm = distinctIter.next();
                     // Unsafe because this may change; the counter needs to make
                     // it safe if it's going to keep hold of the bytes
-                    count.updateUnsafe(unsafeTerm);
+                    count.update(unsafeTerm);
                 }
             }
         }
@@ -112,9 +112,9 @@ public class SlicedDistinctCollector<V extends AtomicFieldData<? extends ScriptD
             subMap = CacheRecycler.popHashMap();
             counts.put(key, subMap);
         }
-        final BytesRef safe = BytesRef.deepCopyOf(unsafe);
-        DistinctCountPayload payload = subMap.get(safe);
+        DistinctCountPayload payload = subMap.get(unsafe);
         if(payload == null) {
+            final BytesRef safe = BytesRef.deepCopyOf(unsafe);
             payload = new DistinctCountPayload(_exactThreshold);
             subMap.put(safe, payload);
         }

@@ -57,6 +57,12 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     protected boolean _tipped = false;
 
     /**
+     * True after compacting the counter storage for exact cardinality.
+     * You can't add new data after this has been done, so an exception will be thrown.
+     */
+    protected boolean _compacted = false;
+
+    /**
      * Factory for instantiating _estimator after the tipping point is reached
      */
     protected IBuilder<ICardinality> _builder;
@@ -74,7 +80,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     protected BytesRefHash _counter;
     private static final Method __compact = getCompactMethod();
     private static final Object[] __emptyParams = {};
-    protected int _totalCounterBytes = 0;
+    protected int _longestBytesRefSize = 0;
 
     /**
      *  Used for adding bytesrefs to the _estimator, not used in exact counting
@@ -135,37 +141,21 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         throw new UnsupportedOperationException();
     }
 
-    public boolean offerBytesRefUnsafe(final BytesRef unsafe) {
+    public boolean offerBytesRef(final BytesRef ref) {
         boolean modified = false;
         if(_tipped) {
             // The _estimator just needs the hash of the current bytes of the BytesRef
-            modified = _estimator.offerHashed(__luceneMurmurHash.hash(unsafe));
+            modified = _estimator.offerHashed(__luceneMurmurHash.hash(ref));
         } else {
-            // The _counter must copy the BytesRef as it needs to stay intact
-            if(_counter.add(BytesRef.deepCopyOf(unsafe)) >= 0) {
+            if(_compacted)
+                throw new IllegalStateException("Counter has already been compacted -- cannot add new data");
+            if(_counter.add(ref) >= 0) {
                 modified = true;
                 if(_counter.size() > _tippingPoint) {
                     tip();
                 } else {
-                    _totalCounterBytes += unsafe.length;
-                }
-            }
-        }
-        return modified;
-    }
-
-    public boolean offerBytesRefSafe(final BytesRef safe) {
-        boolean modified = false;
-        if(_tipped) {
-            // The _estimator just needs the hash of the current bytes of the BytesRef
-            modified = _estimator.offerHashed(__luceneMurmurHash.hash(safe));
-        } else {
-            if(_counter.add(safe) >= 0) {
-                modified = true;
-                if(_counter.size() > _tippingPoint) {
-                    tip();
-                } else {
-                    _totalCounterBytes += safe.length;
+                    if(ref.length > _longestBytesRefSize)
+                        _longestBytesRefSize = ref.length;
                 }
             }
         }
@@ -176,25 +166,9 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     public boolean offer(final Object o)
     {
         if(o instanceof BytesRef)
-            return offerBytesRefUnsafe((BytesRef) o);
-
-        final BytesRef ref = new BytesRef(o.toString());
-
-        boolean modified = false;
-        if(_tipped) {
-            // The _estimator just needs the hash of the current bytes of the BytesRef
-            modified = _estimator.offerHashed(__luceneMurmurHash.hash(ref));
-        } else {
-            if(_counter.add(ref) >= 0) {
-                modified = true;
-                if(_counter.size() > _tippingPoint) {
-                    tip();
-                } else {
-                    _totalCounterBytes += ref.length;
-                }
-            }
-        }
-        return modified;
+            return offerBytesRef((BytesRef) o);
+        else
+            return offerBytesRef(new BytesRef(o.toString()));
     }
 
     @Override
@@ -217,14 +191,15 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             _estimator = _builder.build();
             process(_counter, new Procedure() {
                 @Override
-                public void consume(final BytesRef unsafe) {
-                    _estimator.offerHashed(__luceneMurmurHash.hash(unsafe));
+                public void consume(final BytesRef ref) {
+                    _estimator.offerHashed(__luceneMurmurHash.hash(ref));
                 }
             });
             _counter = null;
-            _totalCounterBytes = 0;
+            _longestBytesRefSize = 0;
             _builder = null;
             _tipped = true;
+            _compacted = true;
         }
     }
 
@@ -276,18 +251,20 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
 
             assert (count <= _tippingPoint) : String.format("Invalid serialization: count (%d) > _tippingPoint (%d)", count, _tippingPoint);
 
-            _totalCounterBytes = in.readInt();
-
-            final byte[] backing = new byte[_totalCounterBytes];
-            int backingPointer = 0;
-
-            for(int i = 0; i < count; i++) {
-                final int length = in.readInt();
-                in.read(backing, backingPointer, length);
-                _counter.add(new BytesRef(backing, backingPointer, length));
-                backingPointer += length;
+            // Just in case some muppet tries to deserialize into an already-used counter
+            if(_compacted || _counter.size() > 0) {
+                _counter.clear();
+                _counter.reinit();
+                _compacted = false;
             }
 
+            _longestBytesRefSize = in.readInt();
+            final byte[] scratch = new byte[_longestBytesRefSize];
+            for(int i = 0; i < count; i++) {
+                final int length = in.readInt();
+                in.read(scratch, 0, length);
+                _counter.add(new BytesRef(scratch, 0, length));
+            }
         }
     }
 
@@ -318,15 +295,16 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             out.writeInt(_tippingPoint);
             out.writeObject(_builder);
             out.writeInt(_counter.size());
-            out.writeInt(_totalCounterBytes);
+            out.writeInt(_longestBytesRefSize);
 
             process(_counter, new Procedure() {
                 @Override
-                public void consume(final BytesRef unsafe) throws IOException {
-                    out.writeInt(unsafe.length);
-                    out.write(unsafe.bytes, unsafe.offset, unsafe.length);
+                public void consume(final BytesRef ref) throws IOException {
+                    out.writeInt(ref.length);
+                    out.write(ref.bytes, ref.offset, ref.length);
                 }
             });
+            _compacted = true;
 
         }
     }
@@ -372,10 +350,11 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
                     final CountThenEstimateBytes cte = untipped.get(i);
                     process(cte._counter, new Procedure() {
                         @Override
-                        public void consume(final BytesRef unsafe) throws Exception {
-                            merged.offerBytesRefUnsafe(unsafe);
+                        public void consume(final BytesRef ref) throws Exception {
+                            merged.offerBytesRef(ref);
                         }
                     });
+                    cte._compacted = true;
                 }
 
             } else {
@@ -425,7 +404,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     }
 
     private static interface Procedure {
-        void consume(BytesRef unsafe) throws Exception;
+        void consume(BytesRef ref) throws Exception;
     }
 
     private static Method getCompactMethod() {

@@ -76,20 +76,6 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
             while(hasNextTimestamp()) {
                 final long time = nextTimestamp();
                 timestampList.add((int) (time / 1000));
-
-                //                    // Get rid of all of this eventually
-                //
-                //                    final DistinctCountPayload count = getSafely(_counts, time);
-                //                    final boolean modified = count.updateSafe(unsafe);
-                //
-                //                    if(_debug) {
-                //                        _debugTotalCount++;
-                //                        if(modified) {
-                //                            _debugDistinctCount++;
-                //                        }
-                //                        assert _debugTotalCount == count.getCount();
-                //                        assert _debugDistinctCount == count.getCardinality().cardinality();
-                //                    }
             }
 
             // Reset timestamp iterator for this doc
@@ -118,7 +104,7 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
                     payload = new DistinctCountPayload(_exactThreshold);
                     counts.put(timestamp, payload);
                 }
-                payload.updateSafe(fieldVal);
+                payload.update(fieldVal);
             }
             _occurrences.put(fieldVal, null); // Free this up for GC immediately
         }

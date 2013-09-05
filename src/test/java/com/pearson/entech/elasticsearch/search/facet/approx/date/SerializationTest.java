@@ -76,11 +76,11 @@ public class SerializationTest {
 
     private void testSerializingNonEmptyDistinctFacet(final int threshold1, final int threshold2) throws Exception {
         final DistinctCountPayload payload1 = new DistinctCountPayload(threshold1);
-        payload1.updateUnsafe(new BytesRef("marge"));
-        payload1.updateUnsafe(new BytesRef("homer"));
+        payload1.update(new BytesRef("marge"));
+        payload1.update(new BytesRef("homer"));
         final DistinctCountPayload payload2 = new DistinctCountPayload(threshold2);
-        payload2.updateUnsafe(new BytesRef("bart"));
-        payload2.updateUnsafe(new BytesRef("lisa"));
+        payload2.update(new BytesRef("bart"));
+        payload2.update(new BytesRef("lisa"));
         final ExtTLongObjectHashMap<DistinctCountPayload> counts = CacheRecycler.popLongObjectMap();
         counts.put(1, payload1);
         counts.put(2, payload2);
@@ -139,21 +139,21 @@ public class SerializationTest {
         final BytesRef label2 = new BytesRef("scratchy");
         final ExtTHashMap<BytesRef, DistinctCountPayload> period1 = CacheRecycler.popHashMap();
         final DistinctCountPayload payload1 = new DistinctCountPayload(threshold1);
-        payload1.updateUnsafe(new BytesRef("marge"));
-        payload1.updateUnsafe(new BytesRef("homer"));
+        payload1.update(new BytesRef("marge"));
+        payload1.update(new BytesRef("homer"));
         final DistinctCountPayload payload2 = new DistinctCountPayload(threshold1);
-        payload2.updateUnsafe(new BytesRef("marge"));
-        payload2.updateUnsafe(new BytesRef("marge"));
+        payload2.update(new BytesRef("marge"));
+        payload2.update(new BytesRef("marge"));
         period1.put(label1, payload1);
         period1.put(label2, payload2);
         counts.put(1, period1);
         final ExtTHashMap<BytesRef, DistinctCountPayload> period2 = CacheRecycler.popHashMap();
         final DistinctCountPayload payload3 = new DistinctCountPayload(threshold2);
-        payload3.updateUnsafe(new BytesRef("bart"));
-        payload3.updateUnsafe(new BytesRef("lisa"));
+        payload3.update(new BytesRef("bart"));
+        payload3.update(new BytesRef("lisa"));
         final DistinctCountPayload payload4 = new DistinctCountPayload(threshold2);
-        payload4.updateUnsafe(new BytesRef("bart"));
-        payload4.updateUnsafe(new BytesRef("bart"));
+        payload4.update(new BytesRef("bart"));
+        payload4.update(new BytesRef("bart"));
         period2.put(label1, payload3);
         period2.put(label2, payload4);
         counts.put(2, period2);
