@@ -238,6 +238,32 @@ Then create a `plugins/approx` directory in your ElasticSearch install dir,
 and unzip the zipfile into there.
 
 
+## Developer information
+
+Each facet has a Builder class which is used in the Java API to build an
+XContent message (e.g. JSON) representing the facet clause of a query. If you
+are constructing a query from Java, you can use this class yourself, exactly
+like the builders for the facets provided with ElasticSearch. Just include the
+jar file in your client project.
+
+On the server side, each facet has a Parser class which parses the XContent of
+the facet clause, and invokes an Executor to actually perform the facet
+computation. This happens in a single thread on **each** shard separately.  The
+Executors use Collector classes to iterate through the field data supplied by
+ElasticSearch -- these are invoked directly by ElasticSearch itself. After this
+collection phase is complete, ElasticSearch calls the buildFacet() method on
+the Executor to retrieve an InternalFacet object.
+
+Each shard yields a single internal facet. This is responsible for serialization
+and deserialization, and supplies a reduce() method which enables ElasticSearch
+to merge the internal facets from multiple shards into a single object.
+
+The internal facet objects are specializations of Facets, which are what are
+actually returned to the client. Currently, in the term list facet, the public
+Facet is an interface, while in the date facet, the public Facets are abstract
+classes. This difference may disappear in the future.
+
+
 ## Credits
 
 This project was developed by the Data Analytics & Visualization team
