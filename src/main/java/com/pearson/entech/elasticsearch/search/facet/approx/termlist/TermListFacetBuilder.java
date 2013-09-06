@@ -14,10 +14,6 @@ public class TermListFacetBuilder extends FacetBuilder {
 
     }
 
-    public TermListFacetBuilder readFromCache(final boolean val) {
-        return this;
-    }
-
     public TermListFacetBuilder keyField(final String field) {
         this._fieldName = field;
         return this;

@@ -16,7 +16,7 @@ import org.elasticsearch.search.internal.SearchContext;
 
 public class TermListFacetParser extends AbstractComponent implements FacetParser {
 
-   // private final int ordinalsCacheAbove;
+    // private final int ordinalsCacheAbove;
 
     @Inject
     public TermListFacetParser(final Settings settings) {
@@ -48,7 +48,7 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
         XContentParser.Token token;
         String fieldName = null;
         int maxPerShard = 100;
-        boolean readFromCache = true;
+        final boolean readFromCache = true;
         while((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if(token == XContentParser.Token.FIELD_NAME) {
                 fieldName = parser.currentName();
@@ -60,14 +60,9 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
                 } else if("max_per_shard".equals(fieldName) || "maxPerShard".equals(fieldName)) {
                     maxPerShard = parser.intValue();
                 }
-                else if("read_from_cache".equals(fieldName) || "readFromCache".equals(fieldName)
-                        || "use_cache".equals(fieldName) || "useCache".equals(fieldName)
-                        || "use_field_data".equals(fieldName) || "useFieldData".equals(fieldName)) {
-                    readFromCache = parser.booleanValue();
-                }
             }
         }
-        
+
         if(keyField == null) {
             throw new FacetPhaseExecutionException(facetName, "key field is required to be set for term list facet, either using [field] or using [key_field]");
         }
@@ -88,7 +83,7 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
                System.out.println("numeric fields");
             }
         }*/
-        return new TermListFacetExecutor(indexFieldData, facetName, maxPerShard); 
+        return new TermListFacetExecutor(indexFieldData, facetName, maxPerShard);
     }
 
 }

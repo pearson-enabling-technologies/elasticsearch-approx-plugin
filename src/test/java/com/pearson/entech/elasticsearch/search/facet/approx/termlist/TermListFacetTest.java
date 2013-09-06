@@ -32,9 +32,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetBuilder;
-
 public class TermListFacetTest {
 
     private static Node __node;
@@ -145,13 +142,13 @@ public class TermListFacetTest {
         uniqs.addAll(words);
 
         assertEquals(numOfDocs, countAll());
-        final SearchResponse response1 = getTermList(__intField1, _words.length, true);
+        final SearchResponse response1 = getTermList(__intField1, _words.length);
 
         checkIntSearchResponse(response1, numOfDocs, uniqs.size(), words);
     }
 
     @Test
-    public void testWithJsonWithRandomStringsNoCache() throws Exception {
+    public void testWithJsonWithRandomStrings() throws Exception {
         final int numOfElements = 100 + _random.nextInt(100);
         final int numOfWords = 20 + _random.nextInt(10);
         final List<String> words = generateRandomWords(numOfWords);
@@ -178,7 +175,7 @@ public class TermListFacetTest {
     }
 
     @Test
-    public void testWithRandomStringsNoCache() throws Exception {
+    public void testWithRandomStrings() throws Exception {
         final int numOfElements = 100 + _random.nextInt(100);
         final int numOfWords = 20 + _random.nextInt(10);
         final List<String> words = generateRandomWords(numOfWords);
@@ -197,8 +194,8 @@ public class TermListFacetTest {
         final Set<String> uniqs = new HashSet<String>(words);
 
         assertEquals(numOfElements, countAll());
-        final SearchResponse response1 = getTermList(__txtField1, numOfElements, false);
-        final SearchResponse response2 = getTermList(__txtField2, numOfElements, false);
+        final SearchResponse response1 = getTermList(__txtField1, numOfElements);
+        final SearchResponse response2 = getTermList(__txtField2, numOfElements);
 
         checkStringSearchResponse(response1, numOfElements, uniqs.size(), words);
         checkStringSearchResponse(response2, numOfElements, uniqs.size(), words);
@@ -206,35 +203,7 @@ public class TermListFacetTest {
     }
 
     @Test
-    public void testWithRandomStringsWithCache() throws Exception {
-        final int numOfElements = 100 + _random.nextInt(100);
-        final int numOfWords = 20 + _random.nextInt(10);
-        final List<String> words = generateRandomWords(numOfWords);
-
-        int rIndex1 = _random.nextInt(numOfWords);
-        int rIndex2 = _random.nextInt(numOfWords);
-        for(int i = 0; i < numOfElements; i++) {
-            putSync(newID(), words.get(rIndex1), words.get(rIndex2), 0, 0);
-            rIndex1++;
-            rIndex1 %= numOfWords;
-
-            rIndex2++;
-            rIndex2 %= numOfWords;
-        }
-
-        final Set<String> uniqs = new HashSet<String>(words);
-
-        assertEquals(numOfElements, countAll());
-        final SearchResponse response1 = getTermList(__txtField1, numOfElements, true);
-        final SearchResponse response2 = getTermList(__txtField2, numOfElements, true);
-
-        checkStringSearchResponse(response1, numOfElements, uniqs.size(), words);
-        checkStringSearchResponse(response2, numOfElements, uniqs.size(), words);
-
-    }
-
-    @Test
-    public void testLongsNoCache() throws Exception {
+    public void testLongs() throws Exception {
 
         final int testLength = 7;
         final int maxPerShard = 3;
@@ -242,13 +211,13 @@ public class TermListFacetTest {
         for(int i = 0; i < numList.size(); i++) {
             putSync(newID(), "", "", 1, numList.get(i));
         }
-        final SearchResponse response1 = getTermList(__longField1, maxPerShard, false);
+        final SearchResponse response1 = getTermList(__longField1, maxPerShard);
         checkLongSearchResponse(response1, testLength, testLength, numList);
 
     }
 
     @Test
-    public void testIntsNoCache() throws Exception {
+    public void testInts() throws Exception {
 
         final int testLength = 7;
         final int maxPerShard = 3;
@@ -256,13 +225,13 @@ public class TermListFacetTest {
         for(int i = 0; i < numList.size(); i++) {
             putSync(newID(), "", "", numList.get(i), 0);
         }
-        final SearchResponse response1 = getTermList(__intField1, maxPerShard, false);
+        final SearchResponse response1 = getTermList(__intField1, maxPerShard);
         checkIntSearchResponse(response1, testLength, testLength, numList);
 
     }
 
     @Test
-    public void testWithIntRandomDataNoCache() throws Exception {
+    public void testWithIntRandomData() throws Exception {
 
         final int numOfDocumentsToIndex = 200 + _random.nextInt(200);
         final int numOfWordsToGenerate = 100 + _random.nextInt(100);
@@ -279,35 +248,12 @@ public class TermListFacetTest {
             rIndex %= numOfWordsToGenerate;
 
         }
-        final SearchResponse response1 = getTermList(__intField1, numOfWordsToGenerate, false);
-        checkIntSearchResponse(response1, numOfDocumentsToIndex, uniqs.size(), nums);
-
-    }
-
-    @Test
-    public void testWithIntRandomDataWithCache() throws Exception {
-
-        final int numOfDocumentsToIndex = 200 + _random.nextInt(200);
-        final int numOfWordsToGenerate = 100 + _random.nextInt(100);
-
-        final List<Integer> nums = generateRandomInts(numOfWordsToGenerate);
-        final Set<Integer> uniqs = new HashSet<Integer>(nums);
-
-        int rIndex = _random.nextInt(numOfWordsToGenerate);
-
-        for(int i = 0; i < numOfDocumentsToIndex; i++) {
-
-            putSync(newID(), "", "", nums.get(rIndex), 0);
-            rIndex++;
-            rIndex %= numOfWordsToGenerate;
-
-        }
-        final SearchResponse response1 = getTermList(__intField1, numOfWordsToGenerate, true);
+        final SearchResponse response1 = getTermList(__intField1, numOfWordsToGenerate);
         checkIntSearchResponse(response1, numOfDocumentsToIndex, uniqs.size(), nums);
     }
 
     @Test
-    public void testWithLongRandomDataNoCache() throws Exception {
+    public void testWithLongRandomData() throws Exception {
 
         final int numOfDocumentsToIndex = 200 + _random.nextInt(200);
         final int numOfWordsToGenerate = 100 + _random.nextInt(100);
@@ -325,31 +271,7 @@ public class TermListFacetTest {
             rIndex2 %= numOfWordsToGenerate;
 
         }
-        final SearchResponse response1 = getTermList(__longField1, numOfWordsToGenerate, false);
-        checkLongSearchResponse(response1, numOfDocumentsToIndex, uniqs.size(), nums);
-
-    }
-
-    @Test
-    public void testWithLongRandomDataWithCache() throws Exception {
-
-        final int numOfDocumentsToIndex = 200 + _random.nextInt(200);
-        final int numOfWordsToGenerate = 100 + _random.nextInt(100);
-
-        final List<Long> nums = generateRandomLongs(numOfWordsToGenerate);
-        final Set<Long> uniqs = new HashSet<Long>(nums);
-
-        int rIndex2 = _random.nextInt(numOfWordsToGenerate);
-
-        for(int i = 0; i < numOfDocumentsToIndex; i++) {
-
-            putSync(newID(), "", "", 0, nums.get(rIndex2));
-
-            rIndex2++;
-            rIndex2 %= numOfWordsToGenerate;
-
-        }
-        final SearchResponse response1 = getTermList(__longField1, numOfWordsToGenerate, true);
+        final SearchResponse response1 = getTermList(__longField1, numOfWordsToGenerate);
         checkLongSearchResponse(response1, numOfDocumentsToIndex, uniqs.size(), nums);
 
     }
@@ -387,10 +309,10 @@ public class TermListFacetTest {
         final Set<Long> uniqLongs = new HashSet<Long>(longs);
 
         assertEquals(numOfElements, countAll());
-        final SearchResponse response1 = getTermList(__txtField1, numOfElements, false);
-        final SearchResponse response2 = getTermList(__txtField2, numOfElements, false);
-        final SearchResponse response3 = getTermList(__intField1, numOfElements, false);
-        final SearchResponse response4 = getTermList(__longField1, numOfElements, false);
+        final SearchResponse response1 = getTermList(__txtField1, numOfElements);
+        final SearchResponse response2 = getTermList(__txtField2, numOfElements);
+        final SearchResponse response3 = getTermList(__intField1, numOfElements);
+        final SearchResponse response4 = getTermList(__longField1, numOfElements);
 
         checkStringSearchResponse(response1, numOfElements, uniqsStrings.size(), words);
         checkStringSearchResponse(response2, numOfElements, uniqsStrings.size(), words);
@@ -398,10 +320,10 @@ public class TermListFacetTest {
         checkLongSearchResponse(response4, numOfElements, uniqLongs.size(), longs);
 
         assertEquals(numOfElements, countAll());
-        final SearchResponse r1 = getTermList(__txtField1, numOfElements, true);
-        final SearchResponse r2 = getTermList(__txtField2, numOfElements, true);
-        final SearchResponse r3 = getTermList(__intField1, numOfElements, true);
-        final SearchResponse r4 = getTermList(__longField1, numOfElements, true);
+        final SearchResponse r1 = getTermList(__txtField1, numOfElements);
+        final SearchResponse r2 = getTermList(__txtField2, numOfElements);
+        final SearchResponse r3 = getTermList(__intField1, numOfElements);
+        final SearchResponse r4 = getTermList(__longField1, numOfElements);
 
         checkStringSearchResponse(r1, numOfElements, uniqsStrings.size(), words);
         checkStringSearchResponse(r2, numOfElements, uniqsStrings.size(), words);
@@ -433,13 +355,12 @@ public class TermListFacetTest {
         return __counter.getAndIncrement();
     }
 
-    private SearchResponse getTermList(final String valueField, final int maxPerShard, final boolean readFromCache) {
+    private SearchResponse getTermList(final String valueField, final int maxPerShard) {
 
         final TermListFacetBuilder facet =
                 new TermListFacetBuilder(__facetName)
                         .keyField(valueField)
-                        .maxPerShard(maxPerShard).
-                        readFromCache(readFromCache);
+                        .maxPerShard(maxPerShard);
 
         return client().prepareSearch(__index)
                 .setSearchType(SearchType.COUNT)
