@@ -19,9 +19,9 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.facet.FacetBuilders;
 import org.elasticsearch.search.facet.terms.TermsFacet;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.date.DateFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.NullEntry;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.TimePeriod;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DateFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.NullEntry;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.TimePeriod;
 
 public class CountingQueryResultChecker {
 

@@ -12,11 +12,11 @@ import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.search.facet.terms.TermsFacet;
 import org.elasticsearch.search.facet.terms.TermsFacet.Entry;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.date.DateFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.Slice;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.TimePeriod;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.XContentEnabledList;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.MediumDataSetPerformanceTest.RandomSlicedDateFacetQuery;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DateFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.Slice;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.TimePeriod;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.XContentEnabledList;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.MediumDataSetPerformanceTest.RandomSlicedDateFacetQuery;
 
 public class SlicedQueryResultChecker extends CountingQueryResultChecker {
 

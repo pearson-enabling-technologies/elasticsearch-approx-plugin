@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.date.internal;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
@@ -16,6 +16,10 @@ import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
 import org.elasticsearch.search.facet.Facet;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DistinctDateFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DistinctTimePeriod;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.HasDistinct;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.NullEntry;
 
 public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<NullEntry>> implements HasDistinct {
 
@@ -96,7 +100,7 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
 
     @SuppressWarnings("unchecked")
     @Override
-    ExtTLongObjectHashMap<DistinctCountPayload> peekCounts() {
+    protected ExtTLongObjectHashMap<DistinctCountPayload> peekCounts() {
         return _counts;
     }
 

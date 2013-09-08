@@ -10,10 +10,10 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.search.facet.terms.TermsFacet;
 import org.elasticsearch.search.facet.terms.TermsFacet.Entry;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.date.DateFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.DistinctTimePeriod;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.NullEntry;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.TimePeriod;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DateFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DistinctTimePeriod;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.NullEntry;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.TimePeriod;
 
 public class DistinctQueryResultChecker extends CountingQueryResultChecker {
 

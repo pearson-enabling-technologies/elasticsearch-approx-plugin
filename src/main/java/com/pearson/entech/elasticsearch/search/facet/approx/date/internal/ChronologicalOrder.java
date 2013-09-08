@@ -1,6 +1,8 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.date.internal;
 
 import java.util.Comparator;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.TimePeriod;
 
 /**
  * Comparator for sorting TimePeriod objects into chronological order.

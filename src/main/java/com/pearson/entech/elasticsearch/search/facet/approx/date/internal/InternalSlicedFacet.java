@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.date.internal;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
@@ -18,6 +18,12 @@ import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
 import org.elasticsearch.common.trove.procedure.TObjectIntProcedure;
 import org.elasticsearch.common.trove.procedure.TObjectProcedure;
 import org.elasticsearch.search.facet.Facet;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.Constants;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DateFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.Slice;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.TimePeriod;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.XContentEnabledList;
 
 public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledList<Slice<String>>>> {
 
@@ -81,7 +87,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
     @SuppressWarnings("unchecked")
     @Override
-    ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> peekCounts() {
+    protected ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> peekCounts() {
         return _counts;
     }
 

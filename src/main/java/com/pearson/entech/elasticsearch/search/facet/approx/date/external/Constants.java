@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.date.external;
 
 import org.elasticsearch.common.xcontent.XContentBuilderString;
 

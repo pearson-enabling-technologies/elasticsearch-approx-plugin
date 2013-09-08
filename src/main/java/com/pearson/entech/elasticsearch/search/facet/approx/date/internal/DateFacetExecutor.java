@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.date.internal;
 
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.index.fielddata.IndexFieldData;

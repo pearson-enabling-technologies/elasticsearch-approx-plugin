@@ -12,7 +12,7 @@ import org.elasticsearch.index.fielddata.ScriptDocValues;
 import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.search.facet.InternalFacet;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalCountingFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalCountingFacet;
 
 /**
  * A Collector for standard (counting) date facets.

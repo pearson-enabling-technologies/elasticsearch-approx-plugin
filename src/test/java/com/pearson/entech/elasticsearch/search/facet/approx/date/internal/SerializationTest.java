@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.date.internal;
 
 import static com.google.common.collect.Maps.newHashMap;
 import static org.junit.Assert.assertEquals;
@@ -17,6 +17,12 @@ import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.search.facet.InternalFacet;
 import org.junit.Test;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.DistinctCountPayload;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalCountingFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalDistinctFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalSlicedDistinctFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalSlicedFacet;
 
 public class SerializationTest {
 

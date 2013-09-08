@@ -46,6 +46,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.base.Joiner;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DateFacetBuilder;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DistinctTimePeriod;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.NullEntry;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalDistinctFacet;
 
 public class RandomizedApproxReadWriteTest {
 

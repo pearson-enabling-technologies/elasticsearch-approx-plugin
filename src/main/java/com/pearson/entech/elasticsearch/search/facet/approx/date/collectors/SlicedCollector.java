@@ -16,7 +16,7 @@ import org.elasticsearch.index.fielddata.ScriptDocValues;
 import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.search.facet.InternalFacet;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalSlicedFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalSlicedFacet;
 
 /**
  * A Collector for sliced date facets.

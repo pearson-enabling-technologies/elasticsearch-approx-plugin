@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.date.internal;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.newArrayListWithExpectedSize;
@@ -33,6 +33,16 @@ import org.elasticsearch.search.facet.Facets;
 import org.junit.AfterClass;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.date.CountingQueryResultChecker;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.DistinctQueryResultChecker;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.MediumDataSetTest;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.SlicedQueryResultChecker;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DateFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DateFacetBuilder;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.HasDistinct;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.NullEntry;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.TimePeriod;
 
 public abstract class MediumDataSetPerformanceTest extends MediumDataSetTest {
 
@@ -307,7 +317,7 @@ public abstract class MediumDataSetPerformanceTest extends MediumDataSetTest {
             return "counting_date_facet";
         }
 
-        protected String facetName() {
+        public String facetName() {
             return _facetName;
         }
 
