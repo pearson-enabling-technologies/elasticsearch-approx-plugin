@@ -47,7 +47,8 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
         String keyField = null;
         XContentParser.Token token;
         String fieldName = null;
-        int maxPerShard = 100;
+        int maxPerShard = Constants.DEFAULT_MAX_PER_SHARD;
+        float sample = Constants.DEFAULT_SAMPLE;
         while((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if(token == XContentParser.Token.FIELD_NAME) {
                 fieldName = parser.currentName();
@@ -58,9 +59,14 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
                     keyField = parser.text();
                 } else if("max_per_shard".equals(fieldName) || "maxPerShard".equals(fieldName)) {
                     maxPerShard = parser.intValue();
+                } else if("sample".equals(fieldName)) {
+                    sample = parser.floatValue();
                 }
             }
         }
+
+        if(sample <= 0 || sample > 1)
+            throw new FacetPhaseExecutionException(facetName, "[sample] must be greater than 0 and less than or equal to 1");
 
         if(keyField == null) {
             throw new FacetPhaseExecutionException(facetName, "key field is required to be set for term list facet, either using [field] or using [key_field]");
@@ -82,7 +88,7 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
                System.out.println("numeric fields");
             }
         }*/
-        return new TermListFacetExecutor(context, indexFieldData, facetName, maxPerShard);
+        return new TermListFacetExecutor(context, indexFieldData, facetName, maxPerShard, sample);
     }
 
 }

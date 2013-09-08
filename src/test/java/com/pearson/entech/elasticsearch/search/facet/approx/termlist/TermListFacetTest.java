@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Client;
@@ -143,7 +145,7 @@ public class TermListFacetTest {
         uniqs.addAll(words);
 
         assertEquals(numOfDocs, countAll());
-        final SearchResponse response1 = getTermList(__intField1, _words.length);
+        final SearchResponse response1 = getTermList(__intField1, _words.length, 1);
 
         checkIntSearchResponse(response1, numOfDocs, uniqs.size(), words);
     }
@@ -195,8 +197,8 @@ public class TermListFacetTest {
         final Set<String> uniqs = new HashSet<String>(words);
 
         assertEquals(numOfElements, countAll());
-        final SearchResponse response1 = getTermList(__txtField1, numOfElements);
-        final SearchResponse response2 = getTermList(__txtField2, numOfElements);
+        final SearchResponse response1 = getTermList(__txtField1, numOfElements, 1);
+        final SearchResponse response2 = getTermList(__txtField2, numOfElements, 1);
 
         checkStringSearchResponse(response1, numOfElements, uniqs.size(), words);
         checkStringSearchResponse(response2, numOfElements, uniqs.size(), words);
@@ -212,7 +214,7 @@ public class TermListFacetTest {
         for(int i = 0; i < numList.size(); i++) {
             putSync(newID(), "", "", 1, numList.get(i));
         }
-        final SearchResponse response1 = getTermList(__longField1, maxPerShard);
+        final SearchResponse response1 = getTermList(__longField1, maxPerShard, 1);
         checkLongSearchResponse(response1, testLength, testLength, numList);
 
     }
@@ -226,7 +228,7 @@ public class TermListFacetTest {
         for(int i = 0; i < numList.size(); i++) {
             putSync(newID(), "", "", numList.get(i), 0);
         }
-        final SearchResponse response1 = getTermList(__intField1, maxPerShard);
+        final SearchResponse response1 = getTermList(__intField1, maxPerShard, 1);
         checkIntSearchResponse(response1, testLength, testLength, numList);
 
     }
@@ -249,7 +251,7 @@ public class TermListFacetTest {
             rIndex %= numOfWordsToGenerate;
 
         }
-        final SearchResponse response1 = getTermList(__intField1, numOfWordsToGenerate);
+        final SearchResponse response1 = getTermList(__intField1, numOfWordsToGenerate, 1);
         checkIntSearchResponse(response1, numOfDocumentsToIndex, uniqs.size(), nums);
     }
 
@@ -272,15 +274,24 @@ public class TermListFacetTest {
             rIndex2 %= numOfWordsToGenerate;
 
         }
-        final SearchResponse response1 = getTermList(__longField1, numOfWordsToGenerate);
+        final SearchResponse response1 = getTermList(__longField1, numOfWordsToGenerate, 1);
         checkLongSearchResponse(response1, numOfDocumentsToIndex, uniqs.size(), nums);
 
     }
 
     @Test
-    public void testAllFieldsWithRandomValues() throws Exception {
-        final int numOfElements = 300;// + _random.nextInt(100);
-        final int numOfWords = 30;// + _random.nextInt(10);
+    public void testAllFieldsWithRandomValuesSampled() throws Exception {
+        testAllFieldsWithRandomValues("Sampled", 0.1f);
+    }
+
+    @Test
+    public void testAllFieldsWithRandomValuesExhaustive() throws Exception {
+        testAllFieldsWithRandomValues("Exact", 1);
+    }
+
+    public void testAllFieldsWithRandomValues(final String label, final float sample) throws Exception {
+        final int numOfElements = 10000;// + _random.nextInt(100);
+        final int numOfWords = 100;// + _random.nextInt(10);
         final List<String> words = generateRandomWords(numOfWords);
         final List<Integer> ints = generateRandomInts(numOfWords);
         final List<Long> longs = generateRandomLongs(numOfWords);
@@ -291,7 +302,7 @@ public class TermListFacetTest {
         int rIndex4 = 3; //_random.nextInt(numOfWords);
 
         for(int i = 0; i < numOfElements; i++) {
-            putSync(newID(), words.get(rIndex1), words.get(rIndex2), ints.get(rIndex3), longs.get(rIndex4));
+            addToBulk(newID(), words.get(rIndex1), words.get(rIndex2), ints.get(rIndex3), longs.get(rIndex4));
             rIndex1++;
             rIndex1 %= numOfWords;
 
@@ -304,32 +315,32 @@ public class TermListFacetTest {
             rIndex4++;
             rIndex4 %= numOfWords;
         }
+        sendBulk();
+        Thread.sleep(2000);
 
         final Set<String> uniqsStrings = new HashSet<String>(words);
         final Set<Integer> uniqInts = new HashSet<Integer>(ints);
         final Set<Long> uniqLongs = new HashSet<Long>(longs);
 
+        SearchResponse response1 = null;
+        SearchResponse response2 = null;
+        SearchResponse response3 = null;
+        SearchResponse response4 = null;
         assertEquals(numOfElements, countAll());
-        final SearchResponse response1 = getTermList(__txtField1, numOfElements);
-        final SearchResponse response2 = getTermList(__txtField2, numOfElements);
-        final SearchResponse response3 = getTermList(__intField1, numOfElements);
-        final SearchResponse response4 = getTermList(__longField1, numOfElements);
+        clearMemory();
+        final long start = System.currentTimeMillis();
+        for(int i = 0; i < 2000; i++) {
+            response1 = getTermList(__txtField1, numOfElements, sample);
+            response2 = getTermList(__txtField2, numOfElements, sample);
+            response3 = getTermList(__intField1, numOfElements, sample);
+            response4 = getTermList(__longField1, numOfElements, sample);
+        }
+        System.out.println(label + " queries ran in " + (System.currentTimeMillis() - start) + " ms");
 
         checkStringSearchResponse(response1, numOfElements, uniqsStrings.size(), words);
         checkStringSearchResponse(response2, numOfElements, uniqsStrings.size(), words);
         checkIntSearchResponse(response3, numOfElements, uniqInts.size(), ints);
         checkLongSearchResponse(response4, numOfElements, uniqLongs.size(), longs);
-
-        assertEquals(numOfElements, countAll());
-        final SearchResponse r1 = getTermList(__txtField1, numOfElements);
-        final SearchResponse r2 = getTermList(__txtField2, numOfElements);
-        final SearchResponse r3 = getTermList(__intField1, numOfElements);
-        final SearchResponse r4 = getTermList(__longField1, numOfElements);
-
-        checkStringSearchResponse(r1, numOfElements, uniqsStrings.size(), words);
-        checkStringSearchResponse(r2, numOfElements, uniqsStrings.size(), words);
-        checkIntSearchResponse(r3, numOfElements, uniqInts.size(), ints);
-        checkLongSearchResponse(r4, numOfElements, uniqLongs.size(), longs);
 
     }
 
@@ -339,12 +350,13 @@ public class TermListFacetTest {
         return __counter.getAndIncrement();
     }
 
-    private SearchResponse getTermList(final String valueField, final int maxPerShard) {
+    private SearchResponse getTermList(final String valueField, final int maxPerShard, final float sample) {
 
         final TermListFacetBuilder facet =
                 new TermListFacetBuilder(__facetName)
                         .keyField(valueField)
-                        .maxPerShard(maxPerShard);
+                        .maxPerShard(maxPerShard)
+                        .sample(sample);
 
         return client().prepareSearch(__index)
                 .setSearchType(SearchType.COUNT)
@@ -359,7 +371,9 @@ public class TermListFacetTest {
                 .actionGet();
     }
 
-    private void putSync(final int id, final String value1, final String value2, final int iValue1, final long lValue) throws ElasticSearchException,
+    private void putSync(final int id, final String value1, final String value2,
+            final int iValue1, final long lValue)
+            throws ElasticSearchException,
             IOException {
         final String stringID = String.valueOf(id);
         client().prepareIndex(__index, __type, String.valueOf(stringID))
@@ -372,6 +386,31 @@ public class TermListFacetTest {
                         .field(__intField1, iValue1)
                         .field(__longField1, lValue)
                         .endObject()).execute().actionGet();
+    }
+
+    private final List<IndexRequest> _bulkBuffer = newArrayList();
+
+    private void addToBulk(final int id, final String value1, final String value2,
+            final int iValue1, final long lValue) throws IOException {
+        final String stringID = String.valueOf(id);
+        _bulkBuffer.add(new IndexRequest(__index, __type, stringID)
+                .routing(stringID).source(
+                        XContentFactory.jsonBuilder()
+                                .startObject()
+                                .field(__txtField1, value1)
+                                .field(__txtField2, value2)
+                                .field(__intField1, iValue1)
+                                .field(__longField1, lValue)
+                                .endObject()));
+    }
+
+    private void sendBulk() {
+        final BulkRequestBuilder bulk = client().prepareBulk();
+        for(final IndexRequest req : _bulkBuffer) {
+            bulk.add(req);
+        }
+        bulk.setRefresh(true).execute().actionGet();
+        bulk.execute().actionGet();
     }
 
     private void checkStringSearchResponse(final SearchResponse sr, final int numOfDocs, final int numOfElements, final List<String> words) {
@@ -429,6 +468,12 @@ public class TermListFacetTest {
 
     private Client client() {
         return __node.client();
+    }
+
+    private void clearMemory() throws Exception {
+        client().admin().indices().prepareClearCache(__index).execute().actionGet();
+        System.gc();
+        Thread.sleep(2000);
     }
 
 }

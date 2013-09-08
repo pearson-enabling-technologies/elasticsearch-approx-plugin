@@ -3,6 +3,10 @@ Snapshot 2.1.3
 
 Better checking for incorrect usage of distinct count payloads, and terminology improvements.
 
+Added "sample" parameter for term list facet's equivalent of approximate mode.
+
+Moved term list facet over to use BytesRefHash storage, like date facet.
+
 Release 2.1.2
 -------------
 

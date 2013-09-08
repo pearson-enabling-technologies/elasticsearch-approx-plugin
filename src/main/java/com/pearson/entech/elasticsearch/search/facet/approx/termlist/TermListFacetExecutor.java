@@ -2,13 +2,13 @@ package com.pearson.entech.elasticsearch.search.facet.approx.termlist;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Random;
 
 import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.DocsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
-import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefHash;
@@ -22,17 +22,22 @@ import org.elasticsearch.search.internal.SearchContext;
 
 public class TermListFacetExecutor extends FacetExecutor {
 
+    private final Random _random = new Random(0);
+
     private final int _maxPerShard;
     private final String _facetName;
+    private final float _sampleRate;
+    private final boolean _exhaustive;
+
     private final IndexFieldData<?> _indexFieldData;
 
     BytesRefHash _entries = new BytesRefHash();
-    private final Filter _filter;
 
     public TermListFacetExecutor(final SearchContext context, final IndexFieldData<?> indexFieldData,
-            final String facetName, final int maxPerShard) {
-        _filter = context.parsedFilter();
+            final String facetName, final int maxPerShard, final float sample) {
         _maxPerShard = maxPerShard;
+        _sampleRate = sample;
+        _exhaustive = _sampleRate > 0.995;
         _facetName = facetName;
         _indexFieldData = indexFieldData;
     }
@@ -63,17 +68,24 @@ public class TermListFacetExecutor extends FacetExecutor {
             if(_entries.size() > _maxPerShard)
                 return;
 
-            _values = _indexFieldData.load(context).getHashedBytesValues();
+            _values = _exhaustive ?
+                    _indexFieldData.load(context).getHashedBytesValues() :
+                    _indexFieldData.load(context).getBytesValues();
         }
 
         @Override
         public void collect(final int docId) throws IOException {
             if(_entries.size() > _maxPerShard)
                 return;
+            if(!_exhaustive && _random.nextFloat() > _sampleRate)
+                return;
 
             final Iter iter = _values.getIter(docId);
             while(iter.hasNext() && _entries.size() < _maxPerShard) {
-                _entries.add(iter.next(), iter.hash());
+                if(_exhaustive)
+                    _entries.add(iter.next(), iter.hash());
+                else
+                    _entries.add(iter.next());
             }
         }
 

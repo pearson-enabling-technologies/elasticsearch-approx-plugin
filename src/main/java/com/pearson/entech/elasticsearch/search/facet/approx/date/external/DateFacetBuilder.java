@@ -31,7 +31,7 @@ import org.elasticsearch.search.facet.FacetBuilder;
 import com.google.common.collect.Maps;
 
 /**
- * A facet builder of date histogram facets.
+ * A facet builder of date facets.
  */
 public class DateFacetBuilder extends FacetBuilder {
 

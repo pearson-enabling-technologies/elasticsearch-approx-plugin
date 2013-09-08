@@ -128,7 +128,17 @@ period and for each slice within that time period.
 
 This is a simple facet to quickly retrieve an unsorted term list for a field,
 if you don't care about counts or ordering etc. It allows you to set a
-`max_per_shard` cutoff similar to the previous facet (defaults to 100).
+`max_per_shard` cutoff similar to the previous facet (defaults to 1000).
+
+You can also set a `sample` parameter which is a float greater than zero and
+less than or equal to 1. This causes the plugin to visit roughly that
+proportion of documents matched by your query when gathering the terms list.
+For example, sample=0.5 would mean only half the documents, selected randomly,
+would be taken into account.
+
+In some circumstances, a sample rate as low as 0.1 (10% of documents) can yield
+the exact same results as a full exhaustive scan (the default), but much
+faster. You'll need to experiment on your own data to find the sweet spot.
 
 ```javascript
 {
@@ -139,6 +149,7 @@ if you don't care about counts or ordering etc. It allows you to set a
         "term_list_facet" : {
             "term_list" : {
                 "key_field" : "txt1",
+                "sample" : 0.25,
                 "max_per_shard" : 100
             }
         }
@@ -170,10 +181,6 @@ Returns something like:
   }
 }
 ```
-
-This facet doesn't actually use anything clever like approximate counting --
-it's not really approximate in the same sense as the previous one -- but we
-thought you might find it useful.
 
 **N.B.** The `use_field_data`/`read_from_cache` option from previous versions
 is no longer supported. The plugin now uses ElasticSearch's field data cache
