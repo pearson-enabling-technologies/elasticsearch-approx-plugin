@@ -1,6 +1,10 @@
 package com.pearson.entech.elasticsearch.search.facet.approx.termlist;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static com.pearson.entech.elasticsearch.search.facet.approx.termlist.TestUtils.RANDOM;
+import static com.pearson.entech.elasticsearch.search.facet.approx.termlist.TestUtils.generateRandomInts;
+import static com.pearson.entech.elasticsearch.search.facet.approx.termlist.TestUtils.generateRandomLongs;
+import static com.pearson.entech.elasticsearch.search.facet.approx.termlist.TestUtils.generateRandomWords;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -12,7 +16,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -48,8 +51,6 @@ public class TermListFacetTest {
     private static final String __facetName = "term_list_facet";
 
     private static final AtomicInteger __counter = new AtomicInteger(0);
-
-    private final Random _random = new Random(0);
 
     @BeforeClass
     public static void setUpClass() {
@@ -149,12 +150,12 @@ public class TermListFacetTest {
 
     @Test
     public void testWithJsonWithRandomStrings() throws Exception {
-        final int numOfElements = 100 + _random.nextInt(100);
-        final int numOfWords = 20 + _random.nextInt(10);
+        final int numOfElements = 100 + RANDOM.nextInt(100);
+        final int numOfWords = 20 + RANDOM.nextInt(10);
         final List<String> words = generateRandomWords(numOfWords);
 
-        int rIndex1 = _random.nextInt(numOfWords);
-        int rIndex2 = _random.nextInt(numOfWords);
+        int rIndex1 = RANDOM.nextInt(numOfWords);
+        int rIndex2 = RANDOM.nextInt(numOfWords);
         for(int i = 0; i < numOfElements; i++) {
             putSync(newID(), words.get(rIndex1), words.get(rIndex2), 0, 0);
             rIndex1++;
@@ -176,12 +177,12 @@ public class TermListFacetTest {
 
     @Test
     public void testWithRandomStrings() throws Exception {
-        final int numOfElements = 100 + _random.nextInt(100);
-        final int numOfWords = 20 + _random.nextInt(10);
+        final int numOfElements = 100 + RANDOM.nextInt(100);
+        final int numOfWords = 20 + RANDOM.nextInt(10);
         final List<String> words = generateRandomWords(numOfWords);
 
-        int rIndex1 = _random.nextInt(numOfWords);
-        int rIndex2 = _random.nextInt(numOfWords);
+        int rIndex1 = RANDOM.nextInt(numOfWords);
+        int rIndex2 = RANDOM.nextInt(numOfWords);
         for(int i = 0; i < numOfElements; i++) {
             putSync(newID(), words.get(rIndex1), words.get(rIndex2), 0, 0);
             rIndex1++;
@@ -233,13 +234,13 @@ public class TermListFacetTest {
     @Test
     public void testWithIntRandomData() throws Exception {
 
-        final int numOfDocumentsToIndex = 200 + _random.nextInt(200);
-        final int numOfWordsToGenerate = 100 + _random.nextInt(100);
+        final int numOfDocumentsToIndex = 200 + RANDOM.nextInt(200);
+        final int numOfWordsToGenerate = 100 + RANDOM.nextInt(100);
 
         final List<Integer> nums = generateRandomInts(numOfWordsToGenerate);
         final Set<Integer> uniqs = new HashSet<Integer>(nums);
 
-        int rIndex = _random.nextInt(numOfWordsToGenerate);
+        int rIndex = RANDOM.nextInt(numOfWordsToGenerate);
 
         for(int i = 0; i < numOfDocumentsToIndex; i++) {
 
@@ -255,13 +256,13 @@ public class TermListFacetTest {
     @Test
     public void testWithLongRandomData() throws Exception {
 
-        final int numOfDocumentsToIndex = 200 + _random.nextInt(200);
-        final int numOfWordsToGenerate = 100 + _random.nextInt(100);
+        final int numOfDocumentsToIndex = 200 + RANDOM.nextInt(200);
+        final int numOfWordsToGenerate = 100 + RANDOM.nextInt(100);
 
         final List<Long> nums = generateRandomLongs(numOfWordsToGenerate);
         final Set<Long> uniqs = new HashSet<Long>(nums);
 
-        int rIndex2 = _random.nextInt(numOfWordsToGenerate);
+        int rIndex2 = RANDOM.nextInt(numOfWordsToGenerate);
 
         for(int i = 0; i < numOfDocumentsToIndex; i++) {
 
@@ -330,23 +331,6 @@ public class TermListFacetTest {
         checkIntSearchResponse(r3, numOfElements, uniqInts.size(), ints);
         checkLongSearchResponse(r4, numOfElements, uniqLongs.size(), longs);
 
-    }
-
-    List<Integer> generateRandomInts(final int numOfElements) {
-        final List<Integer> ret = newArrayList();
-        for(int i = 0; i < numOfElements; i++) {
-            ret.add(_random.nextInt(1000));
-        }
-        return ret;
-    }
-
-    List<Long> generateRandomLongs(final int numOfElements) {
-        final List<Long> ret = newArrayList();
-        for(int i = 0; i < numOfElements; i++) {
-            final long val = _random.nextInt(10000);
-            ret.add(val);
-        }
-        return ret;
     }
 
     // Helper methods
@@ -433,20 +417,6 @@ public class TermListFacetTest {
             final Long val = Long.parseLong(item.toString());
             assertTrue(longs.contains(val));
         }
-    }
-
-    private List<String> generateRandomWords(final int numberOfWords) {
-        final String[] randomStrings = new String[numberOfWords];
-        for(int i = 0; i < numberOfWords; i++)
-        {
-            final char[] word = new char[_random.nextInt(8) + 3]; // words of length 3 through 10. (1 and 2 letter words are boring.)
-            for(int j = 0; j < word.length; j++)
-            {
-                word[j] = (char) ('a' + _random.nextInt(26));
-            }
-            randomStrings[i] = new String(word);
-        }
-        return newArrayList(randomStrings);
     }
 
     private long countAll() {

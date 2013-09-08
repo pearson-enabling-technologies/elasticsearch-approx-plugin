@@ -221,7 +221,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
         // Called once per time period
         @Override
         public boolean execute(final long time, final TObjectIntHashMap<BytesRef> period) {
-            // First create output buffer for the slices from this period
+            // First create _output buffer for the slices from this period
             final XContentEnabledList<Slice<String>> buffer =
                     new XContentEnabledList<Slice<String>>(period.size(), Constants.SLICES);
             // Reset period counter

@@ -98,7 +98,7 @@ public class DateFacetBuilder extends FacetBuilder {
     }
 
     /**
-     * The field name to slice the output by.
+     * The field name to slice the _output by.
      */
     public DateFacetBuilder sliceField(final String sliceField) {
         this.sliceFieldName = sliceField;
