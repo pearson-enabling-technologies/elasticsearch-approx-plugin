@@ -60,7 +60,7 @@ public class DateFacetExecutor extends FacetExecutor {
         else if(_valueFieldData == null)
             _collector = new SlicedDistinctCollector(keyFieldData, sliceFieldData, distinctFieldData, tzRounding, exactThreshold);
         else
-            throw new FacetPhaseExecutionException("unknown date facet", "[value_field] and [distinct_field] may not be used together");
+            throw new FacetPhaseExecutionException("unknown date_facet", "Can't use distinct_field and value_field together");
     }
 
     @Override
