@@ -4,24 +4,30 @@ import java.io.IOException;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.IntsRef;
 import org.elasticsearch.index.fielddata.AtomicFieldData;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.BytesValues.Iter;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.ScriptDocValues;
 
+/**
+ * An iterator over BytesRef values for a given type of field data.
+ * 
+ * @param <B> the field data type
+ */
 public class BytesFieldIterator<B extends AtomicFieldData<? extends ScriptDocValues>>
         extends CollectableIterator<BytesRef> {
 
     private final IndexFieldData<B> _bytesFieldData;
     private BytesValues _bytesFieldValues;
-    private IntsRef _docOrds;
-    private int _docOrdPointer;
     private Iter _docIter;
 
-    public BytesFieldIterator(
-            final IndexFieldData<B> bytesFieldData) {
+    /**
+     * Create a new iterator.
+     * 
+     * @param bytesFieldData the field data to iterate over
+     */
+    public BytesFieldIterator(final IndexFieldData<B> bytesFieldData) {
         _bytesFieldData = bytesFieldData;
     }
 

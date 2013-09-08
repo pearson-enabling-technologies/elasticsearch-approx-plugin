@@ -11,7 +11,6 @@ import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.list.array.TIntArrayList;
-import org.elasticsearch.common.trove.map.TLongObjectMap;
 import org.elasticsearch.index.fielddata.AtomicFieldData;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.ScriptDocValues;
@@ -21,22 +20,38 @@ import org.elasticsearch.search.facet.InternalFacet;
 import com.pearson.entech.elasticsearch.search.facet.approx.date.DistinctCountPayload;
 import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalDistinctFacet;
 
+/**
+ * A Collector for distinct date facets.
+ * 
+ * @param <V> the field data type of the optional value field (use NullFieldData if you aren't using the value field)
+ * @param <D> the field data type of the distinct field
+ */
 public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValues>, D extends AtomicFieldData<? extends ScriptDocValues>>
         extends TimestampFirstCollector<V> {
 
+    /**
+     * The number of exact distinct field values to record before tipping into approximate counting.
+     */
     private final int _exactThreshold;
 
-    //    private final ExtTLongObjectHashMap<DistinctCountPayload> _counts;
-
-    // TODO Can we use a cleverer data structure here? Try with a trie
+    /**
+     * A map from distinct field values to lists of timestamps.
+     */
     private Map<BytesRef, TIntArrayList> _occurrences;
 
-    private final boolean _debug = false;
-    private long _debugTotalCount;
-    private long _debugDistinctCount;
-    private DistinctCountPayload _debugCurrPayload;
+    /**
+     * Iterator over the values of the distinct field.
+     */
     private final BytesFieldIterator<AtomicFieldData<? extends ScriptDocValues>> _distinctFieldIter;
 
+    /**
+     * Create a new collector.
+     * 
+     * @param keyFieldData the key field (datetime) data
+     * @param distinctFieldData the distinct field data
+     * @param tzRounding the timezone rounding to apply
+     * @param exactThreshold The number of exact distinct field values to record before tipping into approximate counting
+     */
     public DistinctCollector(final LongArrayIndexFieldData keyFieldData,
             final IndexFieldData<D> distinctFieldData,
             final TimeZoneRounding tzRounding,
@@ -44,7 +59,6 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
         super(keyFieldData, tzRounding);
         _distinctFieldIter = new BytesFieldIterator(distinctFieldData); // TODO type safety?
         _exactThreshold = exactThreshold;
-        //        _counts = CacheRecycler.popLongObjectMap();
         _occurrences = newHashMap();
     }
 
@@ -63,8 +77,12 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
         if(!hasNextTimestamp())
             return;
 
+        // Strategy: compile a map from distinct field values to timestamps where those values occur.
+        // Later, at build time, we invert this into a map from timestamps to DistinctCountPayloads.
+        // This avoids having to read, copy and store multiple BytesRefs containing the same distinct field values.
+
         while(_distinctFieldIter.hasNext()) {
-            // NB this causes two conversions if the field's numeric
+            // TODO this causes two conversions if the field's numeric
             final BytesRef unsafe = _distinctFieldIter.next();
             TIntArrayList timestampList = _occurrences.get(unsafe);
             if(timestampList == null) {
@@ -73,6 +91,7 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
                 _occurrences.put(safe, timestampList);
             }
 
+            // To reduce memory usage, we store all timestamps at second resolution for now
             while(hasNextTimestamp()) {
                 final long time = nextTimestamp();
                 timestampList.add((int) (time / 1000));
@@ -92,12 +111,14 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
 
     @Override
     public InternalFacet build(final String facetName) {
+        // This is where we invert the distinct value->timestamp map to build the actual facet object
         final ExtTLongObjectHashMap<DistinctCountPayload> counts = CacheRecycler.popLongObjectMap();
         for(final BytesRef fieldVal : _occurrences.keySet()) {
             final TIntArrayList timestampList = _occurrences.get(fieldVal);
             final int timestampCount = timestampList.size();
             for(int i = 0; i < timestampCount; i++) {
                 final long timestampSecs = timestampList.get(i);
+                // Convert back to milliseconds resolution
                 final long timestamp = timestampSecs * 1000;
                 DistinctCountPayload payload = counts.get(timestamp);
                 if(payload == null) {
@@ -110,24 +131,8 @@ public class DistinctCollector<V extends AtomicFieldData<? extends ScriptDocValu
         }
 
         _occurrences = null;
-        final InternalFacet facet = new InternalDistinctFacet(facetName, counts, _debug);
+        final InternalFacet facet = new InternalDistinctFacet(facetName, counts);
         return facet;
-    }
-
-    private DistinctCountPayload getSafely(final TLongObjectMap<DistinctCountPayload> counts, final long key) {
-        DistinctCountPayload payload = counts.get(key);
-        if(payload == null) {
-            payload = new DistinctCountPayload(_exactThreshold);
-            counts.put(key, payload);
-        }
-
-        if(_debug) {
-            _debugCurrPayload = payload;
-            _debugTotalCount = payload.getCount();
-            _debugDistinctCount = payload.getCardinality().cardinality();
-        }
-
-        return payload;
     }
 
 }

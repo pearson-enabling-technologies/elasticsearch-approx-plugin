@@ -39,6 +39,9 @@ public class DateFacetExecutor extends FacetExecutor {
         _sliceFieldData = sliceFieldData;
         _tzRounding = tzRounding;
         _exactThreshold = exactThreshold;
+
+        // TODO type safety for the following constructors
+
         if(_distinctFieldData == null && _sliceFieldData == null)
             if(_valueFieldData == null)
                 _collector = new CountingCollector<NullFieldData>(keyFieldData, tzRounding);
@@ -57,7 +60,7 @@ public class DateFacetExecutor extends FacetExecutor {
         else if(_valueFieldData == null)
             _collector = new SlicedDistinctCollector(keyFieldData, sliceFieldData, distinctFieldData, tzRounding, exactThreshold);
         else
-            _collector = new SlicedDistinctCollector(keyFieldData, valueFieldData, sliceFieldData, distinctFieldData, tzRounding, exactThreshold);
+            throw new FacetPhaseExecutionException("unknown date facet", "[value_field] and [distinct_field] may not be used together");
     }
 
     @Override

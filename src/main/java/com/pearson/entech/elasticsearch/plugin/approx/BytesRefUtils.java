@@ -211,10 +211,20 @@ public class BytesRefUtils {
 
     }
 
+    /**
+     * Procedure for serializing a BytesRefHash to an ElasticSearch StreamOutput.
+     */
     public static class ElasticSearchSerializer implements Procedure {
 
         private final StreamOutput _out;
 
+        /**
+         * Create a new ElasticSearchSerializer.
+         * 
+         * @param out the StreamOutput to write to
+         * @param entries the number of entries (BytesRef objects) to write
+         * @throws IOException
+         */
         public ElasticSearchSerializer(final StreamOutput out, final int entries) throws IOException {
             _out = out;
             _out.writeVInt(entries);

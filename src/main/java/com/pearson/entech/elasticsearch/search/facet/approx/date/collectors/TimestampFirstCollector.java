@@ -19,6 +19,8 @@ import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 
 public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extends ScriptDocValues>> extends BuildableCollector {
 
+    protected static final Iter EMPTY = new Iter.Empty();
+
     private LongValues _keyFieldValues;
     private IntsRef _docOrds;
     private int _docOrdPointer;
