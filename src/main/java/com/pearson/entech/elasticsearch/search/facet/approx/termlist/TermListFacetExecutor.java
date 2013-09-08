@@ -45,7 +45,7 @@ public class TermListFacetExecutor extends FacetExecutor {
 
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
-            values = _indexFieldData.load(context).getBytesValues();
+            values = _indexFieldData.load(context).getHashedBytesValues();
         }
 
         protected void onValue(final int docId, final BytesRef value, final int hashCode, final BytesValues values) {
