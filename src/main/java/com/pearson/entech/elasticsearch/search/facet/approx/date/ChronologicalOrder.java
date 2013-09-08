@@ -2,8 +2,15 @@ package com.pearson.entech.elasticsearch.search.facet.approx.date;
 
 import java.util.Comparator;
 
+/**
+ * Comparator for sorting TimePeriod objects into chronological order.
+ * Uses singleton-enum pattern. Get the singleton via {@link ChronologicalOrder#INSTANCE}.
+ */
 public enum ChronologicalOrder implements Comparator<TimePeriod<?>> {
 
+    /**
+     * The comparator.
+     */
     INSTANCE;
 
     @Override
