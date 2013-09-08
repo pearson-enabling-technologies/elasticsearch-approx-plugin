@@ -25,6 +25,11 @@ public class InternalStringTermListFacet extends InternalTermListFacet {
 
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(Strings.toUTF8Bytes("tTermList"));
 
+    private static final BytesRefHash EMPTY = new BytesRefHash();
+    static {
+        EMPTY.close();
+    }
+
     private BytesRefHash _bytesRefs;
 
     private List<String> _strings;
@@ -75,31 +80,30 @@ public class InternalStringTermListFacet extends InternalTermListFacet {
         static final XContentBuilderString _TYPE = new XContentBuilderString("_type");
         /** The Constant ENTRIES. */
         static final XContentBuilderString ENTRIES = new XContentBuilderString("entries");
-
     }
 
     @Override
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
-
         builder.startObject(getName());
         builder.field(Fields._TYPE, STREAM_TYPE);
-        //builder.array(Fields.ENTRIES, entries); //not array here, causes [ [ "x", "y", "z"] ] _output
-        builder.field(Fields.ENTRIES, _bytesRefs);
+        builder.field(Fields.ENTRIES, getEntries());
         builder.endObject();
         return builder;
-
     }
 
     @Override
     public Facet reduce(final List<Facet> facets) {
-        final int count = facets.size();
-        final BytesRefHash[] hashes = new BytesRefHash[count];
-        for(int i = 0; i < count; i++) {
-            hashes[i] = ((InternalStringTermListFacet) facets.get(i))._bytesRefs;
+        if(facets.size() > 0) {
+            final int count = facets.size();
+            final BytesRefHash[] hashes = new BytesRefHash[count];
+            for(int i = 0; i < count; i++) {
+                hashes[i] = ((InternalStringTermListFacet) facets.get(i))._bytesRefs;
+            }
+            merge(hashes);
+            return facets.get(0);
+        } else {
+            return new InternalStringTermListFacet(getName(), EMPTY);
         }
-
-        final BytesRefHash merged = merge(hashes);
-        return new InternalStringTermListFacet(facets.get(0).getName(), merged);
 
     }
 

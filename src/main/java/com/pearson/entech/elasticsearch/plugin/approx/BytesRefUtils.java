@@ -89,18 +89,20 @@ public class BytesRefUtils {
     }
 
     /**
-     * Destructively merge multiple BytesRefHash objects into a new instance.
+     * Merge multiple BytesRefHash objects into the first one provided. All the others
+     * will be emptied during this process.
      * 
      * @param hashes the hashes to merge
-     * @return a new BytesRefHash containing all the values of the merged instances
      */
-    public static BytesRefHash merge(final BytesRefHash... hashes) {
-        final BytesRefHash output = new BytesRefHash();
-        final AddToHash proc = new AddToHash(output);
-        for(final BytesRefHash hash : hashes) {
-            process(hash, proc);
+    public static void merge(final BytesRefHash... hashes) {
+        if(hashes.length < 1)
+            throw new IllegalArgumentException("Cannot merge empty array of BytesRefHash objects");
+        if(hashes.length == 1)
+            return;
+        final AddToHash proc = new AddToHash(hashes[0]);
+        for(int i = 1; i < hashes.length; i++) {
+            process(hashes[i], proc);
         }
-        return output;
     }
 
     /**
