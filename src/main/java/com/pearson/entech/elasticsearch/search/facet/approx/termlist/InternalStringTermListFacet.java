@@ -117,6 +117,7 @@ public class InternalStringTermListFacet extends InternalTermListFacet {
     public void writeTo(final StreamOutput out) throws IOException {
         super.writeTo(out);
         serialize(_bytesRefs, out);
+        _bytesRefs = null;
     }
 
     @Override
@@ -131,6 +132,7 @@ public class InternalStringTermListFacet extends InternalTermListFacet {
         final AsStrings proc = new AsStrings(_bytesRefs.size());
         process(_bytesRefs, proc);
         _strings = proc.getList();
+        _bytesRefs = null;
     }
 
 }

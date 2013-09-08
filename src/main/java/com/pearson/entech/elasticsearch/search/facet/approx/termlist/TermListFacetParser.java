@@ -48,7 +48,6 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
         XContentParser.Token token;
         String fieldName = null;
         int maxPerShard = 100;
-        final boolean readFromCache = true;
         while((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if(token == XContentParser.Token.FIELD_NAME) {
                 fieldName = parser.currentName();
@@ -83,7 +82,7 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
                System.out.println("numeric fields");
             }
         }*/
-        return new TermListFacetExecutor(indexFieldData, facetName, maxPerShard);
+        return new TermListFacetExecutor(context, indexFieldData, facetName, maxPerShard);
     }
 
 }
