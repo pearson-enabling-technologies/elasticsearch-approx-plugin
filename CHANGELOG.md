@@ -1,5 +1,5 @@
-Snapshot 2.1.3
---------------
+Release 2.1.3
+-------------
 
 Better checking for incorrect usage of distinct count payloads, and terminology improvements.
 
