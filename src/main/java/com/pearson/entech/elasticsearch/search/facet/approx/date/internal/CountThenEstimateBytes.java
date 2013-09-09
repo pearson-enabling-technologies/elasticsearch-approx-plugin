@@ -1,6 +1,8 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.date.internal;
 
 // Based on CountThenEstimate.java from ClearSpring's stream-lib package
+
+import static com.pearson.entech.elasticsearch.plugin.approx.BytesRefUtils.process;
 
 import java.io.ByteArrayInputStream;
 import java.io.Externalizable;
@@ -8,8 +10,6 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -27,6 +27,7 @@ import com.clearspring.analytics.stream.cardinality.LinearCounting;
 import com.clearspring.analytics.stream.cardinality.LogLog;
 import com.clearspring.analytics.util.ExternalizableUtil;
 import com.clearspring.analytics.util.IBuilder;
+import com.pearson.entech.elasticsearch.plugin.approx.BytesRefUtils.Procedure;
 
 /**
  * Exact -> Estimator cardinality counting
@@ -40,52 +41,69 @@ import com.clearspring.analytics.util.IBuilder;
  */
 public class CountThenEstimateBytes implements ICardinality, Externalizable
 {
+
+    /**
+     *  Hash function used when adding bytesrefs to the estimator, not used in exact counting.
+     */
+    private static final MurmurHash2 __luceneMurmurHash = MurmurHash2.INSTANCE;
+
+    /** Linear Counting constant for serialization. */
     protected final static byte LC = 1;
+
+    /** Adaptive Counting constant for serialization. */
     protected final static byte AC = 2;
+
+    /** HyperLogLog constant for serialization. */
     protected final static byte HLC = 3;
+
+    /** LogLog constant for serialization. */
     protected final static byte LLC = 4;
+
+    /** HyperLogLog Plus constant for serialization. */
     protected final static byte HLPC = 5;
 
     /**
-     * Cardinality after which exact counting gives way to estimation
+     * Cardinality after which exact counting gives way to estimation.
      */
     private int _tippingPoint;
 
     /**
-     * True after switching to estimation
+     * True after switching to estimation.
      */
     protected boolean _tipped = false;
 
     /**
-     * Factory for instantiating _estimator after the tipping point is reached
+     * True after compacting the counter storage for exact cardinality.
+     * You can't add new data after this has been done, so an exception will be thrown.
+     */
+    protected boolean _compacted = false;
+
+    /**
+     * Factory for instantiating estimator after the tipping point is reached
      */
     protected IBuilder<ICardinality> _builder;
 
     /**
-     * Cardinality _estimator
-     * Null until tipping point is reached
+     * Cardinality estimator: null until tipping point is reached
      */
     protected ICardinality _estimator;
 
     /**
-     * Cardinality _counter
-     * Null after tipping point is reached
+     * Cardinality counter: null after tipping point is reached
      */
     protected BytesRefHash _counter;
-    private static final Method __compact = getCompactMethod();
-    private static final Object[] __emptyParams = {};
-    protected int _totalCounterBytes = 0;
 
     /**
-     *  Used for adding bytesrefs to the _estimator, not used in exact counting
+     * Size of the longest BytesRef that the counter object has seen
      */
-    private static final MurmurHash2 __luceneMurmurHash = MurmurHash2.INSTANCE;
+    protected int _longestBytesRefSize = 0;
 
     /**
-     * Default constructor
-     * Exact counts up to 1000, estimation done with default Builder
+     * Create a new count-then-estimate cardinality object with the tipping point provided.
+     * After this has been reached, the provided builder will be used to create an estimator.
+     * 
      * @param tippingPoint Cardinality at which exact counting gives way to estimation
-     * @param builder      Factory for instantiating _estimator after the tipping point is reached
+     * @param builder      Factory for instantiating estimator after the tipping point is reached
      */
     public CountThenEstimateBytes(final int tippingPoint, final IBuilder<ICardinality> builder) {
         _tippingPoint = tippingPoint;
@@ -100,7 +118,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     }
 
     /**
-     * Deserialization constructor
+     * Deserialization constructor. Creates a new object from an array of bytes.
      *
      * @param bytes
      * @param tippingPoint Cardinality at which exact counting gives way to estimation
@@ -135,37 +153,31 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         throw new UnsupportedOperationException();
     }
 
-    public boolean offerBytesRefUnsafe(final BytesRef unsafe) {
+    /**
+     * Add a BytesRef to the underlying counter or estimator, tipping into approx
+     * mode if the tipping point has been reached. Calling this when in exact mode,
+     * but after merging or seriaizing this CountThenEstimateBytes instance, will
+     * result in an IllegalStateException. The supplied BytesRef does not need to
+     * be made safe by the calling class, as it will be copied on entry.
+     * 
+     * @param ref the BytesRef to add
+     * @return true if an equivalent string of bytes had not previously been offered
+     */
+    public boolean offerBytesRef(final BytesRef ref) {
         boolean modified = false;
         if(_tipped) {
             // The _estimator just needs the hash of the current bytes of the BytesRef
-            modified = _estimator.offerHashed(__luceneMurmurHash.hash(unsafe));
+            modified = _estimator.offerHashed(__luceneMurmurHash.hash(ref));
         } else {
-            // The _counter must copy the BytesRef as it needs to stay intact
-            if(_counter.add(BytesRef.deepCopyOf(unsafe)) >= 0) {
+            if(_compacted)
+                throw new IllegalStateException("Counter has already been compacted -- cannot add new data");
+            if(_counter.add(ref) >= 0) {
                 modified = true;
                 if(_counter.size() > _tippingPoint) {
                     tip();
                 } else {
-                    _totalCounterBytes += unsafe.length;
-                }
-            }
-        }
-        return modified;
-    }
-
-    public boolean offerBytesRefSafe(final BytesRef safe) {
-        boolean modified = false;
-        if(_tipped) {
-            // The _estimator just needs the hash of the current bytes of the BytesRef
-            modified = _estimator.offerHashed(__luceneMurmurHash.hash(safe));
-        } else {
-            if(_counter.add(safe) >= 0) {
-                modified = true;
-                if(_counter.size() > _tippingPoint) {
-                    tip();
-                } else {
-                    _totalCounterBytes += safe.length;
+                    if(ref.length > _longestBytesRefSize)
+                        _longestBytesRefSize = ref.length;
                 }
             }
         }
@@ -176,25 +188,9 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     public boolean offer(final Object o)
     {
         if(o instanceof BytesRef)
-            return offerBytesRefUnsafe((BytesRef) o);
-
-        final BytesRef ref = new BytesRef(o.toString());
-
-        boolean modified = false;
-        if(_tipped) {
-            // The _estimator just needs the hash of the current bytes of the BytesRef
-            modified = _estimator.offerHashed(__luceneMurmurHash.hash(ref));
-        } else {
-            if(_counter.add(ref) >= 0) {
-                modified = true;
-                if(_counter.size() > _tippingPoint) {
-                    tip();
-                } else {
-                    _totalCounterBytes += ref.length;
-                }
-            }
-        }
-        return modified;
+            return offerBytesRef((BytesRef) o);
+        else
+            return offerBytesRef(new BytesRef(o.toString()));
     }
 
     @Override
@@ -205,29 +201,40 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         return -1;
     }
 
+    /**
+     * Returns the tipping point.
+     * 
+     * @return the number of entries at which this instance switched from exact to approx mode
+     */
     public int getTippingPoint() {
         return _tippingPoint;
     }
 
     /**
-     * Switch from exact counting to estimation
+     * Switch from exact counting to estimation.
      */
     private void tip() {
         if(!_tipped) {
             _estimator = _builder.build();
             process(_counter, new Procedure() {
                 @Override
-                public void consume(final BytesRef unsafe) {
-                    _estimator.offerHashed(__luceneMurmurHash.hash(unsafe));
+                public void consume(final BytesRef ref) {
+                    _estimator.offerHashed(__luceneMurmurHash.hash(ref));
                 }
             });
             _counter = null;
-            _totalCounterBytes = 0;
+            _longestBytesRefSize = 0;
             _builder = null;
             _tipped = true;
+            _compacted = true;
         }
     }
 
+    /**
+     * Check the tipped status.
+     * 
+     * @return true if this instance is in approx mode
+     */
     public boolean tipped() {
         return _tipped;
     }
@@ -276,18 +283,20 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
 
             assert (count <= _tippingPoint) : String.format("Invalid serialization: count (%d) > _tippingPoint (%d)", count, _tippingPoint);
 
-            _totalCounterBytes = in.readInt();
-
-            final byte[] backing = new byte[_totalCounterBytes];
-            int backingPointer = 0;
-
-            for(int i = 0; i < count; i++) {
-                final int length = in.readInt();
-                in.read(backing, backingPointer, length);
-                _counter.add(new BytesRef(backing, backingPointer, length));
-                backingPointer += length;
+            // Just in case some muppet tries to deserialize into an already-used counter
+            if(_compacted || _counter.size() > 0) {
+                _counter.clear();
+                _counter.reinit();
+                _compacted = false;
             }
 
+            _longestBytesRefSize = in.readInt();
+            final byte[] scratch = new byte[_longestBytesRefSize];
+            for(int i = 0; i < count; i++) {
+                final int length = in.readInt();
+                in.read(scratch, 0, length);
+                _counter.add(new BytesRef(scratch, 0, length));
+            }
         }
     }
 
@@ -318,15 +327,16 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
             out.writeInt(_tippingPoint);
             out.writeObject(_builder);
             out.writeInt(_counter.size());
-            out.writeInt(_totalCounterBytes);
+            out.writeInt(_longestBytesRefSize);
 
             process(_counter, new Procedure() {
                 @Override
-                public void consume(final BytesRef unsafe) throws IOException {
-                    out.writeInt(unsafe.length);
-                    out.write(unsafe.bytes, unsafe.offset, unsafe.length);
+                public void consume(final BytesRef ref) throws IOException {
+                    out.writeInt(ref.length);
+                    out.write(ref.bytes, ref.offset, ref.length);
                 }
             });
+            _compacted = true;
 
         }
     }
@@ -342,12 +352,12 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     }
 
     /**
-     * Merges estimators to produce an _estimator for their combined streams
+     * Merges estimators to produce an estimator for their combined streams.
      *
-     * @param estimators
-     * @return merged _estimator or null if no estimators were provided
-     * @throws CountThenEstimateMergeException
-     *          if estimators are not mergeable (all must be CountThenEstimateBytes made with the same _builder)
+     * @param estimators the estimators to merge
+     * @return a merged estimator, or null if no estimators were provided
+     * @throws CardinalityMergeException
+     *          if estimators are not mergeable (all must be CountThenEstimateBytes made with the same builder)
      */
     public static CountThenEstimateBytes mergeEstimators(final CountThenEstimateBytes... estimators) throws CardinalityMergeException
     {
@@ -372,10 +382,11 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
                     final CountThenEstimateBytes cte = untipped.get(i);
                     process(cte._counter, new Procedure() {
                         @Override
-                        public void consume(final BytesRef unsafe) throws Exception {
-                            merged.offerBytesRefUnsafe(unsafe);
+                        public void consume(final BytesRef ref) throws Exception {
+                            merged.offerBytesRef(ref);
                         }
                     });
+                    cte._compacted = true;
                 }
 
             } else {
@@ -400,54 +411,22 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
         return null;
     }
 
-    private static void process(final BytesRefHash hash, final Procedure proc) {
-        int[] ids;
-        try {
-            ids = (int[]) __compact.invoke(hash, __emptyParams);
-        } catch(final IllegalAccessException e) {
-            throw new RuntimeException(e);
-        } catch(final InvocationTargetException e) {
-            throw new RuntimeException(e);
-        }
-        final BytesRef scratch = new BytesRef();
-        for(int i = 0; i < ids.length; i++) {
-            final int id = ids[i];
-            if(id < 0)
-                break;
-            hash.get(id, scratch);
-            try {
-                proc.consume(scratch);
-            } catch(final Exception e) {
-                throw new IllegalStateException(e);
-            }
-        }
-        hash.clear();
-    }
-
-    private static interface Procedure {
-        void consume(BytesRef unsafe) throws Exception;
-    }
-
-    private static Method getCompactMethod() {
-        Method compact;
-        try {
-            compact = BytesRefHash.class.getDeclaredMethod("compact", new Class[0]);
-        } catch(final SecurityException e) {
-            throw new RuntimeException(e);
-        } catch(final NoSuchMethodException e) {
-            throw new RuntimeException(e);
-        }
-        compact.setAccessible(true);
-        return compact;
-    }
-
+    /**
+     * Exception thrown to indicate that you have asked to merge two incompatible estimators.
+     */
     @SuppressWarnings("serial")
     protected static class CountThenEstimateMergeException extends CardinalityMergeException
     {
+
+        /**
+         * Create exception.
+         * @param message
+         */
         public CountThenEstimateMergeException(final String message)
         {
             super(message);
         }
+
     }
 
 }

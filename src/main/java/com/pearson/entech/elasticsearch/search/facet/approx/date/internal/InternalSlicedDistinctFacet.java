@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.date.internal;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
@@ -20,6 +20,12 @@ import org.elasticsearch.common.trove.procedure.TObjectProcedure;
 import org.elasticsearch.search.facet.Facet;
 
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.Constants;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DateFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DistinctSlice;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DistinctTimePeriod;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.HasDistinct;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.XContentEnabledList;
 
 public class InternalSlicedDistinctFacet
         extends DateFacet<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>>
@@ -93,7 +99,7 @@ public class InternalSlicedDistinctFacet
 
     @SuppressWarnings("unchecked")
     @Override
-    ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> peekCounts() {
+    protected ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> peekCounts() {
         return _counts;
     }
 
@@ -236,7 +242,7 @@ public class InternalSlicedDistinctFacet
         // Called once per time period
         @Override
         public boolean execute(final long time, final ExtTHashMap<BytesRef, DistinctCountPayload> period) {
-            // First create output buffer for the slices from this period
+            // First create _output buffer for the slices from this period
             final XContentEnabledList<DistinctSlice<String>> buffer =
                     new XContentEnabledList<DistinctSlice<String>>(period.size(), Constants.SLICES);
             // Then materialize the slices into it, creating period-wise subtotals as we go along

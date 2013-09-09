@@ -1,4 +1,4 @@
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.date.internal;
 
 import static com.google.common.collect.Lists.newArrayListWithCapacity;
 
@@ -14,6 +14,10 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
 import org.elasticsearch.common.trove.procedure.TLongIntProcedure;
 import org.elasticsearch.search.facet.Facet;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DateFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.NullEntry;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.external.TimePeriod;
 
 public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
 
@@ -77,7 +81,7 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
 
     @SuppressWarnings("unchecked")
     @Override
-    TLongIntHashMap peekCounts() {
+    protected TLongIntHashMap peekCounts() {
         return _counts;
     }
 

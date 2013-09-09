@@ -8,12 +8,20 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.search.facet.FacetModule;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.date.DateFacetParser;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.DateFacetParser;
 import com.pearson.entech.elasticsearch.search.facet.approx.termlist.InternalTermListFacet;
 import com.pearson.entech.elasticsearch.search.facet.approx.termlist.TermListFacetParser;
 
+/**
+ * Plugin configuration class.
+ */
 public class FacetPlugin extends AbstractPlugin {
 
+    /**
+     * Default constructor (required).
+     * 
+     * @param settings any settings for this plugin -- currently none are used
+     */
     public FacetPlugin(final Settings settings) {}
 
     @Override
@@ -23,7 +31,7 @@ public class FacetPlugin extends AbstractPlugin {
 
     @Override
     public String description() {
-        return "Plugin to use approximate methods for enabling and/or speeding up certain queries";
+        return "Plugin providing fast term listing, advanced date facets and exact/approximate distinct counts";
     }
 
     @Override

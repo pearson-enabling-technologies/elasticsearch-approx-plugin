@@ -4,6 +4,12 @@ import java.util.Iterator;
 
 import org.elasticsearch.search.facet.FacetExecutor.Collector;
 
+/**
+ * An extension to Collector that provides a standard Java Iterator/Iterable interface.
+ * remove() is not supported.
+ * 
+ * @param <T> the data type of the field data
+ */
 public abstract class CollectableIterator<T> extends Collector implements Iterator<T>, Iterable<T> {
 
     @Override

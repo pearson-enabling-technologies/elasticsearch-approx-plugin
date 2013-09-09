@@ -6,25 +6,27 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.facet.FacetBuilder;
 
 public class TermListFacetBuilder extends FacetBuilder {
+
     private String _fieldName;
-    private int _maxPerShard = 100;
+    private int _maxPerShard = Constants.DEFAULT_MAX_PER_SHARD;
+    private float _sample = Constants.DEFAULT_SAMPLE;
 
     public TermListFacetBuilder(final String name) {
         super(name);
-
-    }
-
-    public TermListFacetBuilder readFromCache(final boolean val) {
-        return this;
     }
 
     public TermListFacetBuilder keyField(final String field) {
-        this._fieldName = field;
+        _fieldName = field;
         return this;
     }
 
     public TermListFacetBuilder maxPerShard(final int maxPerShard) {
-        this._maxPerShard = maxPerShard;
+        _maxPerShard = maxPerShard;
+        return this;
+    }
+
+    public TermListFacetBuilder sample(final float sample) {
+        _sample = sample;
         return this;
     }
 
@@ -34,6 +36,7 @@ public class TermListFacetBuilder extends FacetBuilder {
         builder.startObject(TermListFacet.TYPE);
         builder.field("field", _fieldName);
         builder.field("maxPerShard", _maxPerShard);
+        builder.field("sample", _sample);
         //TODO add exclude?
         builder.endObject();
         addFilterFacetAndGlobal(builder, params);

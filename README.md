@@ -17,7 +17,7 @@ Plugin < 1.3.0: ElasticSearch 0.19.X, tested on 0.19.11
 
 Plugin 1.3.X: ElasticSearch 0.20.X, tested on 0.20.6
 
-Plugin 2.1.2: ElasticSearch 0.90.2, plus significant feature and performance improvements, and breaking API changes
+Plugin 2.1.3: ElasticSearch 0.90.2, plus significant feature and performance improvements, and breaking API changes
 
 ElasticSearch 0.90.3 is not supported yet.
 
@@ -128,7 +128,17 @@ period and for each slice within that time period.
 
 This is a simple facet to quickly retrieve an unsorted term list for a field,
 if you don't care about counts or ordering etc. It allows you to set a
-`max_per_shard` cutoff similar to the previous facet (defaults to 100).
+`max_per_shard` cutoff similar to the previous facet (defaults to 1000).
+
+You can also set a `sample` parameter which is a float greater than zero and
+less than or equal to 1. This causes the plugin to visit roughly that
+proportion of documents matched by your query when gathering the terms list.
+For example, sample=0.5 would mean only half the documents, selected randomly,
+would be taken into account.
+
+In some circumstances, a sample rate as low as 0.1 (10% of documents) can yield
+the exact same results as a full exhaustive scan (the default), but much
+faster. You'll need to experiment on your own data to find the sweet spot.
 
 ```javascript
 {
@@ -139,6 +149,7 @@ if you don't care about counts or ordering etc. It allows you to set a
         "term_list_facet" : {
             "term_list" : {
                 "key_field" : "txt1",
+                "sample" : 0.25,
                 "max_per_shard" : 100
             }
         }
@@ -170,10 +181,6 @@ Returns something like:
   }
 }
 ```
-
-This facet doesn't actually use anything clever like approximate counting --
-it's not really approximate in the same sense as the previous one -- but we
-thought you might find it useful.
 
 **N.B.** The `use_field_data`/`read_from_cache` option from previous versions
 is no longer supported. The plugin now uses ElasticSearch's field data cache
@@ -236,6 +243,32 @@ since they take a while.
 
 Then create a `plugins/approx` directory in your ElasticSearch install dir,
 and unzip the zipfile into there.
+
+
+## Developer information
+
+Each facet has a Builder class which is used in the Java API to build an
+XContent message (e.g. JSON) representing the facet clause of a query. If you
+are constructing a query from Java, you can use this class yourself, exactly
+like the builders for the facets provided with ElasticSearch. Just include the
+jar file in your client project.
+
+On the server side, each facet has a Parser class which parses the XContent of
+the facet clause, and invokes an Executor to actually perform the facet
+computation. This happens in a single thread on **each** shard separately.  The
+Executors use Collector classes to iterate through the field data supplied by
+ElasticSearch -- these are invoked directly by ElasticSearch itself. After this
+collection phase is complete, ElasticSearch calls the buildFacet() method on
+the Executor to retrieve an InternalFacet object.
+
+Each shard yields a single internal facet. This is responsible for serialization
+and deserialization, and supplies a reduce() method which enables ElasticSearch
+to merge the internal facets from multiple shards into a single object.
+
+The internal facet objects are specializations of Facets, which are what are
+actually returned to the client. Currently, in the term list facet, the public
+Facet is an interface, while in the date facet, the public Facets are abstract
+classes. This difference may disappear in the future.
 
 
 ## Credits

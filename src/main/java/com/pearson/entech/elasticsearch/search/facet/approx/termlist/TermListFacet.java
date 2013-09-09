@@ -18,4 +18,5 @@ public interface TermListFacet extends Facet, Iterable<String> {
      * The terms and counts.
      */
     List<? extends String> getEntries();
+
 }

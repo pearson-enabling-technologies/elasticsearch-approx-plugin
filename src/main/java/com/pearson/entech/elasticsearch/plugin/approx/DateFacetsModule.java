@@ -2,11 +2,15 @@ package com.pearson.entech.elasticsearch.plugin.approx;
 
 import org.elasticsearch.common.inject.AbstractModule;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalCountingFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalDistinctFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalSlicedDistinctFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalSlicedFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalCountingFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalDistinctFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalSlicedDistinctFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalSlicedFacet;
 
+/**
+ * DI module for registering the facet types with ElasticSearch's serialization mechanisms.
+ * 
+ */
 public class DateFacetsModule extends AbstractModule {
 
     @Override

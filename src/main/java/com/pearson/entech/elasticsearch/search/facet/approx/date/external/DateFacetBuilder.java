@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package com.pearson.entech.elasticsearch.search.facet.approx.date;
+package com.pearson.entech.elasticsearch.search.facet.approx.date.external;
 
 import java.io.IOException;
 import java.util.Map;
@@ -31,7 +31,7 @@ import org.elasticsearch.search.facet.FacetBuilder;
 import com.google.common.collect.Maps;
 
 /**
- * A facet builder of date histogram facets.
+ * A facet builder of date facets.
  */
 public class DateFacetBuilder extends FacetBuilder {
 
@@ -98,7 +98,7 @@ public class DateFacetBuilder extends FacetBuilder {
     }
 
     /**
-     * The field name to slice the output by.
+     * The field name to slice the _output by.
      */
     public DateFacetBuilder sliceField(final String sliceField) {
         this.sliceFieldName = sliceField;

@@ -12,18 +12,39 @@ import org.elasticsearch.index.fielddata.ScriptDocValues;
 import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.search.facet.InternalFacet;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.date.InternalCountingFacet;
+import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalCountingFacet;
 
+/**
+ * A Collector for standard (counting) date facets.
+ * 
+ * @param <V> the field data type of the optional value field (use NullFieldData if you aren't using the value field)
+ */
 public class CountingCollector<V extends AtomicFieldData<? extends ScriptDocValues>> extends TimestampFirstCollector<V> {
 
+    /**
+     * A map from timestamps to counts.
+     */
     private TLongIntHashMap _counts;
 
+    /**
+     * Create a new collector.
+     * 
+     * @param keyFieldData the key field (datetime) data
+     * @param valueFieldData the value field data
+     * @param tzRounding the rounding to apply to datetime values
+     */
     public CountingCollector(final LongArrayIndexFieldData keyFieldData,
             final IndexFieldData<V> valueFieldData, final TimeZoneRounding tzRounding) {
         super(keyFieldData, valueFieldData, tzRounding);
         _counts = CacheRecycler.popLongIntMap();
     }
 
+    /**
+     * Create a new collector.
+     * 
+     * @param keyFieldData
+     * @param tzRounding
+     */
     public CountingCollector(final LongArrayIndexFieldData keyFieldData,
             final TimeZoneRounding tzRounding) {
         super(keyFieldData, tzRounding);
