@@ -65,10 +65,16 @@ public class TermListFacetExecutor extends FacetExecutor {
 
         @Override
         public void setNextReader(final AtomicReaderContext context) throws IOException {
-            if(_entries.size() > _maxPerShard)
+            final int currentCount = _entries.size();
+            if(currentCount > _maxPerShard)
                 return;
 
-            _values = _exhaustive ?
+            // Heuristic: only load the values with hashes if we're in exhaustive
+            // mode and we aren't coming close to hitting our per-shard limit.
+            // If either of these conditions are false, load the data without
+            // hashes, and they'll get calculated on the fly anyway.
+
+            _values = (_exhaustive && currentCount * 1.1 < _maxPerShard) ?
                     _indexFieldData.load(context).getHashedBytesValues() :
                     _indexFieldData.load(context).getBytesValues();
         }
@@ -82,10 +88,7 @@ public class TermListFacetExecutor extends FacetExecutor {
 
             final Iter iter = _values.getIter(docId);
             while(iter.hasNext() && _entries.size() < _maxPerShard) {
-                if(_exhaustive)
-                    _entries.add(iter.next(), iter.hash());
-                else
-                    _entries.add(iter.next());
+                _entries.add(iter.next(), iter.hash());
             }
         }
 
