@@ -1,6 +1,11 @@
 Release 2.1.3
 -------------
 
+Fixed a race condition in BytesRefUtils.
+
+Release 2.1.3
+-------------
+
 Better checking for incorrect usage of distinct count payloads, and terminology improvements.
 
 Added "sample" parameter for term list facet's equivalent of approximate mode.

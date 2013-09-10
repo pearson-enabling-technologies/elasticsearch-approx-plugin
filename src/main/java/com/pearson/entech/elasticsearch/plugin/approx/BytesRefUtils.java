@@ -17,7 +17,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 public class BytesRefUtils {
 
     /** The compact() method on BytesRefHash objects. */
-    private static Method __compact;
+    private static volatile Method __compact;
 
     /** An empty array of objects: the params required for reflective-invocation of __compact. */
     private static final Object[] __emptyParams = {};
@@ -45,15 +45,16 @@ public class BytesRefUtils {
     private static Method getCompactMethod() {
         if(__compact != null)
             return __compact;
+        Method compact;
         try {
-            __compact = BytesRefHash.class.getDeclaredMethod("compact", new Class[0]);
+            compact = BytesRefHash.class.getDeclaredMethod("compact", new Class[0]);
         } catch(final SecurityException e) {
             throw new RuntimeException(e);
         } catch(final NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
-        __compact.setAccessible(true);
-        return __compact;
+        compact.setAccessible(true);
+        return __compact = compact;
     }
 
     /**
