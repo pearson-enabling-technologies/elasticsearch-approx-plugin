@@ -1,3 +1,17 @@
+Release 2.1.5
+-------------
+
+More documentation improvements, code cleanup.
+
+Workaround for a compiler issue in some versions of Java 6:
+
+https://github.com/pearson-enabling-technologies/elasticsearch-approx-plugin/issues/41
+
+Release 2.1.4
+-------------
+
+Documentation improvements.
+
 Release 2.1.3
 -------------
 

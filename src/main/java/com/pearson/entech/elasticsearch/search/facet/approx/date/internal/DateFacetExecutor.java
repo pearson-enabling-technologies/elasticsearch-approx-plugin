@@ -2,7 +2,6 @@ package com.pearson.entech.elasticsearch.search.facet.approx.date.internal;
 
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.index.fielddata.IndexFieldData;
-import org.elasticsearch.index.fielddata.LongValues.Iter;
 import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.FacetPhaseExecutionException;
@@ -15,49 +14,45 @@ import com.pearson.entech.elasticsearch.search.facet.approx.date.collectors.Slic
 import com.pearson.entech.elasticsearch.search.facet.approx.date.collectors.SlicedDistinctCollector;
 import com.pearson.entech.elasticsearch.search.facet.approx.date.collectors.TimestampFirstCollector;
 
+/**
+ * Executor for all date facets.
+ */
 public class DateFacetExecutor extends FacetExecutor {
 
-    private static final Iter __emptyIter = new Iter.Empty();
+    private final TimestampFirstCollector<?> _collector;
 
-    private final LongArrayIndexFieldData _keyFieldData;
-    private final IndexFieldData _valueFieldData;
-    private final IndexFieldData _distinctFieldData;
-    private final IndexFieldData _sliceFieldData;
+    // TODO proper use of generics
 
-    private final TimestampFirstCollector _collector;
+    /**
+     * Create a new executor.
+     * 
+     * @param keyFieldData field data for the datetime field used for timestamps
+     * @param valueFieldData field data for the optional value field, can be null
+     * @param distinctFieldData field data for the optional distinct field, can be null
+     * @param sliceFieldData field data for the optional slice field, can be null
+     * @param tzRounding a timezone rounding object
+     * @param exactThreshold exact count threshold when doing distincts
+     */
+    public DateFacetExecutor(final LongArrayIndexFieldData keyFieldData, final IndexFieldData<?> valueFieldData,
+            final IndexFieldData<?> distinctFieldData, final IndexFieldData<?> sliceFieldData,
+            final TimeZoneRounding tzRounding, final int exactThreshold) {
 
-    private final TimeZoneRounding _tzRounding;
-
-    private final int _exactThreshold;
-
-    public DateFacetExecutor(final LongArrayIndexFieldData keyFieldData, final IndexFieldData valueFieldData,
-            final IndexFieldData distinctFieldData, final IndexFieldData sliceFieldData,
-            final TimeZoneRounding tzRounding, final int exactThreshold, final boolean debug) {
-        _keyFieldData = keyFieldData;
-        _valueFieldData = valueFieldData;
-        _distinctFieldData = distinctFieldData;
-        _sliceFieldData = sliceFieldData;
-        _tzRounding = tzRounding;
-        _exactThreshold = exactThreshold;
-
-        // TODO type safety for the following constructors
-
-        if(_distinctFieldData == null && _sliceFieldData == null)
-            if(_valueFieldData == null)
+        if(distinctFieldData == null && sliceFieldData == null)
+            if(valueFieldData == null)
                 _collector = new CountingCollector<NullFieldData>(keyFieldData, tzRounding);
             else
-                _collector = new CountingCollector(keyFieldData, _valueFieldData, tzRounding);
-        else if(_distinctFieldData == null)
-            if(_valueFieldData == null)
+                _collector = new CountingCollector(keyFieldData, valueFieldData, tzRounding);
+        else if(distinctFieldData == null)
+            if(valueFieldData == null)
                 _collector = new SlicedCollector(keyFieldData, sliceFieldData, tzRounding);
             else
                 _collector = new SlicedCollector(keyFieldData, valueFieldData, sliceFieldData, tzRounding);
-        else if(_sliceFieldData == null)
-            if(_valueFieldData == null)
+        else if(sliceFieldData == null)
+            if(valueFieldData == null)
                 _collector = new DistinctCollector(keyFieldData, distinctFieldData, tzRounding, exactThreshold);
             else
                 throw new FacetPhaseExecutionException("unknown date_facet", "Can't use distinct_field and value_field together");
-        else if(_valueFieldData == null)
+        else if(valueFieldData == null)
             _collector = new SlicedDistinctCollector(keyFieldData, sliceFieldData, distinctFieldData, tzRounding, exactThreshold);
         else
             throw new FacetPhaseExecutionException("unknown date_facet", "Can't use distinct_field and value_field together");

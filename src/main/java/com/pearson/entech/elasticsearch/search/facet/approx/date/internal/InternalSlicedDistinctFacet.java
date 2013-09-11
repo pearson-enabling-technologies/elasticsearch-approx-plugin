@@ -242,7 +242,7 @@ public class InternalSlicedDistinctFacet
         // Called once per time period
         @Override
         public boolean execute(final long time, final ExtTHashMap<BytesRef, DistinctCountPayload> period) {
-            // First create _output buffer for the slices from this period
+            // First create output buffer for the slices from this period
             final XContentEnabledList<DistinctSlice<String>> buffer =
                     new XContentEnabledList<DistinctSlice<String>>(period.size(), Constants.SLICES);
             // Then materialize the slices into it, creating period-wise subtotals as we go along
