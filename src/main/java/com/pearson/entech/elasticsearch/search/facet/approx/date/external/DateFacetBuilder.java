@@ -62,8 +62,12 @@ public class DateFacetBuilder extends FacetBuilder {
     }
 
     /**
-     * The field name to perform the histogram facet. Translates to perform the histogram facet
-     * using the provided field as both the {@link #keyField(String)} and {@link #valueField(String)}.
+     * The field name to use in order to control where the hit will "fall into" within the histogram
+     * entries -- synonym for keyField(). Essentially, using the key field numeric value, the hit
+     * will be "rounded" into the relevant bucket controlled by the interval.
+     * 
+     * @param field 
+     * @return the builder
      */
     public DateFacetBuilder field(final String field) {
         this.keyFieldName = field;
@@ -72,8 +76,11 @@ public class DateFacetBuilder extends FacetBuilder {
 
     /**
      * The field name to use in order to control where the hit will "fall into" within the histogram
-     * entries. Essentially, using the key field numeric value, the hit will be "rounded" into the relevant
-     * bucket controlled by the interval.
+     * entries -- synonym for field(). Essentially, using the key field numeric value, the hit
+     * will be "rounded" into the relevant bucket controlled by the interval.
+     * 
+     * @param keyField 
+     * @return the builder
      */
     public DateFacetBuilder keyField(final String keyField) {
         this.keyFieldName = keyField;
@@ -83,6 +90,9 @@ public class DateFacetBuilder extends FacetBuilder {
     /**
      * The field name to use as the value of the hit to compute data based on values within the interval
      * (for example, total).
+     * 
+     * @param valueField 
+     * @return the builder 
      */
     public DateFacetBuilder valueField(final String valueField) {
         this.valueFieldName = valueField;
@@ -91,6 +101,9 @@ public class DateFacetBuilder extends FacetBuilder {
 
     /**
      * The field name to count distinct values of.
+     * 
+     * @param distinctField 
+     * @return the builder 
      */
     public DateFacetBuilder distinctField(final String distinctField) {
         this.distinctFieldName = distinctField;
@@ -98,18 +111,34 @@ public class DateFacetBuilder extends FacetBuilder {
     }
 
     /**
-     * The field name to slice the _output by.
+     * The field name to slice the output by.
+     * 
+     * @param sliceField 
+     * @return the builder
      */
     public DateFacetBuilder sliceField(final String sliceField) {
         this.sliceFieldName = sliceField;
         return this;
     }
 
+    /**
+     * A value script to apply -- NOT YET IMPLEMENTED.
+     * 
+     * @param valueScript
+     * @return the builder
+     */
     public DateFacetBuilder valueScript(final String valueScript) {
         this.valueScript = valueScript;
         return this;
     }
 
+    /**
+     * Arbitrary additional parameters -- currently none are used.
+     * 
+     * @param name the parameter name
+     * @param value the parameter value
+     * @return the builder
+     */
     public DateFacetBuilder param(final String name, final Object value) {
         if(params == null) {
             params = Maps.newHashMap();
@@ -119,7 +148,10 @@ public class DateFacetBuilder extends FacetBuilder {
     }
 
     /**
-     * The language of the value script.
+     * The language of the value script -- NOT YET IMPLEMENTED.
+     * 
+     * @param lang the language
+     * @return the builder
      */
     public DateFacetBuilder lang(final String lang) {
         this.lang = lang;
@@ -129,6 +161,9 @@ public class DateFacetBuilder extends FacetBuilder {
     /**
      * The interval used to control the bucket "size" where each key value of a hit will fall into. Check
      * the docs for all available values.
+     * 
+     * @param interval the interval setting 
+     * @return the builder
      */
     public DateFacetBuilder interval(final String interval) {
         this.interval = interval;
@@ -137,6 +172,9 @@ public class DateFacetBuilder extends FacetBuilder {
 
     /**
      * Should pre zone be adjusted for large (day and above) intervals. Defaults to <tt>false</tt>.
+     * 
+     * @param preZoneAdjustLargeInterval true/false 
+     * @return the builder
      */
     public DateFacetBuilder preZoneAdjustLargeInterval(final boolean preZoneAdjustLargeInterval) {
         this.preZoneAdjustLargeInterval = preZoneAdjustLargeInterval;
@@ -149,6 +187,9 @@ public class DateFacetBuilder extends FacetBuilder {
      * <p/>
      * Can either be in the form of "-10:00" or
      * one of the values listed here: http://joda-time.sourceforge.net/timezones.html.
+     * 
+     * @param preZone a timezone string 
+     * @return the builder
      */
     public DateFacetBuilder preZone(final String preZone) {
         this.preZone = preZone;
@@ -161,6 +202,9 @@ public class DateFacetBuilder extends FacetBuilder {
      * <p/>
      * Can either be in the form of "-10:00" or
      * one of the values listed here: http://joda-time.sourceforge.net/timezones.html.
+     * 
+     * @param postZone a timezone string 
+     * @return the builder
      */
     public DateFacetBuilder postZone(final String postZone) {
         this.postZone = postZone;
@@ -169,6 +213,9 @@ public class DateFacetBuilder extends FacetBuilder {
 
     /**
      * Sets a pre offset that will be applied before rounding the results.
+     * 
+     * @param preOffset a valid time value
+     * @return the builder
      */
     public DateFacetBuilder preOffset(final TimeValue preOffset) {
         this.preOffset = preOffset.millis();
@@ -177,6 +224,9 @@ public class DateFacetBuilder extends FacetBuilder {
 
     /**
      * Sets a post offset that will be applied after rounding the results.
+     * 
+     * @param postOffset a valid time value
+     * @return the builder
      */
     public DateFacetBuilder postOffset(final TimeValue postOffset) {
         this.postOffset = postOffset.millis();
@@ -186,6 +236,9 @@ public class DateFacetBuilder extends FacetBuilder {
     /**
      * Sets the factor that will be used to multiply the value with before and divided
      * by after the rounding of the results.
+     * 
+     * @param factor the rounding factor
+     * @return the builder
      */
     public DateFacetBuilder factor(final float factor) {
         this.factor = factor;
@@ -195,6 +248,9 @@ public class DateFacetBuilder extends FacetBuilder {
     /**
      * How many distinct terms can we collect in each result bucket before
      * flipping over to approximate counting? (Distinct mode only)
+     * 
+     * @param threshold the threshold
+     * @return the builder
      */
     public DateFacetBuilder exactThreshold(final int threshold) {
         this.exactThreshold = threshold;
@@ -204,6 +260,9 @@ public class DateFacetBuilder extends FacetBuilder {
     /**
      * Should the facet run in global mode (not bounded by the search query) or not (bounded by
      * the search query). Defaults to <tt>false</tt>.
+     * 
+     * @param global true/false
+     * @return the builder
      */
     @Override
     public DateFacetBuilder global(final boolean global) {
@@ -213,6 +272,9 @@ public class DateFacetBuilder extends FacetBuilder {
 
     /**
      * An additional filter used to further filter down the set of documents the facet will run on.
+     * 
+     * @param the filter to use
+     * @return the builder
      */
     @Override
     public DateFacetBuilder facetFilter(final FilterBuilder filter) {
@@ -223,6 +285,9 @@ public class DateFacetBuilder extends FacetBuilder {
     /**
      * Sets the nested path the facet will execute on. A match (root object) will then cause all the
      * nested objects matching the path to be computed into the facet.
+     * 
+     * @param nested a nested path using dot notation
+     * @return the builder
      */
     @Override
     public DateFacetBuilder nested(final String nested) {
