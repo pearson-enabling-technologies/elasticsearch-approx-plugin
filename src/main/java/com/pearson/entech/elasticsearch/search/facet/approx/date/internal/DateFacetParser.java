@@ -191,13 +191,15 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
                 tzRounding, exactThreshold, debug);
     }
 
+    @SuppressWarnings("unchecked")
     private <IFD> IFD getFieldData(final String facetName, final String fieldName, final SearchContext context) {
         if(fieldName != null) {
             final FieldMapper<?> mapper = context.smartNameFieldMapper(fieldName);
             if(mapper == null) {
                 throw new FacetPhaseExecutionException(facetName, "no mapping found for " + fieldName);
             }
-            return context.fieldData().getForField(mapper);
+            // This cast is a workaround to deal with issue #41
+            return (IFD) context.fieldData().getForField(mapper);
         }
         return null;
     }

@@ -17,8 +17,16 @@ import org.elasticsearch.index.fielddata.LongValues.WithOrdinals;
 import org.elasticsearch.index.fielddata.ScriptDocValues;
 import org.elasticsearch.index.fielddata.plain.LongArrayIndexFieldData;
 
+/**
+ * A buildable collector which iterates through value of a long datetime field, applying timezone rounding to them.
+ *  
+ * @param <V> the IndexFieldData type of the datetime field 
+ */
 public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extends ScriptDocValues>> extends BuildableCollector {
 
+    /**
+     * An empty iterator over long values. 
+     */
     protected static final Iter EMPTY = new Iter.Empty();
 
     private LongValues _keyFieldValues;
@@ -36,6 +44,13 @@ public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extend
     private BytesValues _valueFieldValues;
     private BytesValues.Iter _valueFieldIter;
 
+    /**
+     * Create a new collector.
+     * 
+     * @param keyFieldData key (datetime) field data
+     * @param valueFieldData value field data
+     * @param tzRounding time zone rounding
+     */
     public TimestampFirstCollector(final LongArrayIndexFieldData keyFieldData,
             final IndexFieldData<V> valueFieldData, final TimeZoneRounding tzRounding) {
         _keyFieldData = keyFieldData;
@@ -43,6 +58,12 @@ public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extend
         _tzRounding = tzRounding;
     }
 
+    /**
+     * Create a new collector.
+     * 
+     * @param keyFieldData key (datetime) field data
+     * @param tzRounding time zone rounding
+     */
     public TimestampFirstCollector(final LongArrayIndexFieldData keyFieldData,
             final TimeZoneRounding tzRounding) {
         this(keyFieldData, null, tzRounding);
@@ -50,6 +71,7 @@ public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extend
 
     @Override
     public void collect(final int doc) throws IOException {
+        // If the datetime field has ordinals available, we can take a bunch of shortcuts later
         if(_keyFieldValues instanceof WithOrdinals) {
             _docOrds = ((WithOrdinals) _keyFieldValues).ordinals().getOrds(doc);
             _docOrdPointer = _docOrds.offset;
@@ -66,16 +88,35 @@ public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extend
         if(hasValueField())
             _valueFieldValues = _valueFieldData.load(context).getBytesValues();
 
+        // If we have ordinals avilable, we can do most of the work up front.
+        // We build a mapping from ords to rounded timestamps, so we never
+        // have to retrieve the field values for a given document. We just
+        // see which ordinals it has and then get the rounded timestamps they
+        // correspond to.
+
+        // One drawback of this approach is that if we have a very aggressively
+        // filtered query, there might be many ordinals which are never used by
+        // any of the documents we will be looking at. So we'd be wasting effort
+        // by calculating timestamps for all of the ordinals up front.
+        // TODO come up with a heuristic to avoid falling into this trap.
+
         if(_keyFieldValues instanceof WithOrdinals) {
             final int maxOrd = ((WithOrdinals) _keyFieldValues).ordinals().getMaxOrd();
             int tsPointer = 0;
+
+            // _timestamps holds the rounded timestamps
             _timestamps.resetQuick();
             _timestamps.add(0);
+
+            // _ordToTimestampPointers has one entry for every ord
             _ordToTimestampPointers.resetQuick();
             _ordToTimestampPointers.add(0);
+
+            // We cache these for some small optimizations
             long lastDateTime = 0;
             long lastTimestamp = 0;
             for(int i = 1; i < maxOrd; i++) {
+                // Get the next ordinal's value so we can calculate its timestamp
                 final long datetime = ((WithOrdinals) _keyFieldValues).getValueByOrd(i);
 
                 // If this datetime is less than a second after the previously-seen timestamp, it will have the same timestamp
@@ -95,6 +136,8 @@ public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extend
                     }
                 }
                 lastDateTime = datetime;
+
+                // Add timestamp pointer for this ord -- could be the same as the previous ord, or a new one
                 _ordToTimestampPointers.add(tsPointer);
             }
         } else {
@@ -105,6 +148,11 @@ public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extend
     @Override
     public void postCollection() {}
 
+    /**
+     * Are there any more timestamps available?
+     * 
+     * @return true/false
+     */
     protected boolean hasNextTimestamp() {
         if(_keyFieldValues instanceof WithOrdinals) {
             return _docOrdPointer < _docOrds.length;
@@ -113,12 +161,19 @@ public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extend
         }
     }
 
+    /**
+     * Get the next timestamp, i.e. the rounded value of the next available datetime.
+     * 
+     * @return the timestamp
+     */
     protected long nextTimestamp() {
         if(_keyFieldValues instanceof WithOrdinals) {
+            // We can bypass getting the raw datetime value, and go from ord to timestamp directly (well, directly-ish)
             final long ts = _timestamps.get(_ordToTimestampPointers.get(_docOrds.ints[_docOrdPointer]));
             _docOrdPointer++;
             return ts;
         } else {
+            // Get the next raw datetime, and if necessary, round it
             final long datetime = _docIter.next();
             // If this datetime is less than a second after the previously-seen timestamp, it will have the same timestamp
             // (true because we don't support granularity less than 1 sec)
@@ -134,14 +189,31 @@ public abstract class TimestampFirstCollector<V extends AtomicFieldData<? extend
         }
     }
 
+    /**
+     * Returns true if this iterator is getting each timestamp once per value of a value field.
+     * Otherwise, it's getting each timestamp once per document.
+     * 
+     * @return true/false
+     */
     protected boolean hasValueField() {
         return _valueFieldData != null;
     }
 
+    /**
+     * Returns true if there is another value of a value field available, for the current doc.
+     * If there isn't, or we're not using a value field, returns false.
+     * 
+     * @return true/false
+     */
     protected boolean hasNextValue() {
         return _valueFieldIter != null && _valueFieldIter.hasNext();
     }
 
+    /**
+     * Gets the next value of the value field, or null if we're not using a value field.
+     * 
+     * @return the next value as a BytesRef, or null
+     */
     protected BytesRef nextValue() {
         return _valueFieldIter == null ? null : _valueFieldIter.next();
     }
