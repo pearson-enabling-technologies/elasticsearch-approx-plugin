@@ -27,16 +27,19 @@ import org.elasticsearch.search.facet.FacetPhaseExecutionException;
 import org.elasticsearch.search.internal.SearchContext;
 
 /**
- * Parser is responsible to make sense of a SearchRequests "facet query" and
- * has to choose the correct FacetExecutor based on the facet query
- *
- * The {@link #parse} method does all the interesting work.
+ * This class is responsible for parsing a date facet request, and creating a
+ * correctly-configured DateFacetExecutor for actually handling the query.
  */
 public class DateFacetParser extends AbstractComponent implements FacetParser {
 
     private final ImmutableMap<String, DateFieldParser> dateFieldParsers;
     private final TObjectIntHashMap<String> rounding = new TObjectIntHashMap<String>(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, -1);
 
+    /**
+     * Create a new parser.
+     * 
+     * @param settings any extra settings -- not currently used.
+     */
     @Inject
     public DateFacetParser(final Settings settings) {
         super(settings);
@@ -185,10 +188,8 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
         if(exactThreshold < 0)
             exactThreshold = Integer.MAX_VALUE;
 
-        final boolean debug = false;
-
         return new DateFacetExecutor(keyFieldData, valueFieldData, distinctFieldData, sliceFieldData,
-                tzRounding, exactThreshold, debug);
+                tzRounding, exactThreshold);
     }
 
     @SuppressWarnings("unchecked")
