@@ -248,12 +248,22 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
         }
     }
 
+    /**
+     * Holds parsers for different intervals.
+     */
     static interface DateFieldParser {
 
-        // Nothing special here; 1:1 the same as in the DateHistogramFacetParser
-
+        /**
+         * Parse a Joda Chronology object into a DateTimeField.
+         * 
+         * @param chronology the Chronology
+         * @return the DateTimeField
+         */
         DateTimeField parse(Chronology chronology);
 
+        /**
+         * Parser for week intervals.
+         */
         static class WeekOfWeekyear implements DateFieldParser {
             @Override
             public DateTimeField parse(final Chronology chronology) {
@@ -261,6 +271,9 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
             }
         }
 
+        /**
+         * Parser for year intervals.
+         */
         static class YearOfCentury implements DateFieldParser {
             @Override
             public DateTimeField parse(final Chronology chronology) {
@@ -268,6 +281,9 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
             }
         }
 
+        /**
+         * Parser for quarter intervals.
+         */
         static class Quarter implements DateFieldParser {
             @Override
             public DateTimeField parse(final Chronology chronology) {
@@ -275,6 +291,9 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
             }
         }
 
+        /**
+         * Parser for month intervals.
+         */
         static class MonthOfYear implements DateFieldParser {
             @Override
             public DateTimeField parse(final Chronology chronology) {
@@ -282,6 +301,9 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
             }
         }
 
+        /**
+         * Parser for day intervals.
+         */
         static class DayOfMonth implements DateFieldParser {
             @Override
             public DateTimeField parse(final Chronology chronology) {
@@ -289,6 +311,9 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
             }
         }
 
+        /**
+         * Parser for hour intervals.
+         */
         static class HourOfDay implements DateFieldParser {
             @Override
             public DateTimeField parse(final Chronology chronology) {
@@ -296,6 +321,9 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
             }
         }
 
+        /**
+         * Parser for minute intervals.
+         */
         static class MinuteOfHour implements DateFieldParser {
             @Override
             public DateTimeField parse(final Chronology chronology) {
@@ -303,6 +331,9 @@ public class DateFacetParser extends AbstractComponent implements FacetParser {
             }
         }
 
+        /**
+         * Parser for second intervals.
+         */
         static class SecondOfMinute implements DateFieldParser {
             @Override
             public DateTimeField parse(final Chronology chronology) {

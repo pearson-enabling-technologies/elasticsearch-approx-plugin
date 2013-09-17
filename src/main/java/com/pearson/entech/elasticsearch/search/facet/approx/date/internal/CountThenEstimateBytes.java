@@ -156,7 +156,7 @@ public class CountThenEstimateBytes implements ICardinality, Externalizable
     /**
      * Add a BytesRef to the underlying counter or estimator, tipping into approx
      * mode if the tipping point has been reached. Calling this when in exact mode,
-     * but after merging or seriaizing this CountThenEstimateBytes instance, will
+     * but after merging or serializing this CountThenEstimateBytes instance, will
      * result in an IllegalStateException. The supplied BytesRef does not need to
      * be made safe by the calling class, as it will be copied on entry.
      * 

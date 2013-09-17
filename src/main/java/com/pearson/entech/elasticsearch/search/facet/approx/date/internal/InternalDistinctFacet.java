@@ -21,65 +21,96 @@ import com.pearson.entech.elasticsearch.search.facet.approx.date.external.Distin
 import com.pearson.entech.elasticsearch.search.facet.approx.date.external.HasDistinct;
 import com.pearson.entech.elasticsearch.search.facet.approx.date.external.NullEntry;
 
+/**
+ * The internal representation of a DistinctDateFacet, holding the reduce and
+ * materialize logic. This is only available on the server side, or via
+ * ElasticSearch's JVM transport -- i.e. it doesn't survive XContent serialization.
+ */
 public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<NullEntry>> implements HasDistinct {
 
-    private ExtTLongObjectHashMap<DistinctCountPayload> _counts;
-
-    private long _total;
-    private List<DistinctTimePeriod<NullEntry>> _periods;
-    private long _distinctCount;
-
-    private final boolean _debug;
-
-    private static final ExtTLongObjectHashMap<DistinctCountPayload> EMPTY = new ExtTLongObjectHashMap<DistinctCountPayload>();
+    /**
+     * The facet type, as shown in the JSON returned.
+     */
     static final String TYPE = "distinct_date_facet";
-    private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
+    /**
+     * Stream handler for this facet type.
+     */
+    static Stream STREAM = new Stream() {
+        @Override
+        public Facet readFacet(final StreamInput in) throws IOException {
+            final InternalDistinctFacet facet = new InternalDistinctFacet();
+            facet.readFrom(in);
+            return facet;
+        }
+    };
+
+    /**
+     * Register the stream handler with ElasticSearch.
+     */
     public static void registerStreams() {
         Streams.registerStream(STREAM, STREAM_TYPE);
     }
 
-    static Stream STREAM = new Stream() {
-        @Override
-        public Facet readFacet(final StreamInput in) throws IOException {
-            return readHistogramFacet(in);
-        }
-    };
+    /**
+     * The stream type, used internally by ElasticSearch.
+     */
+    private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
-    public static InternalDistinctFacet readHistogramFacet(final StreamInput in) throws IOException {
-        final InternalDistinctFacet facet = new InternalDistinctFacet();
-        facet.readFrom(in);
-        return facet;
-    }
+    /**
+     * An empty distinct counts map, shared between instances.
+     */
+    private static final ExtTLongObjectHashMap<DistinctCountPayload> EMPTY = new ExtTLongObjectHashMap<DistinctCountPayload>();
 
-    // Only for deserialization
+    /**
+     * Map from timestamps to distinct counts.
+     */
+    private ExtTLongObjectHashMap<DistinctCountPayload> _counts;
+
+    /**
+     * Total count across all time periods.
+     */
+    private long _total;
+
+    /**
+     * Total distinct count across all time periods.
+     */
+    private long _distinctCount;
+
+    /**
+     * List of time periods, only created in the materialize phase.
+     */
+    private List<DistinctTimePeriod<NullEntry>> _periods;
+
+    /**
+     * Empty constructor for deserialization only -- do not use.
+     */
     protected InternalDistinctFacet() {
         super("not set");
-        _debug = false;
     }
 
-    public InternalDistinctFacet(final String name, final ExtTLongObjectHashMap<DistinctCountPayload> counts) {
+    /**
+     * Create a new facet from an existing distinct counts map.
+     * 
+     * @param name the name of this facet as supplied by the user
+     * @param counts the distinct counts map
+     */
+    public InternalDistinctFacet(final String name,
+            final ExtTLongObjectHashMap<DistinctCountPayload> counts) {
         super(name);
         _counts = counts;
-        _debug = false;
-    }
-
-    public InternalDistinctFacet(final String name, final ExtTLongObjectHashMap<DistinctCountPayload> counts, final boolean debug) {
-        super(name);
-        _counts = counts;
-        _debug = debug;
-    }
-
-    @Override
-    public long getDistinctCount() {
-        materialize();
-        return _distinctCount;
     }
 
     @Override
     public long getTotalCount() {
         materialize();
         return _total;
+    }
+
+    @Override
+    public long getDistinctCount() {
+        materialize();
+        return _distinctCount;
     }
 
     @Override
@@ -145,8 +176,12 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
         }
     }
 
+    /**
+     * Prepare this facet for rendering, clearing any held data in the process.
+     */
     private synchronized void materialize() {
         if(_periods != null)
+            // This facet has been materialized already
             return;
         if(_counts == null || _counts.size() == 0) {
             _total = 0;
@@ -171,14 +206,18 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
 
     private final PeriodMerger _mergePeriods = new PeriodMerger();
 
+    /**
+     * Performs merge operation over the elements of a distinct counts map,
+     * updating the corresponding payloads in a target map.
+     */
     private static class PeriodMerger implements TLongObjectProcedure<DistinctCountPayload> {
 
         InternalDistinctFacet target;
 
-        // Called once per period
         @Override
         public boolean execute(final long time, final DistinctCountPayload payload) {
-            // These objects already know how to merge themselves
+            // Called once per period:
+            // update the corresponding payload in the target facet, or add if not there
             payload.mergeInto(target._counts, time);
             return true;
         }
@@ -187,31 +226,54 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
 
     private final PeriodMaterializer _materializePeriod = new PeriodMaterializer();
 
+    /**
+     * Performs materialize operation over a distinct counts map, converting
+     * the counts into a list of TimePeriod objects. This list will
+     * be in the same order as the map entries were provided.
+     */
     private static final class PeriodMaterializer implements TLongObjectProcedure<DistinctCountPayload> {
 
         private List<DistinctTimePeriod<NullEntry>> _target;
+
         private DistinctCountPayload _accumulator;
 
-        public void init(final List<DistinctTimePeriod<NullEntry>> target) {
-            _target = target;
+        /**
+         * Initialize or reinitialize the procedure, providing a list
+         * to materialize the data into. The counter will be reset to 0.
+         * 
+         * @param periods the target list, should be empty
+         */
+        public void init(final List<DistinctTimePeriod<NullEntry>> periods) {
+            _target = periods;
             _accumulator = null;
         }
 
+        /**
+         * Get the total (non-distinct) count across all time periods.
+         * 
+         * @return the count
+         */
         public long getOverallTotal() {
             return _accumulator == null ?
                     0 : _accumulator.getCount();
         }
 
+        /**
+         * Get the distinct count across all time periods.
+         * 
+         * @return the count
+         */
         public long getOverallDistinct() {
             return _accumulator == null ?
-                    0 : _accumulator.getCardinality().cardinality();
+                    0 : _accumulator.getDistinctCount();
         }
 
-        // Called once per period
         @Override
         public boolean execute(final long time, final DistinctCountPayload payload) {
+            // Called once per period:
+            // create a TimePeriod representation of this count and save it
             final long count = payload.getCount();
-            final long cardinality = payload.getCardinality().cardinality();
+            final long cardinality = payload.getDistinctCount();
             _target.add(new DistinctTimePeriod<NullEntry>(
                     time, count, cardinality, NullEntry.INSTANCE));
 
@@ -228,6 +290,10 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
             return true;
         }
 
+        /**
+         * Release any resources held by the procedure so they can
+         * be garbage-collected.
+         */
         public void clear() {
             _target = null;
             _accumulator = null;
@@ -237,18 +303,31 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
 
     private final Serializer _serialize = new Serializer();
 
+    /**
+     * Performs serialize operation over a distinct counts map, writing
+     * the counts into an ElasticSearch StreamOutput object.
+     */
     private static final class Serializer implements TLongObjectProcedure<DistinctCountPayload> {
 
         private StreamOutput _output;
 
+        /**
+         * Initialize or reinitialize the procedure, providing a
+         * StreamOutput to write the data to.
+         * 
+         * @param output the StreamOutput
+         * @param size the number of counts to write
+         * @throws IOException
+         */
         public void init(final StreamOutput output, final int size) throws IOException {
             _output = output;
             output.writeVInt(size);
         }
 
-        // Called once per period
         @Override
         public boolean execute(final long key, final DistinctCountPayload payload) {
+            // Called once per period:
+            // write the timestamp and value to _output
             try {
                 _output.writeVLong(key);
                 payload.writeTo(_output);
@@ -258,6 +337,10 @@ public class InternalDistinctFacet extends DistinctDateFacet<DistinctTimePeriod<
             return true;
         }
 
+        /**
+         * Release any resources held by the procedure so they can
+         * be garbage-collected.
+         */
         public void clear() {
             _output = null;
         }

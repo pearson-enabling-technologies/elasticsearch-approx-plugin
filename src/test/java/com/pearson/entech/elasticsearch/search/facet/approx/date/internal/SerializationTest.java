@@ -18,12 +18,6 @@ import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.search.facet.InternalFacet;
 import org.junit.Test;
 
-import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.DistinctCountPayload;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalCountingFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalDistinctFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalSlicedDistinctFacet;
-import com.pearson.entech.elasticsearch.search.facet.approx.date.internal.InternalSlicedFacet;
-
 public class SerializationTest {
 
     @Test
@@ -113,7 +107,7 @@ public class SerializationTest {
         for(final long period : expectedCounts.keySet()) {
             final DistinctCountPayload payload = receivedCounts.get(period);
             assertEquals(expectedCounts.get(period).intValue(), payload.getCount());
-            assertEquals(expectedCardinalities.get(period).intValue(), payload.getCardinality().cardinality());
+            assertEquals(expectedCardinalities.get(period).intValue(), payload.getDistinctCount());
         }
     }
 
@@ -206,7 +200,7 @@ public class SerializationTest {
             for(final BytesRef label : expectedCounts.get(period).keySet()) {
                 assertTrue(receivedPeriod.containsKey(label));
                 assertEquals(expectedPeriodCounts.get(label).intValue(), receivedPeriod.get(label).getCount());
-                assertEquals(expectedPeriodCards.get(label).intValue(), receivedPeriod.get(label).getCardinality().cardinality());
+                assertEquals(expectedPeriodCards.get(label).intValue(), receivedPeriod.get(label).getDistinctCount());
             }
         }
     }

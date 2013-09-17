@@ -27,58 +27,99 @@ import com.pearson.entech.elasticsearch.search.facet.approx.date.external.Distin
 import com.pearson.entech.elasticsearch.search.facet.approx.date.external.HasDistinct;
 import com.pearson.entech.elasticsearch.search.facet.approx.date.external.XContentEnabledList;
 
+/**
+ * The internal representation of a SlicedDistinctDateFacet, holding the reduce and
+ * materialize logic. This is only available on the server side, or via
+ * ElasticSearch's JVM transport -- i.e. it doesn't survive XContent serialization.
+ */
 public class InternalSlicedDistinctFacet
         extends DateFacet<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>>
         implements HasDistinct {
 
-    private ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> _counts;
-
-    private long _total;
-    private List<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> _periods;
-    private long _distinctCount;
-
-    private static final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> EMPTY = CacheRecycler.popLongObjectMap();
+    /**
+     * The facet type, as shown in the JSON returned.
+     */
     static final String TYPE = "sliced_distinct_date_facet";
-    private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
+    /**
+     * Stream handler for this facet type.
+     */
+    static Stream STREAM = new Stream() {
+        @Override
+        public Facet readFacet(final StreamInput in) throws IOException {
+            final InternalSlicedDistinctFacet facet = new InternalSlicedDistinctFacet();
+            facet.readFrom(in);
+            return facet;
+        }
+    };
+
+    /**
+     * Register the stream handler with ElasticSearch.
+     */
     public static void registerStreams() {
         Streams.registerStream(STREAM, STREAM_TYPE);
     }
 
-    static Stream STREAM = new Stream() {
-        @Override
-        public Facet readFacet(final StreamInput in) throws IOException {
-            return readHistogramFacet(in);
-        }
-    };
+    /**
+     * The stream type, used internally by ElasticSearch.
+     */
+    private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
-    public static InternalSlicedDistinctFacet readHistogramFacet(final StreamInput in) throws IOException {
-        final InternalSlicedDistinctFacet facet = new InternalSlicedDistinctFacet();
-        facet.readFrom(in);
-        return facet;
-    }
+    /**
+     * An empty sliced distinct counts map, shared between instances.
+     */
+    private static final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> EMPTY =
+            CacheRecycler.popLongObjectMap();
 
-    // Only for deserialization
+    /**
+     * Map from timestamps to slice labels to distinct counts.
+     */
+    private ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> _counts;
+
+    /**
+     * Total count across all slices and time periods.
+     */
+    private long _total;
+
+    /**
+     * Total distinct count across all slices and time periods.
+     */
+    private long _distinctCount;
+
+    /**
+     * List of time periods, only created in the materialize phase.
+     */
+    private List<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> _periods;
+
+    /**
+     * Empty constructor for deserialization only -- do not use.
+     */
     protected InternalSlicedDistinctFacet() {
         super("not set");
     }
 
-    public InternalSlicedDistinctFacet(final String facetName,
+    /**
+     * Create a new facet from an existing sliced distinct counts map.
+     * 
+     * @param name the name of this facet as supplied by the user
+     * @param counts the sliced distinct counts map
+     */
+    public InternalSlicedDistinctFacet(final String name,
             final ExtTLongObjectHashMap<ExtTHashMap<BytesRef, DistinctCountPayload>> counts) {
-        super(facetName);
+        super(name);
         _counts = counts;
-    }
-
-    @Override
-    public long getDistinctCount() {
-        materialize();
-        return _distinctCount;
     }
 
     @Override
     public long getTotalCount() {
         materialize();
         return _total;
+    }
+
+    @Override
+    public long getDistinctCount() {
+        materialize();
+        return _distinctCount;
     }
 
     @Override
@@ -151,8 +192,12 @@ public class InternalSlicedDistinctFacet
         }
     }
 
+    /**
+     * Prepare this facet for rendering, clearing any held data in the process.
+     */
     private synchronized void materialize() {
         if(_periods != null)
+            // This facet has been materialized already
             return;
         if(_counts == null || _counts.size() == 0) {
             _total = 0;
@@ -178,23 +223,36 @@ public class InternalSlicedDistinctFacet
 
     private final CacheReleaser _releaseCachedMaps = new CacheReleaser();
 
+    /**
+     * Operates on the elements of a distinct counts map,
+     * releasing all held data so it can be garbage collected.
+     */
     private static class CacheReleaser implements TObjectProcedure<ExtTHashMap<BytesRef, DistinctCountPayload>> {
+
         @Override
         public boolean execute(final ExtTHashMap<BytesRef, DistinctCountPayload> map) {
             CacheRecycler.pushHashMap(map);
             return true;
         }
+
     }
 
     private final TimePeriodMerger _mergePeriods = new TimePeriodMerger();
 
+    /**
+     * Performs merge operation over the elements of a sliced distinct counts map,
+     * updating the corresponding payloads in a target map.
+     */
     private static final class TimePeriodMerger implements TLongObjectProcedure<ExtTHashMap<BytesRef, DistinctCountPayload>> {
 
         InternalSlicedDistinctFacet target;
 
-        // Called once per period
         @Override
         public boolean execute(final long time, final ExtTHashMap<BytesRef, DistinctCountPayload> slices) {
+            // Called once per period:
+            // update the corresponding period in the target facet, slice by slice,
+            // or add it if it's not there already
+
             // Does this time period exist in the target facet?
             ExtTHashMap<BytesRef, DistinctCountPayload> targetPeriod = target._counts.get(time);
             // If not, then pull one from the object cache to use
@@ -212,13 +270,17 @@ public class InternalSlicedDistinctFacet
 
         private final SliceMerger _mergeSlices = new SliceMerger();
 
+        /**
+         * Performs merge operation over the slices in a time period,
+         * updating the corresponding payloads in a target map.
+         */
         private static final class SliceMerger implements TObjectObjectProcedure<BytesRef, DistinctCountPayload> {
 
             ExtTHashMap<BytesRef, DistinctCountPayload> target;
 
-            // Called once for each slice in a period
             @Override
             public boolean execute(final BytesRef sliceLabel, final DistinctCountPayload payload) {
+                // Called once for each slice in a period
                 payload.mergeInto(target, sliceLabel);
                 return true;
             }
@@ -229,19 +291,27 @@ public class InternalSlicedDistinctFacet
 
     private final PeriodMaterializer _materializePeriods = new PeriodMaterializer();
 
+    /**
+     * Performs materialize operation over a sliced distinct counts map, converting
+     * the counts into a list of TimePeriod objects. This list will
+     * be in the same order as the map entries were provided.
+     */
     private static final class PeriodMaterializer implements TLongObjectProcedure<ExtTHashMap<BytesRef, DistinctCountPayload>> {
 
         private List<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> _target;
         private DistinctCountPayload _accumulator;
 
-        public void init(final List<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> _periods) {
-            _target = _periods;
+        public void init(final List<DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>> periods) {
+            _target = periods;
             _accumulator = null;
         }
 
-        // Called once per time period
         @Override
         public boolean execute(final long time, final ExtTHashMap<BytesRef, DistinctCountPayload> period) {
+            // Called once per time period:
+            // materialize the slices in the supplied slice, then
+            // update the corresponding slice in the target facet, or add if not there
+
             // First create output buffer for the slices from this period
             final XContentEnabledList<DistinctSlice<String>> buffer =
                     new XContentEnabledList<DistinctSlice<String>>(period.size(), Constants.SLICES);
@@ -251,7 +321,7 @@ public class InternalSlicedDistinctFacet
             // Save materialization results, and period-wise subtotals
             final DistinctCountPayload periodAccumulator = _materializeSlices.getAccumulator();
             final long count = periodAccumulator.getCount();
-            final long cardinality = periodAccumulator.getCardinality().cardinality();
+            final long cardinality = periodAccumulator.getDistinctCount();
             _target.add(
                     new DistinctTimePeriod<XContentEnabledList<DistinctSlice<String>>>(
                             time, count, cardinality, buffer));
@@ -268,6 +338,10 @@ public class InternalSlicedDistinctFacet
             return true;
         }
 
+        /**
+         * Release any resources held by the procedure so they can
+         * be garbage-collected.
+         */
         public void clear() {
             _target = null;
             _accumulator = null;
@@ -276,6 +350,10 @@ public class InternalSlicedDistinctFacet
 
         private final SliceMaterializer _materializeSlices = new SliceMaterializer();
 
+        /**
+         * Performs materialize operation over the slices in a time period,
+         * updating the corresponding payloads in a target map.
+         */
         private static class SliceMaterializer implements TObjectObjectProcedure<BytesRef, DistinctCountPayload> {
 
             private List<DistinctSlice<String>> _target;
@@ -294,7 +372,7 @@ public class InternalSlicedDistinctFacet
             @Override
             public boolean execute(final BytesRef key, final DistinctCountPayload payload) {
                 _target.add(new DistinctSlice<String>(key.utf8ToString(),
-                        payload.getCount(), payload.getCardinality().cardinality()));
+                        payload.getCount(), payload.getDistinctCount()));
 
                 // Save the first payload we receive, and merge the others into it
                 if(_accumulator == null)
@@ -320,6 +398,10 @@ public class InternalSlicedDistinctFacet
 
     private final PeriodSerializer _serializePeriods = new PeriodSerializer();
 
+    /**
+     * Performs serialize operation over a sliced distinct counts map, writing
+     * the data to an ElasticSearch StreamOutput object.
+     */
     private static final class PeriodSerializer implements TLongObjectProcedure<ExtTHashMap<BytesRef, DistinctCountPayload>> {
 
         private StreamOutput _output;
@@ -342,6 +424,10 @@ public class InternalSlicedDistinctFacet
             return true;
         }
 
+        /**
+         * Release any resources held by the procedure so they can
+         * be garbage-collected.
+         */
         public void clear() {
             _output = null;
             _serializeSlices.clear();
@@ -370,6 +456,10 @@ public class InternalSlicedDistinctFacet
                 return true;
             }
 
+            /**
+             * Release any resources held by the procedure so they can
+             * be garbage-collected.
+             */
             public void clear() {
                 _output = null;
             }

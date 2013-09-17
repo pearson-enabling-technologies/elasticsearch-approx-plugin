@@ -19,39 +19,75 @@ import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DateFa
 import com.pearson.entech.elasticsearch.search.facet.approx.date.external.NullEntry;
 import com.pearson.entech.elasticsearch.search.facet.approx.date.external.TimePeriod;
 
+/**
+ * The internal representation of a standard DateFacet, holding the reduce and
+ * materialize logic. This is only available on the server side, or via
+ * ElasticSearch's JVM transport -- i.e. it doesn't survive XContent serialization.
+ */
 public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
 
-    private TLongIntHashMap _counts;
-
-    private long _total;
-    private List<TimePeriod<NullEntry>> _periods;
-
-    private static final TLongIntHashMap EMPTY = new TLongIntHashMap();
+    /**
+     * The facet type, as shown in the JSON returned.
+     */
     static final String TYPE = "counting_date_facet";
-    private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
+    /**
+     * Stream handler for this facet type.
+     */
+    static Stream STREAM = new Stream() {
+        @Override
+        public Facet readFacet(final StreamInput in) throws IOException {
+            final InternalCountingFacet facet = new InternalCountingFacet();
+            facet.readFrom(in);
+            return facet;
+        }
+    };
+
+    /**
+     * Register the stream handler with ElasticSearch.
+     */
     public static void registerStreams() {
         Streams.registerStream(STREAM, STREAM_TYPE);
     }
 
-    static Stream STREAM = new Stream() {
-        @Override
-        public Facet readFacet(final StreamInput in) throws IOException {
-            return readHistogramFacet(in);
-        }
-    };
+    /**
+     * The stream type, used internally by ElasticSearch.
+     */
+    private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
-    public static InternalCountingFacet readHistogramFacet(final StreamInput in) throws IOException {
-        final InternalCountingFacet facet = new InternalCountingFacet();
-        facet.readFrom(in);
-        return facet;
-    }
+    /**
+     * An empty counts map, shared between instances.
+     */
+    private static final TLongIntHashMap EMPTY = new TLongIntHashMap();
 
-    // Only for deserialization
+    /**
+     * Map from timestamps to counts.
+     */
+    private TLongIntHashMap _counts;
+
+    /**
+     * Total count across all time periods.
+     */
+    private long _total;
+
+    /**
+     * List of time periods, only created in the materialize phase.
+     */
+    private List<TimePeriod<NullEntry>> _periods;
+
+    /**
+     * Empty constructor for deserialization only -- do not use.
+     */
     protected InternalCountingFacet() {
         super("not set");
     }
 
+    /**
+     * Create a new facet from an existing counts map.
+     * 
+     * @param name the name of this facet as supplied by the user
+     * @param counts the counts map
+     */
     public InternalCountingFacet(final String name, final TLongIntHashMap counts) {
         super(name);
         _counts = counts;
@@ -128,8 +164,12 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
         }
     }
 
+    /**
+     * Prepare this facet for rendering, clearing any held data in the process.
+     */
     private synchronized void materialize() {
         if(_periods != null)
+            // This facet has been materialized already
             return;
         if(_counts == null || _counts.size() == 0) {
             _total = 0;
@@ -137,12 +177,11 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
             return;
         }
         _periods = newArrayListWithCapacity(_counts.size());
-        final long[] counter = { 0 };
-        _materializePeriod.init(_periods, counter);
+        _materializePeriod.init(_periods);
         _counts.forEachEntry(_materializePeriod);
+        _total = _materializePeriod.counter;
         _materializePeriod.clear();
         Collections.sort(_periods, ChronologicalOrder.INSTANCE);
-        _total = counter[0];
         releaseCache();
     }
 
@@ -153,14 +192,18 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
 
     private final PeriodMerger _mergePeriods = new PeriodMerger();
 
+    /**
+     * Performs merge operation over the elements of a counts map,
+     * adding/incrementing the corresponding values in a target map.
+     */
     private static final class PeriodMerger implements TLongIntProcedure {
 
         InternalCountingFacet target;
 
-        // Called once per period
         @Override
         public boolean execute(final long time, final int count) {
-            // Increment the corresponding count in the target facet, or add if not there
+            // Called once per time period:
+            // increment the corresponding count in the target facet, or add if not there
             target._counts.adjustOrPutValue(time, count, count);
             return true;
         }
@@ -169,24 +212,41 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
 
     private final PeriodMaterializer _materializePeriod = new PeriodMaterializer();
 
+    /**
+     * Performs materialize operation over a counts map, converting
+     * the counts into a list of TimePeriod objects. This list will
+     * be in the same order as the map entries were provided.
+     */
     private static final class PeriodMaterializer implements TLongIntProcedure {
 
         private List<TimePeriod<NullEntry>> _target;
-        private long[] _counter;
 
-        public void init(final List<TimePeriod<NullEntry>> periods, final long[] counter) {
+        long counter;
+
+        /**
+         * Initialize or reinitialize the procedure, providing a list
+         * to materialize the data into. The counter will be reset to 0.
+         * 
+         * @param periods the target list, should be empty
+         */
+        public void init(final List<TimePeriod<NullEntry>> periods) {
             _target = periods;
-            _counter = counter;
+            counter = 0;
         }
 
-        // Called once per period
         @Override
         public boolean execute(final long time, final int count) {
+            // Called once per period:
+            // create a TimePeriod representation of this count and save it
             _target.add(new TimePeriod<NullEntry>(time, count, NullEntry.INSTANCE));
-            _counter[0] = _counter[0] + count;
+            counter += count;
             return true;
         }
 
+        /**
+         * Release any resources held by the procedure so they can
+         * be garbage-collected.
+         */
         public void clear() {
             _target = null;
         }
@@ -195,10 +255,22 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
 
     private final Serializer _serialize = new Serializer();
 
+    /**
+     * Performs serialize operation over a counts map, writing
+     * the counts into an ElasticSearch StreamOutput object.
+     */
     private static final class Serializer implements TLongIntProcedure {
 
         private StreamOutput _output;
 
+        /**
+         * Initialize or reinitialize the procedure, providing a
+         * StreamOutput to write the data to.
+         * 
+         * @param output the StreamOutput
+         * @param size the number of counts to write
+         * @throws IOException
+         */
         public void init(final StreamOutput output, final int size) throws IOException {
             _output = output;
             output.writeVInt(size);
@@ -206,6 +278,8 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
 
         @Override
         public boolean execute(final long key, final int val) {
+            // Called once per period:
+            // write the timestamp and value to _output
             try {
                 _output.writeVLong(key);
                 _output.writeVInt(val);
@@ -215,6 +289,10 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
             return true;
         }
 
+        /**
+         * Release any resources held by the procedure so they can
+         * be garbage-collected.
+         */
         public void clear() {
             _output = null;
         }
