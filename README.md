@@ -19,6 +19,8 @@ Plugin 1.3.X: ElasticSearch 0.20.X, tested on 0.20.6
 
 Plugin 2.1.5: ElasticSearch 0.90.2, plus significant feature and performance improvements, and breaking API changes, compared to 1.3.X branch
 
+Plugin 2.1.6: ElasticSearch 0.90.2, added post/collector mode support, see below for details
+
 ElasticSearch 0.90.3 is not supported yet.
 
 **N.B.** If you are upgrading from a previous version to 2.1.X, please read the
@@ -183,8 +185,34 @@ Returns something like:
 ```
 
 **N.B.** The `use_field_data`/`read_from_cache` option from previous versions
-is no longer supported. The plugin now uses ElasticSearch's field data cache
-exclusively.
+is no longer supported. However, we now support a `mode` parameter that takes
+two alternative values, `"collector"` and `"post"`. In collector mode (the
+default), the plugin iterates over documents and retrieves the terms that
+appear in them. In post mode, the plugin iterates over terms from the
+Lucene index, only keeping those that appear in at least one document.
+
+The mode can be set as follows:
+
+```javascript
+{
+    "query": {
+        "match_all" : {}
+    },
+    "facets" : {
+        "term_list_facet" : {
+            "term_list" : {
+                "key_field" : "txt1",
+                "max_per_shard" : 100
+            },
+        "mode" : "post"
+        }
+    }
+}
+```
+
+Post mode is recommended when there are a small number of terms compared
+to the number of documents (low cardinality). The sample parameter is not
+supported in post mode.
 
 
 ## Building and testing
