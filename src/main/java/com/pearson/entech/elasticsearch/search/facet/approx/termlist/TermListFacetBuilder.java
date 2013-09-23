@@ -10,6 +10,7 @@ public class TermListFacetBuilder extends FacetBuilder {
     private String _fieldName;
     private int _maxPerShard = Constants.DEFAULT_MAX_PER_SHARD;
     private float _sample = Constants.DEFAULT_SAMPLE;
+    private String _mode;
 
     public TermListFacetBuilder(final String name) {
         super(name);
@@ -30,13 +31,20 @@ public class TermListFacetBuilder extends FacetBuilder {
         return this;
     }
 
+    public TermListFacetBuilder mode(final String mode) {
+        _mode = mode;
+        return this;
+    }
+
     @Override
     public XContentBuilder toXContent(final XContentBuilder builder, final Params params) throws IOException {
         builder.startObject(name);
         builder.startObject(TermListFacet.TYPE);
         builder.field("field", _fieldName);
+        builder.field("mode", _mode);
         builder.field("maxPerShard", _maxPerShard);
         builder.field("sample", _sample);
+
         //TODO add exclude?
         builder.endObject();
         addFilterFacetAndGlobal(builder, params);
