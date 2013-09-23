@@ -25,6 +25,8 @@ public class InternalStringTermListFacet extends InternalTermListFacet {
 
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(Strings.toUTF8Bytes("tTermList"));
 
+    private     Constants.FIELD_DATA_TYPE _dataType = Constants.FIELD_DATA_TYPE.UNDEFINED;
+
     private static final BytesRefHash EMPTY = new BytesRefHash();
     static {
         EMPTY.close();
@@ -47,9 +49,11 @@ public class InternalStringTermListFacet extends InternalTermListFacet {
         Streams.registerStream(STREAM, STREAM_TYPE);
     }
 
-    InternalStringTermListFacet(final String facetName, final BytesRefHash terms) {
+    InternalStringTermListFacet(final String facetName, final BytesRefHash terms, final Constants.FIELD_DATA_TYPE dataType) {
         super(facetName);
         _bytesRefs = terms;
+        _dataType = dataType;
+
     }
 
     static Stream STREAM = new Stream() {
@@ -102,12 +106,13 @@ public class InternalStringTermListFacet extends InternalTermListFacet {
             merge(hashes);
             return facets.get(0);
         } else {
-            return new InternalStringTermListFacet(getName(), EMPTY);
+            return new InternalStringTermListFacet(getName(), EMPTY, Constants.FIELD_DATA_TYPE.UNDEFINED);
         }
     }
 
     public static InternalStringTermListFacet readTermListFacet(final StreamInput in) throws IOException {
         final InternalStringTermListFacet facet = new InternalStringTermListFacet();
+
         facet.readFrom(in);
         return facet;
     }
@@ -128,7 +133,8 @@ public class InternalStringTermListFacet extends InternalTermListFacet {
     private synchronized void materialize() {
         if(_strings != null)
             return;
-        final AsStrings proc = new AsStrings(_bytesRefs.size());
+
+        final AsStrings proc = new AsStrings(_bytesRefs.size(), _dataType);
         process(_bytesRefs, proc);
         _strings = proc.getList();
         _bytesRefs = null;

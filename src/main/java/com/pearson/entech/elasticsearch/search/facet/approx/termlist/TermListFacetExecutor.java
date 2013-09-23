@@ -12,13 +12,17 @@ import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefHash;
+import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.common.lucene.docset.ContextDocIdSet;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.BytesValues.Iter;
 import org.elasticsearch.index.fielddata.IndexFieldData;
+import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
 import org.elasticsearch.search.facet.InternalFacet;
 import org.elasticsearch.search.internal.SearchContext;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.termlist.Constants.FIELD_DATA_TYPE;
 
 public class TermListFacetExecutor extends FacetExecutor {
 
@@ -28,6 +32,7 @@ public class TermListFacetExecutor extends FacetExecutor {
     private final String _facetName;
     private final float _sampleRate;
     private final boolean _exhaustive;
+    private Constants.FIELD_DATA_TYPE _type;
 
     private final IndexFieldData<?> _indexFieldData;
 
@@ -40,11 +45,28 @@ public class TermListFacetExecutor extends FacetExecutor {
         _exhaustive = _sampleRate > 0.995;
         _facetName = facetName;
         _indexFieldData = indexFieldData;
+        _type = getType();
+
+    }
+
+    private Constants.FIELD_DATA_TYPE getType() {
+        final boolean numericField = (_indexFieldData instanceof IndexNumericFieldData);
+        FIELD_DATA_TYPE type = FIELD_DATA_TYPE.STRING;
+        if(numericField) {
+            final IndexNumericFieldData<?> indexNumericFieldData = (IndexNumericFieldData<?>) _indexFieldData;
+            if(indexNumericFieldData.getNumericType() == IndexNumericFieldData.NumericType.LONG)
+                type = FIELD_DATA_TYPE.LONG;
+            if(indexNumericFieldData.getNumericType() == IndexNumericFieldData.NumericType.INT)
+                type = FIELD_DATA_TYPE.INT;
+        }
+        return type;
     }
 
     @Override
     public InternalFacet buildFacet(final String facetName) {
-        return new InternalStringTermListFacet(facetName, _entries);
+
+        _type = getType();
+        return new InternalStringTermListFacet(facetName, _entries, _type);
     }
 
     @Override
@@ -55,8 +77,22 @@ public class TermListFacetExecutor extends FacetExecutor {
     @Override
     public Post post() {
         // TODO would we need to implement filtering separately at this stage? From SearchContext?
-        //        return new PostExecutor(_indexFieldData.getFieldNames().name());
-        throw new UnsupportedOperationException("Post aggregation is not yet supported");
+
+        //check the data type of the field
+        //if it is numeric, get the type and pass the information to the PostExecutor
+        //otherwise, handle strings
+
+        final boolean numericField = (_indexFieldData instanceof IndexNumericFieldData);
+        FIELD_DATA_TYPE type = FIELD_DATA_TYPE.STRING;
+        if(numericField) {
+            final IndexNumericFieldData<?> indexNumericFieldData = (IndexNumericFieldData<?>) _indexFieldData;
+            if(indexNumericFieldData.getNumericType() == IndexNumericFieldData.NumericType.LONG)
+                type = FIELD_DATA_TYPE.LONG;
+            if(indexNumericFieldData.getNumericType() == IndexNumericFieldData.NumericType.INT)
+                type = FIELD_DATA_TYPE.INT;
+        }
+        return new PostExecutor(_indexFieldData.getFieldNames().name(), numericField, type);
+        //throw new UnsupportedOperationException("Post aggregation is not yet supported");
     }
 
     final class CollectorExecutor extends FacetExecutor.Collector {
@@ -93,7 +129,8 @@ public class TermListFacetExecutor extends FacetExecutor {
         }
 
         @Override
-        public void postCollection() {}
+        public void postCollection() {
+        }
 
     }
 
@@ -101,9 +138,13 @@ public class TermListFacetExecutor extends FacetExecutor {
     final class PostExecutor extends FacetExecutor.Post {
 
         private final String _fieldName;
+        private final boolean _numericField;
+        FIELD_DATA_TYPE _type;
 
-        public PostExecutor(final String fieldName) {
+        public PostExecutor(final String fieldName, final boolean numericField, final FIELD_DATA_TYPE type) {
             _fieldName = fieldName;
+            _numericField = numericField;
+            _type = type;
         }
 
         @Override
@@ -122,8 +163,23 @@ public class TermListFacetExecutor extends FacetExecutor {
                     docsEnum = termsEnum.docs(visibleDocs, docsEnum);
                     if(docsEnum.nextDoc() != DocsEnum.NO_MORE_DOCS) {
                         // We have a hit in at least one doc
-                        _entries.add(ref);
-                        //                        System.out.println("Added value " + ref);
+
+                        //check if we have a numeric field and then check ref.len to match with the type
+                        //otherwise it is string, treat as usual
+                        if(_numericField) {
+                            if(_type == FIELD_DATA_TYPE.LONG && ref.length == NumericUtils.BUF_SIZE_LONG)
+                            {
+                                _entries.add(ref);
+                            }
+                            else if(_type == FIELD_DATA_TYPE.INT && ref.length == NumericUtils.BUF_SIZE_INT)
+                            {
+                                _entries.add(ref);
+                            }
+                        }
+                        else {
+                            _entries.add(ref);
+                        }
+
                         if(_entries.size() == _maxPerShard)
                             return;
                     }

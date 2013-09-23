@@ -6,4 +6,19 @@ public interface Constants {
 
     float DEFAULT_SAMPLE = 1;
 
+    enum MODE {
+        COLLECTOR,
+        POST
+    }
+
+    enum FIELD_DATA_TYPE {
+        UNDEFINED,
+        INT,
+        LONG,
+        STRING
+    }
+
+    String COLLECTOR_MODE = "collector";
+    String POST_MODE = "post";
+
 }

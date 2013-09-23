@@ -8,8 +8,11 @@ import java.util.List;
 
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefHash;
+import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+
+import com.pearson.entech.elasticsearch.search.facet.approx.termlist.Constants;
 
 /**
  * Utilities for handling BytesRef objects and data structures containing them.
@@ -177,19 +180,34 @@ public class BytesRefUtils {
 
         private int _ptr;
 
+        private final Constants.FIELD_DATA_TYPE _dataType;
+
         /**
          * Create a new procedure to extract strings into an array of the given size.
          * 
          * @param size the number of elements to accomodate
          */
-        public AsStrings(final int size) {
+        public AsStrings(final int size, final Constants.FIELD_DATA_TYPE dataType) {
             _strings = new String[size];
             _ptr = 0;
+            _dataType = dataType;
+
         }
 
         @Override
         public void consume(final BytesRef ref) throws Exception {
-            _strings[_ptr++] = ref.utf8ToString();
+
+            String val;
+
+            if(ref.length == NumericUtils.BUF_SIZE_LONG && _dataType == Constants.FIELD_DATA_TYPE.LONG) {
+                val = Long.toString(NumericUtils.prefixCodedToLong(ref));
+            }
+            else if(ref.length == NumericUtils.BUF_SIZE_INT && _dataType == Constants.FIELD_DATA_TYPE.INT) {
+                val = Integer.toString(NumericUtils.prefixCodedToInt(ref));
+            } else
+                val = ref.utf8ToString();
+
+            _strings[_ptr++] = val;
         }
 
         /**

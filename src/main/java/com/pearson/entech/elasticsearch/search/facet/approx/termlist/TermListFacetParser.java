@@ -16,6 +16,8 @@ import org.elasticsearch.search.internal.SearchContext;
 
 public class TermListFacetParser extends AbstractComponent implements FacetParser {
 
+    private FacetExecutor.Mode _mode = FacetExecutor.Mode.COLLECTOR;
+
     // private final int ordinalsCacheAbove;
 
     @Inject
@@ -32,7 +34,7 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
 
     @Override
     public Mode defaultMainMode() {
-        return FacetExecutor.Mode.COLLECTOR;
+        return _mode; //FacetExecutor.Mode.POST;
 
     }
 
@@ -62,6 +64,14 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
                 } else if("sample".equals(fieldName)) {
                     sample = parser.floatValue();
                 }
+                else if("mode".equals(fieldName)) {
+                    final String modeValue = parser.text();
+                    if("post".equals(modeValue))
+                        _mode = FacetExecutor.Mode.POST;
+                    else
+                        _mode = FacetExecutor.Mode.COLLECTOR;
+                }
+
             }
         }
 
