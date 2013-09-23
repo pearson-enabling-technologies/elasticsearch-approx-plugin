@@ -134,6 +134,7 @@ public class InternalStringTermListFacet extends InternalTermListFacet {
         if(_strings != null)
             return;
 
+        // we need the tuple (datatype, ref.length) to handle the data
         final AsStrings proc = new AsStrings(_bytesRefs.size(), _dataType);
         process(_bytesRefs, proc);
         _strings = proc.getList();
