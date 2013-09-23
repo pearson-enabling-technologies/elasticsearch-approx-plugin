@@ -112,7 +112,7 @@ public class TermListFacetExecutor extends FacetExecutor {
             DocsEnum docsEnum = null;
             for(final ContextDocIdSet docSet : docSets) {
                 final AtomicReader reader = docSet.context.reader();
-                // TODO Do we need to filter out deleted docs? reader.getLiveDocs()
+                // TODO Ensure this filters out deleted docs correctly
                 final Bits visibleDocs = docSet.docSet.bits();
 
                 final Terms terms = reader.terms(_fieldName);
