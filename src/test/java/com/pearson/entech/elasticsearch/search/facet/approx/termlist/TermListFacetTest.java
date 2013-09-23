@@ -25,6 +25,7 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Client;
@@ -32,6 +33,7 @@ import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.node.Node;
+import org.elasticsearch.search.facet.FacetBuilder;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -184,7 +186,7 @@ public class TermListFacetTest {
 
     @Test
     public void testWithIntRandomDataPostMode() throws Exception {
-        testWithIntRandomData(Constants.COLLECTOR_MODE);
+        testWithIntRandomData(Constants.POST_MODE);
     }
 
     @Test
@@ -199,12 +201,21 @@ public class TermListFacetTest {
 
     @Test
     public void testAllFieldsWithRandomValuesSampled() throws Exception {
-        testAllFieldsWithRandomValues("Sampled", 0.1f);
+        testAllFieldsWithRandomValues("Sampled", 0.1f, Constants.COLLECTOR_MODE);
     }
 
     @Test
     public void testAllFieldsWithRandomValuesExhaustive() throws Exception {
-        testAllFieldsWithRandomValues("Exact", 1);
+        testAllFieldsWithRandomValues("Exact", 1, Constants.COLLECTOR_MODE);
+    }
+
+    @Test
+    public void testAllFieldsWithRandomValuesSampledPostMode() throws Exception {
+        try {
+            testAllFieldsWithRandomValues("Sampled", 0.1f, Constants.POST_MODE);
+        } catch(final Exception ex) {
+            assertTrue(ex instanceof SearchPhaseExecutionException);
+        }
     }
 
     // Helper methods
@@ -334,7 +345,7 @@ public class TermListFacetTest {
 
     }
 
-    private void testAllFieldsWithRandomValues(final String label, final float sample) throws Exception {
+    private void testAllFieldsWithRandomValues(final String label, final float sample, final String mode) throws Exception {
         final int numOfElements = 10000;// + _random.nextInt(100);
         final int numOfWords = 100;// + _random.nextInt(10);
         final List<String> words = generateRandomWords(numOfWords);
@@ -375,10 +386,10 @@ public class TermListFacetTest {
         clearMemory();
         final long start = System.currentTimeMillis();
         for(int i = 0; i < 2000; i++) {
-            response1 = getTermList(__txtField1, numOfElements, sample, Constants.COLLECTOR_MODE);
-            response2 = getTermList(__txtField2, numOfElements, sample, Constants.COLLECTOR_MODE);
-            response3 = getTermList(__intField1, numOfElements, sample, Constants.COLLECTOR_MODE);
-            response4 = getTermList(__longField1, numOfElements, sample, Constants.COLLECTOR_MODE);
+            response1 = getTermList(__txtField1, numOfElements, sample, mode);
+            response2 = getTermList(__txtField2, numOfElements, sample, mode);
+            response3 = getTermList(__intField1, numOfElements, sample, mode);
+            response4 = getTermList(__longField1, numOfElements, sample, mode);
         }
         System.out.println(label + " queries ran in " + (System.currentTimeMillis() - start) + " ms");
 
@@ -407,12 +418,13 @@ public class TermListFacetTest {
 
     private SearchResponse getTermList(final String valueField, final int maxPerShard, final float sample, final String mode) {
 
-        final TermListFacetBuilder facet =
+        final FacetBuilder facet =
                 new TermListFacetBuilder(__facetName)
                         .keyField(valueField)
                         .maxPerShard(maxPerShard)
-                        .mode(mode)
-                        .sample(sample);
+                        .sample(sample).mode(FacetBuilder.Mode.valueOf(mode.toUpperCase()));
+
+     
 
         return client().prepareSearch(__index)
                 .setSearchType(SearchType.COUNT)
