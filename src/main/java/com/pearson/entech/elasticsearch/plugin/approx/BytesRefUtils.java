@@ -197,17 +197,15 @@ public class BytesRefUtils {
         @Override
         public void consume(final BytesRef ref) throws Exception {
 
-            String val;
-
+            //check both ref length and data type before consuming the ref value
             if(ref.length == NumericUtils.BUF_SIZE_LONG && _dataType == Constants.FIELD_DATA_TYPE.LONG) {
-                val = Long.toString(NumericUtils.prefixCodedToLong(ref));
+                _strings[_ptr++] = Long.toString(NumericUtils.prefixCodedToLong(ref));
             }
             else if(ref.length == NumericUtils.BUF_SIZE_INT && _dataType == Constants.FIELD_DATA_TYPE.INT) {
-                val = Integer.toString(NumericUtils.prefixCodedToInt(ref));
+                _strings[_ptr++] = Integer.toString(NumericUtils.prefixCodedToInt(ref));
             } else
-                val = ref.utf8ToString();
+                _strings[_ptr++] = ref.utf8ToString();
 
-            _strings[_ptr++] = val;
         }
 
         /**

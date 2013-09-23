@@ -49,6 +49,11 @@ public class TermListFacetExecutor extends FacetExecutor {
 
     }
 
+    
+    /**
+     * gets the field data type from the _indexFieldData object 
+     * @return
+     */
     private Constants.FIELD_DATA_TYPE getType() {
         final boolean numericField = (_indexFieldData instanceof IndexNumericFieldData);
         FIELD_DATA_TYPE type = FIELD_DATA_TYPE.STRING;

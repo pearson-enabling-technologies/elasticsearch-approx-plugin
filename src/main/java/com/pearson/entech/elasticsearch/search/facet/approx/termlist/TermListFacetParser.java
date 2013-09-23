@@ -64,12 +64,13 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
                 } else if("sample".equals(fieldName)) {
                     sample = parser.floatValue();
                 }
-                else if("mode".equals(fieldName)) {
+                else if("mode".equals(fieldName)) {  //read "mode" field, possible values are "post", "collect"
                     final String modeValue = parser.text();
                     if("post".equals(modeValue))
                         _mode = FacetExecutor.Mode.POST;
-                    else
+                    else if( "collect".equals(modeValue))
                         _mode = FacetExecutor.Mode.COLLECTOR;
+                    else throw new FacetPhaseExecutionException(facetName, "[Invalid mode]");
                 }
 
             }
