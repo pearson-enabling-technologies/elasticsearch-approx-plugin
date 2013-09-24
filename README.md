@@ -17,10 +17,8 @@ Plugin < 1.3.0: ElasticSearch 0.19.X, tested on 0.19.11
 
 Plugin 1.3.X: ElasticSearch 0.20.X, tested on 0.20.6
 
-Plugin 2.1.5: ElasticSearch 0.90.2, plus significant feature and performance improvements, and breaking API changes, compared to 1.3.X branch
-
-Plugin 2.1.6: ElasticSearch 0.90.2, added post/collector mode support, see below for details
-
+Plugin 2.1.6: ElasticSearch 0.90.2, plus significant feature and performance improvements, and breaking API changes, compared to 1.3.X branch
+ 
 ElasticSearch 0.90.3 is not supported yet.
 
 **N.B.** If you are upgrading from a previous version to 2.1.X, please read the
