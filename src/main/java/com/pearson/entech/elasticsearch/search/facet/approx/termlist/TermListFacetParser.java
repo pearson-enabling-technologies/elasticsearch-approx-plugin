@@ -16,15 +16,10 @@ import org.elasticsearch.search.internal.SearchContext;
 
 public class TermListFacetParser extends AbstractComponent implements FacetParser {
 
-    private FacetExecutor.Mode _mode = FacetExecutor.Mode.COLLECTOR;
-
-    // private final int ordinalsCacheAbove;
-
     @Inject
     public TermListFacetParser(final Settings settings) {
         super(settings);
         InternalTermListFacet.registerStreams();
-        //this.ordinalsCacheAbove = componentSettings.getAsInt("ordinals_cache_above", 10000); // above 40k we want to cache
     }
 
     @Override
@@ -34,7 +29,7 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
 
     @Override
     public Mode defaultMainMode() {
-        return _mode; //FacetExecutor.Mode.POST;
+        return FacetExecutor.Mode.COLLECTOR;
 
     }
 
@@ -64,14 +59,6 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
                 } else if("sample".equals(fieldName)) {
                     sample = parser.floatValue();
                 }
-                else if("mode".equals(fieldName)) {  //read "mode" field, possible values are "post", "collect"
-                    final String modeValue = parser.text();
-                    if("post".equals(modeValue))
-                        _mode = FacetExecutor.Mode.POST;
-                    else if( "collect".equals(modeValue))
-                        _mode = FacetExecutor.Mode.COLLECTOR;
-                    else throw new FacetPhaseExecutionException(facetName, "[Invalid mode]");
-                }
 
             }
         }
@@ -89,17 +76,7 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
         }
 
         final IndexFieldData<?> indexFieldData = context.fieldData().getForField(mapper);
-        /*
-        if(indexFieldData instanceof IndexNumericFieldData) {
-            final IndexNumericFieldData<?> indexNumericFieldData = (IndexNumericFieldData<?>) indexFieldData;
-            if(indexNumericFieldData.getNumericType().isFloatingPoint()) {
-                System.out.println("floating point field");
-            }
-            else {
-               System.out.println("numeric fields");
-            }
-        }*/
+
         return new TermListFacetExecutor(context, indexFieldData, facetName, maxPerShard, sample);
     }
-
 }

@@ -19,6 +19,7 @@ import org.elasticsearch.index.fielddata.BytesValues.Iter;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.search.facet.FacetExecutor;
+import org.elasticsearch.search.facet.FacetPhaseExecutionException;
 import org.elasticsearch.search.facet.InternalFacet;
 import org.elasticsearch.search.internal.SearchContext;
 
@@ -147,6 +148,9 @@ public class TermListFacetExecutor extends FacetExecutor {
         FIELD_DATA_TYPE _type;
 
         public PostExecutor(final String fieldName, final boolean numericField, final FIELD_DATA_TYPE type) {
+            if(_sampleRate != 1.0){
+                throw new FacetPhaseExecutionException(_facetName, "[sample] is not supported in post mode");
+            }
             _fieldName = fieldName;
             _numericField = numericField;
             _type = type;

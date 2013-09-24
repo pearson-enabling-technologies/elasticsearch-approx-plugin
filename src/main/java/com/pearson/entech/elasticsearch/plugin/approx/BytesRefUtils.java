@@ -185,7 +185,7 @@ public class BytesRefUtils {
         /**
          * Create a new procedure to extract strings into an array of the given size.
          * 
-         * @param size the number of elements to accomodate
+         * @param size the number of elements to accommodate
          */
         public AsStrings(final int size, final Constants.FIELD_DATA_TYPE dataType) {
             _strings = new String[size];
@@ -204,8 +204,7 @@ public class BytesRefUtils {
             else if(ref.length == NumericUtils.BUF_SIZE_INT && _dataType == Constants.FIELD_DATA_TYPE.INT) {
                 _strings[_ptr++] = Integer.toString(NumericUtils.prefixCodedToInt(ref));
             } else
-                _strings[_ptr++] = ref.utf8ToString();
-
+                _strings[_ptr++] = ref.utf8ToString(); 
         }
 
         /**
