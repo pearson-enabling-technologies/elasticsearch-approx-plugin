@@ -1,3 +1,8 @@
+Release 2.1.6
+-------------
+Added post/collector mode support for termlist plugin
+
+
 Release 2.1.5
 -------------
 
