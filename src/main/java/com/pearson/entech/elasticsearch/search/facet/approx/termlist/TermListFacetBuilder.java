@@ -36,8 +36,8 @@ public class TermListFacetBuilder extends FacetBuilder {
         builder.startObject(TermListFacet.TYPE);
         builder.field("field", _fieldName);
         builder.field("maxPerShard", _maxPerShard);
+
         builder.field("sample", _sample);
-        //TODO add exclude?
         builder.endObject();
         addFilterFacetAndGlobal(builder, params);
         builder.endObject();

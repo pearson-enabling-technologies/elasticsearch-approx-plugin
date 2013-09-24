@@ -8,7 +8,7 @@
                 "key_field" : "txt1",
                 "max_per_shard" : 100
             },
-            "mode":"collector"
+            "mode":"post"
         }
     }
 }

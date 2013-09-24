@@ -16,13 +16,10 @@ import org.elasticsearch.search.internal.SearchContext;
 
 public class TermListFacetParser extends AbstractComponent implements FacetParser {
 
-    // private final int ordinalsCacheAbove;
-
     @Inject
     public TermListFacetParser(final Settings settings) {
         super(settings);
         InternalTermListFacet.registerStreams();
-        //this.ordinalsCacheAbove = componentSettings.getAsInt("ordinals_cache_above", 10000); // above 40k we want to cache
     }
 
     @Override
@@ -62,6 +59,7 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
                 } else if("sample".equals(fieldName)) {
                     sample = parser.floatValue();
                 }
+
             }
         }
 
@@ -78,17 +76,7 @@ public class TermListFacetParser extends AbstractComponent implements FacetParse
         }
 
         final IndexFieldData<?> indexFieldData = context.fieldData().getForField(mapper);
-        /*
-        if(indexFieldData instanceof IndexNumericFieldData) {
-            final IndexNumericFieldData<?> indexNumericFieldData = (IndexNumericFieldData<?>) indexFieldData;
-            if(indexNumericFieldData.getNumericType().isFloatingPoint()) {
-                System.out.println("floating point field");
-            }
-            else {
-               System.out.println("numeric fields");
-            }
-        }*/
+
         return new TermListFacetExecutor(context, indexFieldData, facetName, maxPerShard, sample);
     }
-
 }
