@@ -8,6 +8,8 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<elasticsearch.version>0.90.2</elasticsearch.version>
+		<test.dataDir>src/test/resources/data</test.dataDir>
+		<test.randomIters>20</test.randomIters>
 	</properties>
 
 	<profiles>
@@ -53,6 +55,10 @@
 					<argLine>-Xms4g -Xmx4g</argLine>
 					<testFailureIgnore>false</testFailureIgnore>
 					<skip>false</skip>
+					<systemPropertyVariables>
+						<test.dataDir>${test.dataDir}</test.dataDir>
+						<test.randomIters>${test.randomIters}</test.randomIters>
+					</systemPropertyVariables>
 				</configuration>
 			</plugin>
 			<plugin>

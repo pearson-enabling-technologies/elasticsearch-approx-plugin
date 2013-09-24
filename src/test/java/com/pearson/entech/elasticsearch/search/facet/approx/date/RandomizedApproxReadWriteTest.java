@@ -476,8 +476,8 @@ public class RandomizedApproxReadWriteTest {
 
     @Test
     public void testRandomizedWithManyItemsOnDayBucket() throws Exception {
-
-        for(int t = 1; t <= 20; t++) {
+        final int iters = Integer.parseInt(System.getProperty("test.randomIters"));
+        for(int t = 1; t <= iters; t++) {
             setUp();
             final int minPerDay = (int) pow(2, t);
             System.out.println("Randomized testing: inserting minimum " + 7 * minPerDay + " items");

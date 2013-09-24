@@ -26,7 +26,7 @@ public abstract class MediumDataSetTest {
 
     protected static Node __node;
 
-    protected final static String _dataDir = "src/test/resources/data";
+    protected final static String _dataDir = System.getProperty("test.dataDir");
 
     protected final String _index = "testtable_20130506";
 

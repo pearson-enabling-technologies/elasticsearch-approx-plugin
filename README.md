@@ -204,11 +204,18 @@ of ElasticSearch index data from here:
 https://pearson.app.box.com/s/uvsz0gv8rhgex0aacc2u
 
 Download `MediumDataSetTest.tar.bz2` and unpack it in `src/test/resources/data`.
+Or unpack it somewhere else, and pass in an alternative location for the
+containing directory in the `test.dataDir` property, e.g.:
+
+`mvn clean test -Dtest.dataDir=/tmp/es-test-data`
 
 The tests use quite a lot of memory and take several minutes to run. This is
-because they use several iterations of randomly generated data and queries, in
-order to verify the accuracy of the approximate counts in the date histogram,
-among other things. One run puts over a million distinct values in each bucket.
+because one of them uses 20 iterations of randomly generated data and queries,
+to verify the accuracy of the approximate counts in the date histogram.
+One run puts over a million distinct values in each bucket. You can run fewer
+(or more) iterations like so:
+
+`mvn clean test -Dtest.randomIters=10`
 
 If you get any out-of-memory errors, you'll need to raise the amount of memory
 you allocate to the mvn process. From the command line, the pom takes care of
