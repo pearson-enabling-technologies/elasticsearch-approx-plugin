@@ -13,9 +13,9 @@ import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
-import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
+import org.elasticsearch.common.trove.map.hash.TObjectLongHashMap;
 import org.elasticsearch.common.trove.procedure.TLongObjectProcedure;
-import org.elasticsearch.common.trove.procedure.TObjectIntProcedure;
+import org.elasticsearch.common.trove.procedure.TObjectLongProcedure;
 import org.elasticsearch.common.trove.procedure.TObjectProcedure;
 import org.elasticsearch.search.facet.Facet;
 
@@ -27,12 +27,12 @@ import com.pearson.entech.elasticsearch.search.facet.approx.date.external.XConte
 
 public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledList<Slice<String>>>> {
 
-    private ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
+    private ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> _counts;
 
     private long _total;
     private List<TimePeriod<XContentEnabledList<Slice<String>>>> _periods;
 
-    private static final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> EMPTY = new ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>>();
+    private static final ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> EMPTY = new ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>>();
     static final String TYPE = "sliced_date_facet";
     private static final BytesReference STREAM_TYPE = new HashedBytesArray(TYPE.getBytes());
 
@@ -58,7 +58,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
         super("not set");
     }
 
-    public InternalSlicedFacet(final String facetName, final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> counts) {
+    public InternalSlicedFacet(final String facetName, final ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> counts) {
         super(facetName);
         _counts = counts;
     }
@@ -87,7 +87,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
     @SuppressWarnings("unchecked")
     @Override
-    protected ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> peekCounts() {
+    protected ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> peekCounts() {
         return _counts;
     }
 
@@ -97,8 +97,8 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
         final int size = in.readVInt();
         for(int i = 0; i < size; i++) {
             final long key = in.readVLong();
-            final int sliceCount = in.readVInt();
-            final TObjectIntHashMap<BytesRef> slice = CacheRecycler.popObjectIntMap();
+            final long sliceCount = in.readVLong();
+            final TObjectLongHashMap<BytesRef> slice = new TObjectLongHashMap<BytesRef>(); // no CacheRecycler for these
             for(int j = 0; j < sliceCount; j++) {
                 final BytesRef sliceLabel = in.readBytesRef();
                 slice.put(sliceLabel, in.readVInt());
@@ -158,10 +158,10 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
     @Override
     protected void releaseCache() {
-        _counts.forEachValue(new TObjectProcedure<TObjectIntHashMap<BytesRef>>() {
+        _counts.forEachValue(new TObjectProcedure<TObjectLongHashMap<BytesRef>>() {
             @Override
-            public boolean execute(final TObjectIntHashMap<BytesRef> subMap) {
-                CacheRecycler.pushObjectIntMap(subMap);
+            public boolean execute(final TObjectLongHashMap<BytesRef> subMap) {
+                subMap.clear(); // no CacheRecycler for these
                 return true;
             }
         });
@@ -170,18 +170,18 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
     private final PeriodMerger _mergePeriods = new PeriodMerger();
 
-    private static final class PeriodMerger implements TLongObjectProcedure<TObjectIntHashMap<BytesRef>> {
+    private static final class PeriodMerger implements TLongObjectProcedure<TObjectLongHashMap<BytesRef>> {
 
         InternalSlicedFacet target;
 
         // Called once per period
         @Override
-        public boolean execute(final long time, final TObjectIntHashMap<BytesRef> slices) {
+        public boolean execute(final long time, final TObjectLongHashMap<BytesRef> slices) {
             // Does this time period exist in the target facet?
-            TObjectIntHashMap<BytesRef> targetPeriod = target._counts.get(time);
+            TObjectLongHashMap<BytesRef> targetPeriod = target._counts.get(time);
             // If not, then pull one from the object cache to use
             if(targetPeriod == null) {
-                targetPeriod = CacheRecycler.popObjectIntMap();
+                targetPeriod = new TObjectLongHashMap<BytesRef>(); // no CacheRecycler for these
                 target._counts.put(time, targetPeriod);
             }
 
@@ -194,13 +194,13 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
         private final SliceMerger _mergeSlices = new SliceMerger();
 
-        private static final class SliceMerger implements TObjectIntProcedure<BytesRef> {
+        private static final class SliceMerger implements TObjectLongProcedure<BytesRef> {
 
-            TObjectIntHashMap<BytesRef> target;
+            TObjectLongHashMap<BytesRef> target;
 
             // Called once for each slice in a period
             @Override
-            public boolean execute(final BytesRef sliceLabel, final int count) {
+            public boolean execute(final BytesRef sliceLabel, final long count) {
                 // Add or update count for this slice label
                 target.adjustOrPutValue(sliceLabel, count, count);
                 return true;
@@ -212,7 +212,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
     private final PeriodMaterializer _materializePeriods = new PeriodMaterializer();
 
-    private static final class PeriodMaterializer implements TLongObjectProcedure<TObjectIntHashMap<BytesRef>> {
+    private static final class PeriodMaterializer implements TLongObjectProcedure<TObjectLongHashMap<BytesRef>> {
 
         private List<TimePeriod<XContentEnabledList<Slice<String>>>> _target;
         private long[] _totalCounter;
@@ -226,7 +226,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
         // Called once per time period
         @Override
-        public boolean execute(final long time, final TObjectIntHashMap<BytesRef> period) {
+        public boolean execute(final long time, final TObjectLongHashMap<BytesRef> period) {
             // First create _output buffer for the slices from this period
             final XContentEnabledList<Slice<String>> buffer =
                     new XContentEnabledList<Slice<String>>(period.size(), Constants.SLICES);
@@ -251,7 +251,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
         private final SliceMaterializer _materializeSlices = new SliceMaterializer();
 
-        private static final class SliceMaterializer implements TObjectIntProcedure<BytesRef> {
+        private static final class SliceMaterializer implements TObjectLongProcedure<BytesRef> {
 
             private List<Slice<String>> _target;
             private long[] _counter;
@@ -263,7 +263,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
             // Called once for each slice in a period
             @Override
-            public boolean execute(final BytesRef key, final int count) {
+            public boolean execute(final BytesRef key, final long count) {
                 _target.add(new Slice<String>(key.utf8ToString(), count));
                 _counter[0] += count;
                 return true;
@@ -279,7 +279,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
     private final PeriodSerializer _serializePeriods = new PeriodSerializer();
 
-    private static final class PeriodSerializer implements TLongObjectProcedure<TObjectIntHashMap<BytesRef>> {
+    private static final class PeriodSerializer implements TLongObjectProcedure<TObjectLongHashMap<BytesRef>> {
 
         private StreamOutput _output;
 
@@ -290,7 +290,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
         // Called once per time period
         @Override
-        public boolean execute(final long key, final TObjectIntHashMap<BytesRef> period) {
+        public boolean execute(final long key, final TObjectLongHashMap<BytesRef> period) {
             try {
                 _output.writeVLong(key);
                 _serializeSlices.init(_output, period.size());
@@ -308,7 +308,7 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
         private final SliceSerializer _serializeSlices = new SliceSerializer();
 
-        private static final class SliceSerializer implements TObjectIntProcedure<BytesRef> {
+        private static final class SliceSerializer implements TObjectLongProcedure<BytesRef> {
 
             private StreamOutput _output;
 
@@ -319,10 +319,10 @@ public class InternalSlicedFacet extends DateFacet<TimePeriod<XContentEnabledLis
 
             // Called once for each slice in a period
             @Override
-            public boolean execute(final BytesRef sliceLabel, final int count) {
+            public boolean execute(final BytesRef sliceLabel, final long count) {
                 try {
                     _output.writeBytesRef(sliceLabel);
-                    _output.writeVInt(count);
+                    _output.writeVLong(count);
                 } catch(final IOException e) {
                     throw new IllegalStateException(e);
                 }

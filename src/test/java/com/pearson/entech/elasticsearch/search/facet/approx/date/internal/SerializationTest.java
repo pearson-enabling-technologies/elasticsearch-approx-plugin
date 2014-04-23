@@ -13,7 +13,7 @@ import org.elasticsearch.common.io.stream.BytesStreamInput;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
-import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
+import org.elasticsearch.common.trove.map.hash.TLongLongHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
 import org.elasticsearch.search.facet.InternalFacet;
 import org.junit.Test;
@@ -22,29 +22,29 @@ public class SerializationTest {
 
     @Test
     public void testSerializingEmptyCountingFacet() throws Exception {
-        final TLongIntHashMap counts = CacheRecycler.popLongIntMap();
+        final TLongLongHashMap counts = CacheRecycler.popLongLongMap();
         testSerializingCountingFacet(counts);
     }
 
     @Test
     public void testSerializingNonEmptyCountingFacet() throws Exception {
-        final TLongIntHashMap counts = CacheRecycler.popLongIntMap();
+        final TLongLongHashMap counts = CacheRecycler.popLongLongMap();
         counts.put(1, 2);
         counts.put(11, 22);
         testSerializingCountingFacet(counts);
     }
 
-    private void testSerializingCountingFacet(final TLongIntHashMap counts) throws Exception {
-        final TLongIntHashMap sentCounts = new TLongIntHashMap(counts);
+    private void testSerializingCountingFacet(final TLongLongHashMap counts) throws Exception {
+        final TLongLongHashMap sentCounts = new TLongLongHashMap(counts);
         final InternalCountingFacet toSend = new InternalCountingFacet("foo", sentCounts);
         final InternalCountingFacet toReceive = new InternalCountingFacet();
         serializeAndDeserialize(toSend, toReceive);
-        final TLongIntHashMap receivedCounts = new TLongIntHashMap(toReceive.peekCounts());
+        final TLongLongHashMap receivedCounts = new TLongLongHashMap(toReceive.peekCounts());
         // Check against original counts as sentCounts may have been recycled
         compareCounts(counts, receivedCounts);
     }
 
-    private void compareCounts(final TLongIntHashMap sentCounts, final TLongIntHashMap receivedCounts) {
+    private void compareCounts(final TLongLongHashMap sentCounts, final TLongLongHashMap receivedCounts) {
         assertEquals(sentCounts.size(), receivedCounts.size());
         for(final long key : sentCounts.keys()) {
             assertTrue(receivedCounts.containsKey(key));

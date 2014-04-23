@@ -11,8 +11,9 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
-import org.elasticsearch.common.trove.procedure.TLongIntProcedure;
+import org.elasticsearch.common.trove.map.TLongLongMap;
+import org.elasticsearch.common.trove.map.hash.TLongLongHashMap;
+import org.elasticsearch.common.trove.procedure.TLongLongProcedure;
 import org.elasticsearch.search.facet.Facet;
 
 import com.pearson.entech.elasticsearch.search.facet.approx.date.external.DateFacet;
@@ -58,12 +59,12 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
     /**
      * An empty counts map, shared between instances.
      */
-    private static final TLongIntHashMap EMPTY = new TLongIntHashMap();
+    private static final TLongLongMap EMPTY = new TLongLongHashMap();
 
     /**
      * Map from timestamps to counts.
      */
-    private TLongIntHashMap _counts;
+    private TLongLongMap _counts;
 
     /**
      * Total count across all time periods.
@@ -88,7 +89,7 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
      * @param name the name of this facet as supplied by the user
      * @param counts the counts map
      */
-    public InternalCountingFacet(final String name, final TLongIntHashMap counts) {
+    public InternalCountingFacet(final String name, final TLongLongMap counts) {
         super(name);
         _counts = counts;
     }
@@ -117,17 +118,17 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected TLongIntHashMap peekCounts() {
+    protected TLongLongMap peekCounts() {
         return _counts;
     }
 
     @Override
     protected void readData(final StreamInput in) throws IOException {
-        _counts = CacheRecycler.popLongIntMap();
+        _counts = CacheRecycler.popLongLongMap();
         final int size = in.readVInt();
         for(int i = 0; i < size; i++) {
             final long key = in.readVLong();
-            final int val = in.readVInt();
+            final long val = in.readVLong();
             _counts.put(key, val);
         }
     }
@@ -187,7 +188,7 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
 
     @Override
     protected void releaseCache() {
-        CacheRecycler.pushLongIntMap(_counts);
+        CacheRecycler.pushLongLongMap((TLongLongHashMap) _counts);
     }
 
     private final PeriodMerger _mergePeriods = new PeriodMerger();
@@ -196,12 +197,12 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
      * Performs merge operation over the elements of a counts map,
      * adding/incrementing the corresponding values in a target map.
      */
-    private static final class PeriodMerger implements TLongIntProcedure {
+    private static final class PeriodMerger implements TLongLongProcedure {
 
         InternalCountingFacet target;
 
         @Override
-        public boolean execute(final long time, final int count) {
+        public boolean execute(final long time, final long count) {
             // Called once per time period:
             // increment the corresponding count in the target facet, or add if not there
             target._counts.adjustOrPutValue(time, count, count);
@@ -217,7 +218,7 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
      * the counts into a list of TimePeriod objects. This list will
      * be in the same order as the map entries were provided.
      */
-    private static final class PeriodMaterializer implements TLongIntProcedure {
+    private static final class PeriodMaterializer implements TLongLongProcedure {
 
         private List<TimePeriod<NullEntry>> _target;
 
@@ -235,7 +236,7 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
         }
 
         @Override
-        public boolean execute(final long time, final int count) {
+        public boolean execute(final long time, final long count) {
             // Called once per period:
             // create a TimePeriod representation of this count and save it
             _target.add(new TimePeriod<NullEntry>(time, count, NullEntry.INSTANCE));
@@ -259,7 +260,7 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
      * Performs serialize operation over a counts map, writing
      * the counts into an ElasticSearch StreamOutput object.
      */
-    private static final class Serializer implements TLongIntProcedure {
+    private static final class Serializer implements TLongLongProcedure {
 
         private StreamOutput _output;
 
@@ -277,12 +278,12 @@ public class InternalCountingFacet extends DateFacet<TimePeriod<NullEntry>> {
         }
 
         @Override
-        public boolean execute(final long key, final int val) {
+        public boolean execute(final long key, final long val) {
             // Called once per period:
             // write the timestamp and value to _output
             try {
                 _output.writeVLong(key);
-                _output.writeVInt(val);
+                _output.writeVLong(val);
             } catch(final IOException e) {
                 throw new IllegalStateException(e);
             }

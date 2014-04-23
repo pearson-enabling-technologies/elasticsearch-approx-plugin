@@ -8,7 +8,7 @@ import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.map.TLongObjectMap;
-import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
+import org.elasticsearch.common.trove.map.hash.TObjectLongHashMap;
 import org.elasticsearch.index.fielddata.AtomicFieldData;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.IndexFieldData;
@@ -40,7 +40,7 @@ public class SlicedCollector<V extends AtomicFieldData<? extends ScriptDocValues
     /**
      * A nested map from timestamps to slice labels to counts.  
      */
-    private ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> _counts;
+    private ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> _counts;
 
     /**
      * Create a new Collector.
@@ -141,11 +141,11 @@ public class SlicedCollector<V extends AtomicFieldData<? extends ScriptDocValues
      * @param key the timestamp required
      * @param unsafe a BytesRef holding the newly-seen slice label -- this will be made safe automatically
      */
-    private void incrementSafely(final TLongObjectMap<TObjectIntHashMap<BytesRef>> counts,
+    private void incrementSafely(final TLongObjectMap<TObjectLongHashMap<BytesRef>> counts,
             final long key, final BytesRef unsafe) {
-        TObjectIntHashMap<BytesRef> subMap = counts.get(key);
+        TObjectLongHashMap<BytesRef> subMap = counts.get(key);
         if(subMap == null) {
-            subMap = CacheRecycler.popObjectIntMap();
+            subMap = new TObjectLongHashMap<BytesRef>(); // no CacheRecycler for these
             counts.put(key, subMap);
         }
         final BytesRef safe = BytesRef.deepCopyOf(unsafe);

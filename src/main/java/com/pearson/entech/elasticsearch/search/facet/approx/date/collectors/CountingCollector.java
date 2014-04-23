@@ -5,7 +5,7 @@ import java.io.IOException;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.joda.TimeZoneRounding;
-import org.elasticsearch.common.trove.map.hash.TLongIntHashMap;
+import org.elasticsearch.common.trove.map.TLongLongMap;
 import org.elasticsearch.index.fielddata.AtomicFieldData;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.ScriptDocValues;
@@ -24,7 +24,7 @@ public class CountingCollector<V extends AtomicFieldData<? extends ScriptDocValu
     /**
      * A map from timestamps to counts.
      */
-    private TLongIntHashMap _counts;
+    private TLongLongMap _counts;
 
     /**
      * Create a new collector.
@@ -36,7 +36,7 @@ public class CountingCollector<V extends AtomicFieldData<? extends ScriptDocValu
     public CountingCollector(final LongArrayIndexFieldData keyFieldData,
             final IndexFieldData<V> valueFieldData, final TimeZoneRounding tzRounding) {
         super(keyFieldData, valueFieldData, tzRounding);
-        _counts = CacheRecycler.popLongIntMap();
+        _counts = CacheRecycler.popLongLongMap();
     }
 
     /**
@@ -48,7 +48,7 @@ public class CountingCollector<V extends AtomicFieldData<? extends ScriptDocValu
     public CountingCollector(final LongArrayIndexFieldData keyFieldData,
             final TimeZoneRounding tzRounding) {
         super(keyFieldData, tzRounding);
-        _counts = CacheRecycler.popLongIntMap();
+        _counts = CacheRecycler.popLongLongMap();
     }
 
     @Override
