@@ -15,6 +15,7 @@ import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.trove.map.hash.TLongLongHashMap;
 import org.elasticsearch.common.trove.map.hash.TObjectIntHashMap;
+import org.elasticsearch.common.trove.map.hash.TObjectLongHashMap;
 import org.elasticsearch.search.facet.InternalFacet;
 import org.junit.Test;
 
@@ -207,43 +208,43 @@ public class SerializationTest {
 
     @Test
     public void testSerializingEmptySlicedFacet() throws Exception {
-        final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> counts = CacheRecycler.popLongObjectMap();
+        final ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> counts = CacheRecycler.popLongObjectMap();
         testSerializingSlicedFacet(counts);
     }
 
     @Test
     public void testSerializingNonEmptySlicedFacet() throws Exception {
-        final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> counts = CacheRecycler.popLongObjectMap();
+        final ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> counts = CacheRecycler.popLongObjectMap();
         final BytesRef label1 = new BytesRef("itchy");
         final BytesRef label2 = new BytesRef("scratchy");
-        final TObjectIntHashMap<BytesRef> period1 = CacheRecycler.popObjectIntMap();
+        final TObjectLongHashMap<BytesRef> period1 = new TObjectLongHashMap<BytesRef>();
         period1.put(label1, 1);
         period1.put(label2, 2);
         counts.put(1, period1);
-        final TObjectIntHashMap<BytesRef> period2 = CacheRecycler.popObjectIntMap();
+        final TObjectLongHashMap<BytesRef> period2 = new TObjectLongHashMap<BytesRef>();
         period2.put(label1, 3);
         period2.put(label1, 4);
         counts.put(2, period2);
         testSerializingSlicedFacet(counts);
     }
 
-    private void testSerializingSlicedFacet(final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> counts) throws Exception {
-        final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> sentCounts =
+    private void testSerializingSlicedFacet(final ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> counts) throws Exception {
+        final ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> sentCounts =
                 deepCopySliced(counts);
         final InternalSlicedFacet toSend = new InternalSlicedFacet("qux", sentCounts);
         final InternalSlicedFacet toReceive = new InternalSlicedFacet();
         serializeAndDeserialize(toSend, toReceive);
-        final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> receivedCounts =
-                new ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>>(toReceive.peekCounts());
+        final ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> receivedCounts =
+                new ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>>(toReceive.peekCounts());
         // Check against original counts as sentCounts may have been recycled
         compareSlicedCounts(counts, receivedCounts);
     }
 
-    private ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> deepCopySliced(final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> counts) {
-        final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> output =
-                new ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>>();
+    private ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> deepCopySliced(final ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> counts) {
+        final ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> output =
+                new ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>>();
         for(final long key : counts.keys()) {
-            output.put(key, new TObjectIntHashMap<BytesRef>());
+            output.put(key, new TObjectLongHashMap<BytesRef>());
             for(final BytesRef br : counts.get(key).keySet()) {
                 output.get(key).put(BytesRef.deepCopyOf(br), counts.get(key).get(br));
             }
@@ -251,18 +252,18 @@ public class SerializationTest {
         return output;
     }
 
-    private void compareSlicedCounts(final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> sentCounts,
-            final ExtTLongObjectHashMap<TObjectIntHashMap<BytesRef>> receivedCounts) {
+    private void compareSlicedCounts(final ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> sentCounts,
+            final ExtTLongObjectHashMap<TObjectLongHashMap<BytesRef>> receivedCounts) {
         assertEquals(sentCounts.size(), receivedCounts.size());
         for(final long key : sentCounts.keys()) {
             assertTrue(receivedCounts.containsKey(key));
-            final TObjectIntHashMap<BytesRef> sentSlice = sentCounts.get(key);
-            final TObjectIntHashMap<BytesRef> receivedSlice = receivedCounts.get(key);
+            final TObjectLongHashMap<BytesRef> sentSlice = sentCounts.get(key);
+            final TObjectLongHashMap<BytesRef> receivedSlice = receivedCounts.get(key);
             assertEquals(sentSlice.size(), receivedSlice.size());
             for(final BytesRef label : sentSlice.keySet()) {
                 assertTrue(receivedSlice.containsKey(label));
-                final int sentCount = sentSlice.get(label);
-                final int receivedCount = receivedSlice.get(label);
+                final long sentCount = sentSlice.get(label);
+                final long receivedCount = receivedSlice.get(label);
                 assertEquals(sentCount, receivedCount);
             }
         }
