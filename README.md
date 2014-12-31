@@ -10,6 +10,13 @@ This work is inspired in part by
 [elasticsearch-ls-plugins](https://github.com/lovelysystems/elasticsearch-ls-plugins)
 by Lovely Systems -- some of their code has been reused here.
 
+## This plugin is no longer supported
+
+Recent versions of Elasticsearch now include [cardinality estimation using HyperLogLog](http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/search-aggregations-metrics-cardinality-aggregation.html) out of the box -- this can be combined with the [date histogram aggregation](http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/search-aggregations-bucket-datehistogram-aggregation.html) to achieve similar functionality to that which is provided by this plugin.
+
+They also provide [many more ways](http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/search-aggregations-bucket-terms-aggregation.html) of controlling the performance tradeoffs involved in term aggregation.
+
+This project has been left here largely for educational reasons.
 
 ## Version compatibility
 
