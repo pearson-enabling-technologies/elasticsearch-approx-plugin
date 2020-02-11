@@ -120,7 +120,7 @@
 		</repository>
 		<repository>
 			<id>codehaus-snapshots</id>
-			<url>http://snapshots.repository.codehaus.org</url>
+			<url>https://snapshots.repository.codehaus.org</url>
 		</repository>
 	</repositories>
 </project>
